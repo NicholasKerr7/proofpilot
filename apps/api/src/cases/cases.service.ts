@@ -137,31 +137,7 @@ export class CasesService {
           orderBy: { createdAt: "desc" },
           take: 20
         },
-        checklist: {
-          orderBy: { createdAt: "asc" },
-          select: {
-            id: true,
-            label: true,
-            description: true,
-            status: true,
-            updatedAt: true,
-            matches: {
-              orderBy: { confidence: "desc" },
-              take: 3,
-              select: {
-                id: true,
-                confidence: true,
-                rationale: true,
-                document: {
-                  select: {
-                    id: true,
-                    originalName: true
-                  }
-                }
-              }
-            }
-          }
-        },
+        checklist: this.getChecklistSelect(),
         events: this.getTimelineSelect(),
         _count: {
           select: {
@@ -315,6 +291,15 @@ export class CasesService {
     });
 
     return this.get(ownerId, caseId);
+  }
+
+  async listChecklist(ownerId: string, caseId: string) {
+    await this.assertCaseOwnership(ownerId, caseId);
+
+    return this.prisma.caseChecklistItem.findMany({
+      where: { caseId },
+      ...this.getChecklistSelect()
+    });
   }
 
   async analyzeChecklist(ownerId: string, caseId: string) {
@@ -766,6 +751,38 @@ export class CasesService {
       sources: {
         select: {
           id: true,
+          document: {
+            select: {
+              id: true,
+              originalName: true
+            }
+          }
+        }
+      }
+    };
+  }
+
+  private getChecklistSelect() {
+    return {
+      orderBy: { createdAt: "asc" as const },
+      select: this.getChecklistItemSelect()
+    };
+  }
+
+  private getChecklistItemSelect() {
+    return {
+      id: true,
+      label: true,
+      description: true,
+      status: true,
+      updatedAt: true,
+      matches: {
+        orderBy: { confidence: "desc" as const },
+        take: 3,
+        select: {
+          id: true,
+          confidence: true,
+          rationale: true,
           document: {
             select: {
               id: true,

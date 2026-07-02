@@ -1,16 +1,14 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { CheckCircle2, Clock3, RefreshCcw } from "lucide-react";
+import { useCallback } from "react";
+import { ChecklistPanel } from "@/components/app/checklist-panel";
 import { EvidencePanel } from "@/components/app/evidence/evidence-panel";
 import { PacketExportPanel } from "@/components/app/packet-export-panel";
 import { StatementBuilder } from "@/components/app/statement-builder";
 import { TimelinePanel } from "@/components/app/timeline-panel";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { apiRequest } from "@/lib/client/api";
 import type { CaseRecord } from "@/lib/client/types";
 
 interface CaseWorkspaceProps {
@@ -18,21 +16,7 @@ interface CaseWorkspaceProps {
   selectedCase: CaseRecord | null;
 }
 
-const checklistPlaceholders = [
-  "Closure or restriction screenshot",
-  "Support conversation",
-  "Account ownership proof",
-  "Transaction or activity context"
-];
-
-type ChecklistNotice = {
-  tone: "success" | "error";
-  text: string;
-};
-
 export function CaseWorkspace({ onCaseChanged, selectedCase }: CaseWorkspaceProps) {
-  const [isAnalyzingChecklist, setIsAnalyzingChecklist] = useState(false);
-  const [checklistNotice, setChecklistNotice] = useState<ChecklistNotice | null>(null);
   const selectedCaseId = selectedCase?.id ?? null;
   const handleDocumentsChanged = useCallback(async () => {
     if (selectedCaseId) {
@@ -56,43 +40,6 @@ export function CaseWorkspace({ onCaseChanged, selectedCase }: CaseWorkspaceProp
     );
   }
 
-  async function handleAnalyzeChecklist() {
-    if (!selectedCase) {
-      return;
-    }
-
-    setIsAnalyzingChecklist(true);
-    setChecklistNotice(null);
-
-    try {
-      await apiRequest(`/api/cases/${selectedCase.id}/checklist/analyze`, {
-        method: "POST"
-      });
-      await onCaseChanged(selectedCase.id);
-      setChecklistNotice({
-        tone: "success",
-        text: "Checklist refreshed from processed evidence."
-      });
-    } catch (error) {
-      setChecklistNotice({
-        tone: "error",
-        text: error instanceof Error ? error.message : "Checklist analysis failed."
-      });
-    } finally {
-      setIsAnalyzingChecklist(false);
-    }
-  }
-
-  const checklistItems = selectedCase.checklist?.length
-    ? selectedCase.checklist
-    : checklistPlaceholders.map((label) => ({
-        id: label,
-        label,
-        description: "Upload and process evidence to analyze this requirement.",
-        matches: [],
-        status: "MISSING",
-        updatedAt: ""
-      }));
   const readiness = getReadiness(selectedCase);
 
   return (
@@ -123,70 +70,7 @@ export function CaseWorkspace({ onCaseChanged, selectedCase }: CaseWorkspaceProp
       </div>
 
       <aside className="grid gap-5">
-        <Card>
-          <CardHeader>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <CardTitle>Evidence checklist</CardTitle>
-                <CardDescription>Core requirements for an account appeal packet.</CardDescription>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  void handleAnalyzeChecklist();
-                }}
-                disabled={isAnalyzingChecklist}
-              >
-                <RefreshCcw className="h-4 w-4" />
-                {isAnalyzingChecklist ? "Analyzing..." : "Analyze evidence"}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="grid gap-3">
-            {checklistNotice ? (
-              <p
-                className={
-                  checklistNotice.tone === "success"
-                    ? "rounded-md border border-teal-400/30 bg-teal-400/10 px-3 py-2 text-sm text-teal-100"
-                    : "rounded-md border border-red-400/30 bg-red-400/10 px-3 py-2 text-sm text-red-100"
-                }
-              >
-                {checklistNotice.text}
-              </p>
-            ) : null}
-
-            {checklistItems.map((checklistItem) => {
-              const firstMatch = checklistItem.matches?.[0];
-              return (
-                <div
-                  key={checklistItem.id}
-                  className="flex items-start justify-between gap-3 rounded-md border border-border bg-secondary/45 px-3 py-3"
-                >
-                  <span className="flex min-w-0 items-start gap-2 text-sm">
-                    {isChecklistReady(checklistItem.status) ? (
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
-                    ) : (
-                      <Clock3 className="h-4 w-4 shrink-0 text-primary" />
-                    )}
-                    <span className="min-w-0">
-                      <span className="block truncate">{checklistItem.label}</span>
-                      <span className="mt-1 block truncate text-xs text-muted-foreground">
-                        {firstMatch
-                          ? `Matched ${firstMatch.document.originalName}`
-                          : checklistItem.description}
-                      </span>
-                    </span>
-                  </span>
-                  <Badge variant={getChecklistStatusVariant(checklistItem.status)}>
-                    {formatChecklistStatus(checklistItem.status)}
-                  </Badge>
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
+        <ChecklistPanel selectedCase={selectedCase} onCaseChanged={onCaseChanged} />
 
         <StatementBuilder onCaseChanged={onCaseChanged} selectedCase={selectedCase} />
 
@@ -200,28 +84,8 @@ export function CaseWorkspace({ onCaseChanged, selectedCase }: CaseWorkspaceProp
   );
 }
 
-function formatChecklistStatus(status: string) {
-  return status
-    .toLowerCase()
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
 function isChecklistReady(status: string) {
   return status === "FOUND" || status === "COMPLETE";
-}
-
-function getChecklistStatusVariant(status: string) {
-  if (isChecklistReady(status)) {
-    return "success";
-  }
-
-  if (status === "OPTIONAL") {
-    return "secondary";
-  }
-
-  return "warning";
 }
 
 function getReadiness(caseRecord: CaseRecord) {

@@ -50,6 +50,11 @@ export class CasesController {
     return this.casesService.analyzeTimeline(user.id, id);
   }
 
+  @Get(":id/checklist")
+  listChecklist(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+    return this.casesService.listChecklist(user.id, id);
+  }
+
   @Post(":id/checklist/analyze")
   analyzeChecklist(@CurrentUser() user: RequestUser, @Param("id") id: string) {
     return this.casesService.analyzeChecklist(user.id, id);

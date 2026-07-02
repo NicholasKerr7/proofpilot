@@ -21,6 +21,7 @@
 - `GET /cases/:id`
 - `PATCH /cases/:id`
 - `DELETE /cases/:id`
+- `GET /cases/:caseId/checklist`
 - `POST /cases/:caseId/checklist/analyze`
 - `GET /cases/:caseId/timeline`
 - `POST /cases/:caseId/timeline`
@@ -37,4 +38,3 @@
 - `GET /cases/:caseId/documents`
 - `GET /documents/:documentId`
 - `POST /documents/:documentId/reprocess`
-- `GET /cases/:caseId/checklist`
