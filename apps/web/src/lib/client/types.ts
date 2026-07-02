@@ -30,6 +30,26 @@ export interface CaseRecord {
   };
 }
 
+export interface EvidenceDocument {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  byteSize: number;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDocumentResponse {
+  document: EvidenceDocument;
+  upload: {
+    method: "PUT";
+    url: string;
+    headers: Record<string, string>;
+    expiresInSeconds: number;
+  };
+}
+
 export interface ChecklistItem {
   id: string;
   label: string;

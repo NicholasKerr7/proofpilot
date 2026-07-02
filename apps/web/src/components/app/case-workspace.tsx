@@ -1,6 +1,7 @@
 "use client";
 
-import { CalendarClock, CheckCircle2, Clock3, FileArchive, FileText, UploadCloud } from "lucide-react";
+import { CalendarClock, CheckCircle2, Clock3, FileArchive, FileText } from "lucide-react";
+import { EvidencePanel } from "@/components/app/evidence/evidence-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { CaseRecord } from "@/lib/client/types";
 
 interface CaseWorkspaceProps {
+  onCaseChanged: (caseId: string) => Promise<unknown>;
   selectedCase: CaseRecord | null;
 }
 
@@ -27,7 +29,7 @@ const checklistPlaceholders = [
   "Transaction or activity context"
 ];
 
-export function CaseWorkspace({ selectedCase }: CaseWorkspaceProps) {
+export function CaseWorkspace({ onCaseChanged, selectedCase }: CaseWorkspaceProps) {
   if (!selectedCase) {
     return (
       <Card>
@@ -62,28 +64,12 @@ export function CaseWorkspace({ selectedCase }: CaseWorkspaceProps) {
         </Card>
 
         <div className="grid gap-5 xl:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Evidence intake</CardTitle>
-              <CardDescription>Upload support files for this case.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <div className="grid min-h-44 place-items-center rounded-lg border border-dashed border-primary/45 bg-primary/10 p-5 text-center">
-                <div>
-                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-md bg-primary/20 text-primary">
-                    <UploadCloud className="h-6 w-6" />
-                  </div>
-                  <p className="font-semibold">Evidence upload is next</p>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    Sprint 2 will connect file validation, private storage, and processing jobs.
-                  </p>
-                </div>
-              </div>
-              <div className="rounded-md border border-border bg-secondary/45 px-3 py-2 text-sm text-muted-foreground">
-                {selectedCase._count?.documents ?? 0} files currently linked
-              </div>
-            </CardContent>
-          </Card>
+          <EvidencePanel
+            selectedCase={selectedCase}
+            onDocumentsChanged={async () => {
+              await onCaseChanged(selectedCase.id);
+            }}
+          />
 
           <Card>
             <CardHeader>

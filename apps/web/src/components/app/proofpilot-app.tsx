@@ -236,7 +236,7 @@ export function ProofPilotApp() {
             onSelectCase={handleSelectCase}
             selectedCaseId={selectedCase?.id ?? null}
           />
-          <CaseWorkspace selectedCase={selectedCase} />
+          <CaseWorkspace onCaseChanged={loadCaseDetail} selectedCase={selectedCase} />
         </div>
         <CreateCaseForm
           caseTypes={caseTypes}
