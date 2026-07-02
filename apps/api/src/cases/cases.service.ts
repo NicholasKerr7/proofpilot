@@ -8,6 +8,7 @@ import { generateCasePacketPdf } from "./case-packet-pdf.js";
 import { generateAppealStatement } from "./case-statement-generation.js";
 import { analyzeTimelineEvidence } from "./case-timeline-analysis.js";
 import type { CreateCaseDto } from "./dto/create-case.dto.js";
+import type { CreateTimelineEventDto } from "./dto/create-timeline-event.dto.js";
 import type { SaveStatementDto } from "./dto/save-statement.dto.js";
 import type { UpdateCaseDto } from "./dto/update-case.dto.js";
 
@@ -187,6 +188,45 @@ export class CasesService {
     return this.prisma.caseEvent.findMany({
       where: { caseId },
       ...this.getTimelineSelect()
+    });
+  }
+
+  async createTimelineEvent(ownerId: string, caseId: string, input: CreateTimelineEventDto) {
+    await this.assertCaseOwnership(ownerId, caseId);
+
+    const title = input.title.trim();
+    const description = input.description?.trim();
+
+    if (!title) {
+      throw new BadRequestException("Timeline event title is required.");
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const event = await tx.caseEvent.create({
+        data: {
+          caseId,
+          occurredAt: new Date(input.occurredAt),
+          title,
+          ...(description ? { description } : {}),
+          confidence: null
+        },
+        select: this.getTimelineEventSelect()
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: ownerId,
+          caseId,
+          action: "case.timeline_event_created",
+          metadata: {
+            eventId: event.id,
+            occurredAt: event.occurredAt.toISOString(),
+            title
+          }
+        }
+      });
+
+      return event;
     });
   }
 
@@ -710,22 +750,26 @@ export class CasesService {
   private getTimelineSelect() {
     return {
       orderBy: { occurredAt: "asc" as const },
-      select: {
-        id: true,
-        occurredAt: true,
-        title: true,
-        description: true,
-        confidence: true,
-        createdAt: true,
-        updatedAt: true,
-        sources: {
-          select: {
-            id: true,
-            document: {
-              select: {
-                id: true,
-                originalName: true
-              }
+      select: this.getTimelineEventSelect()
+    };
+  }
+
+  private getTimelineEventSelect() {
+    return {
+      id: true,
+      occurredAt: true,
+      title: true,
+      description: true,
+      confidence: true,
+      createdAt: true,
+      updatedAt: true,
+      sources: {
+        select: {
+          id: true,
+          document: {
+            select: {
+              id: true,
+              originalName: true
             }
           }
         }

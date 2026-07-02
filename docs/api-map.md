@@ -23,6 +23,7 @@
 - `DELETE /cases/:id`
 - `POST /cases/:caseId/checklist/analyze`
 - `GET /cases/:caseId/timeline`
+- `POST /cases/:caseId/timeline`
 - `POST /cases/:caseId/timeline/analyze`
 - `GET /cases/:caseId/statement`
 - `PUT /cases/:caseId/statement`
@@ -36,5 +37,4 @@
 - `GET /cases/:caseId/documents`
 - `GET /documents/:documentId`
 - `POST /documents/:documentId/reprocess`
-- `POST /cases/:caseId/timeline`
 - `GET /cases/:caseId/checklist`

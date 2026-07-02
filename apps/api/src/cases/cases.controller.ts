@@ -5,6 +5,7 @@ import { JwtAuthGuard } from "../common/guards/jwt-auth.guard.js";
 import type { RequestUser } from "../common/types/request-user.js";
 import { CasesService } from "./cases.service.js";
 import { CreateCaseDto } from "./dto/create-case.dto.js";
+import { CreateTimelineEventDto } from "./dto/create-timeline-event.dto.js";
 import { SaveStatementDto } from "./dto/save-statement.dto.js";
 import { UpdateCaseDto } from "./dto/update-case.dto.js";
 
@@ -33,6 +34,15 @@ export class CasesController {
   @Get(":id/timeline")
   listTimeline(@CurrentUser() user: RequestUser, @Param("id") id: string) {
     return this.casesService.listTimeline(user.id, id);
+  }
+
+  @Post(":id/timeline")
+  createTimelineEvent(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Body() input: CreateTimelineEventDto
+  ) {
+    return this.casesService.createTimelineEvent(user.id, id, input);
   }
 
   @Post(":id/timeline/analyze")

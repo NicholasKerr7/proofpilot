@@ -5,6 +5,7 @@ import { CheckCircle2, Clock3, RefreshCcw } from "lucide-react";
 import { EvidencePanel } from "@/components/app/evidence/evidence-panel";
 import { PacketExportPanel } from "@/components/app/packet-export-panel";
 import { StatementBuilder } from "@/components/app/statement-builder";
+import { TimelinePanel } from "@/components/app/timeline-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,12 +17,6 @@ interface CaseWorkspaceProps {
   onCaseChanged: (caseId: string) => Promise<unknown>;
   selectedCase: CaseRecord | null;
 }
-
-const timelinePlaceholders = [
-  "Account action notice received",
-  "Support ticket or appeal submitted",
-  "Platform response received"
-];
 
 const checklistPlaceholders = [
   "Closure or restriction screenshot",
@@ -37,9 +32,7 @@ type ChecklistNotice = {
 
 export function CaseWorkspace({ onCaseChanged, selectedCase }: CaseWorkspaceProps) {
   const [isAnalyzingChecklist, setIsAnalyzingChecklist] = useState(false);
-  const [isAnalyzingTimeline, setIsAnalyzingTimeline] = useState(false);
   const [checklistNotice, setChecklistNotice] = useState<ChecklistNotice | null>(null);
-  const [timelineNotice, setTimelineNotice] = useState<ChecklistNotice | null>(null);
   const selectedCaseId = selectedCase?.id ?? null;
   const handleDocumentsChanged = useCallback(async () => {
     if (selectedCaseId) {
@@ -90,33 +83,6 @@ export function CaseWorkspace({ onCaseChanged, selectedCase }: CaseWorkspaceProp
     }
   }
 
-  async function handleAnalyzeTimeline() {
-    if (!selectedCase) {
-      return;
-    }
-
-    setIsAnalyzingTimeline(true);
-    setTimelineNotice(null);
-
-    try {
-      await apiRequest(`/api/cases/${selectedCase.id}/timeline/analyze`, {
-        method: "POST"
-      });
-      await onCaseChanged(selectedCase.id);
-      setTimelineNotice({
-        tone: "success",
-        text: "Timeline refreshed from processed evidence."
-      });
-    } catch (error) {
-      setTimelineNotice({
-        tone: "error",
-        text: error instanceof Error ? error.message : "Timeline analysis failed."
-      });
-    } finally {
-      setIsAnalyzingTimeline(false);
-    }
-  }
-
   const checklistItems = selectedCase.checklist?.length
     ? selectedCase.checklist
     : checklistPlaceholders.map((label) => ({
@@ -152,83 +118,7 @@ export function CaseWorkspace({ onCaseChanged, selectedCase }: CaseWorkspaceProp
             onDocumentsChanged={handleDocumentsChanged}
           />
 
-          <Card>
-            <CardHeader>
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <CardTitle>Timeline</CardTitle>
-                  <CardDescription>Chronology generated from processed evidence.</CardDescription>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    void handleAnalyzeTimeline();
-                  }}
-                  disabled={isAnalyzingTimeline}
-                >
-                  <RefreshCcw className="h-4 w-4" />
-                  {isAnalyzingTimeline ? "Analyzing..." : "Analyze timeline"}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              {timelineNotice ? (
-                <p
-                  className={
-                    timelineNotice.tone === "success"
-                      ? "rounded-md border border-teal-400/30 bg-teal-400/10 px-3 py-2 text-sm text-teal-100"
-                      : "rounded-md border border-red-400/30 bg-red-400/10 px-3 py-2 text-sm text-red-100"
-                  }
-                >
-                  {timelineNotice.text}
-                </p>
-              ) : null}
-
-              {selectedCase.events?.length ? (
-                selectedCase.events.map((event) => {
-                  const source = event.sources[0]?.document.originalName;
-
-                  return (
-                    <div key={event.id} className="grid grid-cols-[96px_1fr] gap-3">
-                      <div className="text-xs font-medium text-muted-foreground">
-                        {formatTimelineDate(event.occurredAt)}
-                      </div>
-                      <div className="border-l border-border pl-4">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="text-sm font-semibold">{event.title}</p>
-                          {event.confidence ? (
-                            <Badge variant="secondary">{Math.round(event.confidence * 100)}%</Badge>
-                          ) : null}
-                        </div>
-                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                          {event.description ?? "Generated from processed evidence."}
-                        </p>
-                        {source ? (
-                          <p className="mt-2 truncate text-xs text-muted-foreground">
-                            Source: {source}
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                timelinePlaceholders.map((item, index) => (
-                  <div key={item} className="grid grid-cols-[96px_1fr] gap-3">
-                    <div className="text-xs font-medium text-muted-foreground">Step {index + 1}</div>
-                    <div className="border-l border-border pl-4">
-                      <p className="text-sm font-semibold">{item}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Waiting for processed evidence
-                      </p>
-                    </div>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+          <TimelinePanel selectedCase={selectedCase} onCaseChanged={onCaseChanged} />
         </div>
       </div>
 
@@ -316,14 +206,6 @@ function formatChecklistStatus(status: string) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
-}
-
-function formatTimelineDate(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric"
-  }).format(new Date(value));
 }
 
 function isChecklistReady(status: string) {

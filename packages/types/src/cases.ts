@@ -56,6 +56,12 @@ export const saveStatementSchema = z.object({
   content: z.string().trim().min(1).max(12000)
 });
 
+export const createTimelineEventSchema = z.object({
+  occurredAt: z.coerce.date(),
+  title: z.string().trim().min(3).max(160),
+  description: z.string().trim().max(2000).optional()
+});
+
 export type CaseStatus = (typeof caseStatuses)[number];
 export type DocumentStatus = (typeof documentStatuses)[number];
 export type PacketStatus = (typeof packetStatuses)[number];
@@ -63,6 +69,7 @@ export type ChecklistStatus = (typeof checklistStatuses)[number];
 export type CreateCaseInput = z.infer<typeof createCaseSchema>;
 export type UpdateCaseInput = z.infer<typeof updateCaseSchema>;
 export type SaveStatementInput = z.infer<typeof saveStatementSchema>;
+export type CreateTimelineEventInput = z.infer<typeof createTimelineEventSchema>;
 
 export interface CaseSummary {
   id: string;

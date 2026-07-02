@@ -51,6 +51,12 @@ export interface CaseEventSource {
   };
 }
 
+export interface CreateTimelineEventPayload {
+  occurredAt: string;
+  title: string;
+  description?: string;
+}
+
 export interface EvidenceDocument {
   id: string;
   originalName: string;
