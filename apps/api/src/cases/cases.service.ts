@@ -1,9 +1,11 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { CaseStatus, ChecklistStatus, DocumentStatus, Prisma } from "@proofpilot/database";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { analyzeChecklistEvidence } from "./case-checklist-analysis.js";
+import { generateAppealStatement } from "./case-statement-generation.js";
 import { analyzeTimelineEvidence } from "./case-timeline-analysis.js";
 import type { CreateCaseDto } from "./dto/create-case.dto.js";
+import type { SaveStatementDto } from "./dto/save-statement.dto.js";
 import type { UpdateCaseDto } from "./dto/update-case.dto.js";
 
 @Injectable()
@@ -74,7 +76,8 @@ export class CasesService {
             select: {
               documents: true,
               events: true,
-              checklist: true
+              checklist: true,
+              statements: true
             }
           }
         }
@@ -95,7 +98,8 @@ export class CasesService {
           select: {
             documents: true,
             events: true,
-            checklist: true
+            checklist: true,
+            statements: true
           }
         }
       }
@@ -146,6 +150,7 @@ export class CasesService {
             documents: true,
             events: true,
             checklist: true,
+            statements: true,
             packets: true
           }
         }
@@ -380,6 +385,69 @@ export class CasesService {
     return this.get(ownerId, caseId);
   }
 
+  async getStatement(ownerId: string, caseId: string) {
+    await this.assertCaseOwnership(ownerId, caseId);
+
+    const statement = await this.prisma.caseStatement.findFirst({
+      where: { caseId },
+      orderBy: { updatedAt: "desc" },
+      select: this.getStatementSelect()
+    });
+
+    return { statement };
+  }
+
+  async saveStatement(ownerId: string, caseId: string, input: SaveStatementDto) {
+    await this.assertCaseOwnership(ownerId, caseId);
+    return this.upsertStatementDraft(ownerId, caseId, input.content, "case.statement_saved");
+  }
+
+  async generateStatement(ownerId: string, caseId: string) {
+    const foundCase = await this.prisma.case.findFirst({
+      where: {
+        id: caseId,
+        ownerId,
+        archivedAt: null
+      },
+      select: {
+        id: true,
+        title: true,
+        platform: true,
+        summary: true,
+        deadline: true,
+        checklist: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            label: true,
+            status: true
+          }
+        },
+        documents: {
+          orderBy: { createdAt: "desc" },
+          select: {
+            originalName: true,
+            status: true
+          }
+        },
+        events: {
+          orderBy: { occurredAt: "asc" },
+          select: {
+            occurredAt: true,
+            title: true,
+            description: true
+          }
+        }
+      }
+    });
+
+    if (!foundCase) {
+      throw new NotFoundException("Case not found.");
+    }
+
+    const content = generateAppealStatement(foundCase);
+    return this.upsertStatementDraft(ownerId, caseId, content, "case.statement_generated");
+  }
+
   async update(ownerId: string, caseId: string, input: UpdateCaseDto) {
     await this.assertCaseOwnership(ownerId, caseId);
     const data: Prisma.CaseUpdateInput = {};
@@ -498,6 +566,102 @@ export class CasesService {
         }
       }
     };
+  }
+
+  private getStatementSelect() {
+    return {
+      id: true,
+      caseId: true,
+      content: true,
+      createdAt: true,
+      updatedAt: true,
+      versions: {
+        orderBy: { version: "desc" as const },
+        select: {
+          id: true,
+          content: true,
+          version: true,
+          createdAt: true
+        },
+        take: 5
+      }
+    };
+  }
+
+  private async upsertStatementDraft(
+    ownerId: string,
+    caseId: string,
+    rawContent: string,
+    action: "case.statement_generated" | "case.statement_saved"
+  ) {
+    const content = rawContent.trim();
+
+    if (!content) {
+      throw new BadRequestException("Statement content is required.");
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const existingStatement = await tx.caseStatement.findFirst({
+        where: { caseId },
+        orderBy: { updatedAt: "desc" },
+        select: { id: true }
+      });
+
+      const statement = existingStatement
+        ? await this.updateStatementWithVersion(tx, existingStatement.id, content)
+        : await tx.caseStatement.create({
+            data: {
+              caseId,
+              content,
+              versions: {
+                create: {
+                  content,
+                  version: 1
+                }
+              }
+            },
+            select: this.getStatementSelect()
+          });
+
+      await tx.auditLog.create({
+        data: {
+          userId: ownerId,
+          caseId,
+          action,
+          metadata: {
+            statementId: statement.id,
+            version: statement.versions[0]?.version ?? 1
+          }
+        }
+      });
+
+      return statement;
+    });
+  }
+
+  private async updateStatementWithVersion(
+    tx: Prisma.TransactionClient,
+    statementId: string,
+    content: string
+  ) {
+    const latestVersion = await tx.statementVersion.aggregate({
+      where: { statementId },
+      _max: { version: true }
+    });
+
+    return tx.caseStatement.update({
+      where: { id: statementId },
+      data: {
+        content,
+        versions: {
+          create: {
+            content,
+            version: (latestVersion._max.version ?? 0) + 1
+          }
+        }
+      },
+      select: this.getStatementSelect()
+    });
   }
 
   private toUpdateAuditMetadata(input: UpdateCaseDto) {

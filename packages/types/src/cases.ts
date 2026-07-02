@@ -52,12 +52,17 @@ export const updateCaseSchema = z.object({
   status: z.enum(caseStatuses).optional()
 });
 
+export const saveStatementSchema = z.object({
+  content: z.string().trim().min(1).max(12000)
+});
+
 export type CaseStatus = (typeof caseStatuses)[number];
 export type DocumentStatus = (typeof documentStatuses)[number];
 export type PacketStatus = (typeof packetStatuses)[number];
 export type ChecklistStatus = (typeof checklistStatuses)[number];
 export type CreateCaseInput = z.infer<typeof createCaseSchema>;
 export type UpdateCaseInput = z.infer<typeof updateCaseSchema>;
+export type SaveStatementInput = z.infer<typeof saveStatementSchema>;
 
 export interface CaseSummary {
   id: string;
@@ -68,4 +73,20 @@ export interface CaseSummary {
   deadline: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface StatementVersionSummary {
+  id: string;
+  content: string;
+  version: number;
+  createdAt: string;
+}
+
+export interface CaseStatementSummary {
+  id: string;
+  caseId: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  versions: StatementVersionSummary[];
 }

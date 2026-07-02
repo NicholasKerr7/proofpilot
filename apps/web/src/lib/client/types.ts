@@ -27,6 +27,7 @@ export interface CaseRecord {
     documents: number;
     events: number;
     checklist: number;
+    statements?: number;
     packets?: number;
   };
 }
@@ -107,6 +108,26 @@ export interface ReprocessDocumentResponse {
     id: string | null;
     name: string;
   };
+}
+
+export interface CaseStatementVersion {
+  id: string;
+  content: string;
+  version: number;
+  createdAt: string;
+}
+
+export interface CaseStatement {
+  id: string;
+  caseId: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  versions: CaseStatementVersion[];
+}
+
+export interface CaseStatementResponse {
+  statement: CaseStatement | null;
 }
 
 export interface ChecklistItem {

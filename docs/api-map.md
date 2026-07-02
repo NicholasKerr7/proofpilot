@@ -24,6 +24,9 @@
 - `POST /cases/:caseId/checklist/analyze`
 - `GET /cases/:caseId/timeline`
 - `POST /cases/:caseId/timeline/analyze`
+- `GET /cases/:caseId/statement`
+- `PUT /cases/:caseId/statement`
+- `POST /cases/:caseId/statement/generate`
 
 ## Next Sprints
 
@@ -33,6 +36,4 @@
 - `POST /documents/:documentId/reprocess`
 - `POST /cases/:caseId/timeline`
 - `GET /cases/:caseId/checklist`
-- `GET /cases/:caseId/statement`
-- `POST /cases/:caseId/statement/generate`
 - `POST /cases/:caseId/packet/generate`

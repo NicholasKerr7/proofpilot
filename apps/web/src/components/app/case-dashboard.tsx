@@ -126,7 +126,7 @@ function getReadiness(caseRecord: CaseRecord) {
   const documentScore = Math.min(40, (caseRecord._count?.documents ?? 0) * 10);
   const eventScore = Math.min(25, (caseRecord._count?.events ?? 0) * 8);
   const checklistScore = Math.min(25, (caseRecord._count?.checklist ?? 0) * 5);
-  const statementScore = caseRecord.summary ? 10 : 0;
+  const statementScore = caseRecord.summary || caseRecord._count?.statements ? 10 : 0;
 
   return documentScore + eventScore + checklistScore + statementScore;
 }

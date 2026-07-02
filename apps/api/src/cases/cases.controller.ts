@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { CurrentUser } from "../common/decorators/current-user.decorator.js";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard.js";
 import type { RequestUser } from "../common/types/request-user.js";
 import { CasesService } from "./cases.service.js";
 import { CreateCaseDto } from "./dto/create-case.dto.js";
+import { SaveStatementDto } from "./dto/save-statement.dto.js";
 import { UpdateCaseDto } from "./dto/update-case.dto.js";
 
 @ApiTags("cases")
@@ -42,6 +43,25 @@ export class CasesController {
   @Post(":id/checklist/analyze")
   analyzeChecklist(@CurrentUser() user: RequestUser, @Param("id") id: string) {
     return this.casesService.analyzeChecklist(user.id, id);
+  }
+
+  @Get(":id/statement")
+  getStatement(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+    return this.casesService.getStatement(user.id, id);
+  }
+
+  @Put(":id/statement")
+  saveStatement(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Body() input: SaveStatementDto
+  ) {
+    return this.casesService.saveStatement(user.id, id, input);
+  }
+
+  @Post(":id/statement/generate")
+  generateStatement(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+    return this.casesService.generateStatement(user.id, id);
   }
 
   @Patch(":id")

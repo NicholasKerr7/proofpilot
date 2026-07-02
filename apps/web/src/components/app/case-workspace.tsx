@@ -1,15 +1,14 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { CheckCircle2, Clock3, FileArchive, FileText, RefreshCcw } from "lucide-react";
+import { CheckCircle2, Clock3, FileArchive, RefreshCcw } from "lucide-react";
 import { EvidencePanel } from "@/components/app/evidence/evidence-panel";
+import { StatementBuilder } from "@/components/app/statement-builder";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
 import { apiRequest } from "@/lib/client/api";
 import type { CaseRecord } from "@/lib/client/types";
 
@@ -298,26 +297,7 @@ export function CaseWorkspace({ onCaseChanged, selectedCase }: CaseWorkspaceProp
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Statement builder</CardTitle>
-            <CardDescription>Draft the outcome request and explanation.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="statement">Draft statement</Label>
-              <Textarea
-                id="statement"
-                defaultValue={selectedCase.summary ?? ""}
-                placeholder="Explain what happened, what evidence supports it, and what action you want the platform to take."
-              />
-            </div>
-            <Button variant="secondary">
-              <FileText className="h-4 w-4" />
-              Save draft
-            </Button>
-          </CardContent>
-        </Card>
+        <StatementBuilder onCaseChanged={onCaseChanged} selectedCase={selectedCase} />
 
         <Card>
           <CardHeader>
@@ -387,7 +367,7 @@ function getReadiness(caseRecord: CaseRecord) {
   const checklistScore = checklistItems.length
     ? Math.round((completedChecklistItems.length / checklistItems.length) * 25)
     : 0;
-  const statementScore = caseRecord.summary ? 10 : 0;
+  const statementScore = caseRecord.summary || caseRecord._count?.statements ? 10 : 0;
 
   return documentScore + eventScore + checklistScore + statementScore;
 }
