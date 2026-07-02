@@ -1,6 +1,7 @@
 import type { Job } from "bullmq";
 import { DocumentStatus, getPrismaClient } from "@proofpilot/database";
 import { readStoredObjectBytes } from "@proofpilot/storage";
+import { PDFParse } from "pdf-parse";
 import type { ProcessDocumentJobData } from "../queues/document-processing.queue.js";
 
 const prisma = getPrismaClient();
@@ -153,10 +154,27 @@ async function processDocumentContent(document: {
   }
 
   if (document.mimeType === "application/pdf") {
-    return adapterPendingResult(
-      "extract_text_from_pdf",
-      "PDF extraction adapter is pending. Review the file manually for now."
-    );
+    const bytes = await readStoredObjectBytes({ key: document.storageKey });
+    const extractedText = await extractPdfText(bytes);
+    const entities = extractEntities(extractedText);
+
+    if (!extractedText.trim()) {
+      return {
+        extractedText: null,
+        entities: [],
+        status: DocumentStatus.NEEDS_REVIEW,
+        step: "extract_text_from_pdf",
+        message: "PDF was readable but did not contain extractable text. OCR may be required."
+      };
+    }
+
+    return {
+      extractedText,
+      entities,
+      status: DocumentStatus.PROCESSED,
+      step: "extract_text_from_pdf",
+      message: `Extracted ${extractedText.length} characters and ${entities.length} entities from PDF evidence.`
+    };
   }
 
   if (document.mimeType === "image/png" || document.mimeType === "image/jpeg") {
@@ -183,7 +201,13 @@ function adapterPendingResult(step: string, message: string): ProcessingResult {
 }
 
 function normalizeText(value: string) {
-  return value.replace(/\r\n/g, "\n").replace(/\t/g, " ").trim();
+  return value
+    .replace(/\r\n/g, "\n")
+    .replace(/\t/g, " ")
+    .split("\n")
+    .filter((line) => !/^-- \d+ of \d+ --$/.test(line.trim()))
+    .join("\n")
+    .trim();
 }
 
 function limitExtractedText(value: string) {
@@ -192,6 +216,17 @@ function limitExtractedText(value: string) {
   }
 
   return `${value.slice(0, maxExtractedTextChars)}\n\n[Truncated after ${maxExtractedTextChars} characters]`;
+}
+
+async function extractPdfText(bytes: Buffer) {
+  const parser = new PDFParse({ data: bytes });
+
+  try {
+    const result = await parser.getText();
+    return limitExtractedText(normalizeText(result.text));
+  } finally {
+    await parser.destroy();
+  }
 }
 
 function extractEntities(text: string) {
