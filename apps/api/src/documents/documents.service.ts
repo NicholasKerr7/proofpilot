@@ -158,6 +158,96 @@ export class DocumentsService {
     };
   }
 
+  async getProcessingStatus(ownerId: string, documentId: string) {
+    const document = await this.prisma.document.findFirst({
+      where: {
+        id: documentId,
+        case: { ownerId }
+      },
+      select: {
+        id: true,
+        status: true,
+        updatedAt: true,
+        processingLogs: {
+          select: {
+            id: true,
+            step: true,
+            status: true,
+            message: true,
+            createdAt: true
+          },
+          orderBy: { createdAt: "desc" },
+          take: 25
+        }
+      }
+    });
+
+    if (!document) {
+      throw new NotFoundException("Document not found.");
+    }
+
+    return document;
+  }
+
+  async reprocess(ownerId: string, documentId: string) {
+    const document = await this.prisma.document.findFirst({
+      where: {
+        id: documentId,
+        case: { ownerId }
+      },
+      select: {
+        id: true,
+        caseId: true,
+        originalName: true
+      }
+    });
+
+    if (!document) {
+      throw new NotFoundException("Document not found.");
+    }
+
+    const job = await this.documentProcessingQueue.addProcessDocumentJob({
+      documentId: document.id,
+      caseId: document.caseId,
+      ownerId
+    });
+
+    await this.prisma.document.update({
+      where: { id: document.id },
+      data: { status: DocumentStatus.PROCESSING }
+    });
+
+    await this.prisma.documentProcessingLog.create({
+      data: {
+        documentId: document.id,
+        step: "reprocess_requested",
+        status: "queued",
+        message: "Document reprocessing job was queued."
+      }
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId: ownerId,
+        caseId: document.caseId,
+        action: "document.reprocess_requested",
+        metadata: {
+          documentId: document.id,
+          originalName: document.originalName,
+          jobId: job.id ?? null
+        }
+      }
+    });
+
+    return {
+      documentId: document.id,
+      processingJob: {
+        id: job.id ?? null,
+        name: job.name
+      }
+    };
+  }
+
   async listForCase(ownerId: string, caseId: string) {
     await this.assertCaseOwnership(ownerId, caseId);
 

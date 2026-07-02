@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@proofpilot/database": "workspace:*",
+    "@proofpilot/storage": "workspace:*",
     "bullmq": "^5.68.1",
     "zod": "^4.2.1"
   },

@@ -18,7 +18,8 @@ import type {
   CaseRecord,
   CreateDocumentResponse,
   EvidenceDocument,
-  EvidenceDocumentDetail
+  EvidenceDocumentDetail,
+  ReprocessDocumentResponse
 } from "@/lib/client/types";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +37,10 @@ type Notice = {
   text: string;
 };
 
+function fetchDocumentDetail(documentId: string) {
+  return apiRequest<EvidenceDocumentDetail>(`/api/documents/${documentId}`);
+}
+
 export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePanelProps) {
   const [documents, setDocuments] = useState<EvidenceDocument[]>([]);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
@@ -46,6 +51,7 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isReprocessing, setIsReprocessing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
 
@@ -100,9 +106,7 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
       setIsDetailLoading(true);
 
       try {
-        const detail = await apiRequest<EvidenceDocumentDetail>(
-          `/api/documents/${selectedDocumentId}`
-        );
+        const detail = await fetchDocumentDetail(selectedDocumentId);
 
         if (isMounted) {
           setSelectedDocument(detail);
@@ -211,6 +215,35 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
     } finally {
       setIsUploading(false);
       setUploadProgress(null);
+    }
+  }
+
+  async function handleReprocess() {
+    if (!selectedDocument) {
+      return;
+    }
+
+    setIsReprocessing(true);
+    setNotice({ tone: "info", text: "Queueing document reprocessing..." });
+
+    try {
+      await apiRequest<ReprocessDocumentResponse>(
+        `/api/documents/${selectedDocument.id}/reprocess`,
+        {
+          method: "POST"
+        }
+      );
+      await refreshDocuments(selectedDocument.id);
+      setSelectedDocument(await fetchDocumentDetail(selectedDocument.id));
+      await onDocumentsChanged();
+      setNotice({ tone: "success", text: "Document reprocessing was queued." });
+    } catch (error) {
+      setNotice({
+        tone: "error",
+        text: error instanceof Error ? error.message : "Document could not be reprocessed."
+      });
+    } finally {
+      setIsReprocessing(false);
     }
   }
 
@@ -460,6 +493,18 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
                       <Download className="h-4 w-4" />
                       Download
                     </a>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      void handleReprocess();
+                    }}
+                    disabled={isReprocessing || selectedDocument.status === "PROCESSING"}
+                  >
+                    <RefreshCcw className="h-4 w-4" />
+                    {isReprocessing ? "Queueing..." : "Reprocess"}
                   </Button>
                   <Button
                     type="button"

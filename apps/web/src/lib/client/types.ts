@@ -74,6 +74,21 @@ export interface EvidenceDocumentDetail extends EvidenceDocument {
   processingLogs: EvidenceProcessingLog[];
 }
 
+export interface EvidenceProcessingStatus {
+  id: string;
+  status: string;
+  updatedAt: string;
+  processingLogs: EvidenceProcessingLog[];
+}
+
+export interface ReprocessDocumentResponse {
+  documentId: string;
+  processingJob: {
+    id: string | null;
+    name: string;
+  };
+}
+
 export interface ChecklistItem {
   id: string;
   label: string;

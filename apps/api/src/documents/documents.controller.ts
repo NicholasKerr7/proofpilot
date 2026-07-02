@@ -37,6 +37,16 @@ export class DocumentsController {
     return this.documentsService.completeUpload(user.id, documentId);
   }
 
+  @Get("documents/:documentId/processing-status")
+  getProcessingStatus(@CurrentUser() user: RequestUser, @Param("documentId") documentId: string) {
+    return this.documentsService.getProcessingStatus(user.id, documentId);
+  }
+
+  @Post("documents/:documentId/reprocess")
+  reprocess(@CurrentUser() user: RequestUser, @Param("documentId") documentId: string) {
+    return this.documentsService.reprocess(user.id, documentId);
+  }
+
   @Delete("documents/:documentId")
   remove(@CurrentUser() user: RequestUser, @Param("documentId") documentId: string) {
     return this.documentsService.remove(user.id, documentId);
