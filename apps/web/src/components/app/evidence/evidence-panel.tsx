@@ -46,6 +46,12 @@ function fetchProcessingStatus(documentId: string) {
   return apiRequest<EvidenceProcessingStatus>(`/api/documents/${documentId}/processing-status`);
 }
 
+function analyzeCaseChecklist(caseId: string) {
+  return apiRequest(`/api/cases/${caseId}/checklist/analyze`, {
+    method: "POST"
+  });
+}
+
 export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePanelProps) {
   const [documents, setDocuments] = useState<EvidenceDocument[]>([]);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
@@ -198,6 +204,24 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
               : document
           )
         );
+
+        try {
+          if (shouldAnalyzeChecklistAfterProcessing(detail.status)) {
+            await analyzeCaseChecklist(selectedCase.id);
+          }
+
+          await onDocumentsChanged();
+        } catch (error) {
+          if (isMounted) {
+            setNotice({
+              tone: "error",
+              text:
+                error instanceof Error
+                  ? error.message
+                  : "Document processed, but case checklist could not be refreshed."
+            });
+          }
+        }
       } catch (error) {
         if (isMounted) {
           isSettled = true;
@@ -223,7 +247,7 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
       isMounted = false;
       window.clearInterval(intervalId);
     };
-  }, [selectedDocument?.status, selectedDocumentId]);
+  }, [onDocumentsChanged, selectedCase.id, selectedDocument?.status, selectedDocumentId]);
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const [file] = Array.from(event.target.files ?? []);
@@ -799,6 +823,10 @@ function formatDateTime(value: string) {
 
 function isActiveProcessingStatus(status: string | null | undefined) {
   return status === "UPLOADED" || status === "PROCESSING";
+}
+
+function shouldAnalyzeChecklistAfterProcessing(status: string) {
+  return status === "PROCESSED" || status === "NEEDS_REVIEW";
 }
 
 function getStatusVariant(status: string) {

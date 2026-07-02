@@ -29,6 +29,11 @@ export class CasesController {
     return this.casesService.get(user.id, id);
   }
 
+  @Post(":id/checklist/analyze")
+  analyzeChecklist(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+    return this.casesService.analyzeChecklist(user.id, id);
+  }
+
   @Patch(":id")
   update(
     @CurrentUser() user: RequestUser,

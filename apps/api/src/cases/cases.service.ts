@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { CaseStatus, ChecklistStatus, Prisma } from "@proofpilot/database";
+import { CaseStatus, ChecklistStatus, DocumentStatus, Prisma } from "@proofpilot/database";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { analyzeChecklistEvidence } from "./case-checklist-analysis.js";
 import type { CreateCaseDto } from "./dto/create-case.dto.js";
 import type { UpdateCaseDto } from "./dto/update-case.dto.js";
 
@@ -120,7 +121,22 @@ export class CasesService {
             label: true,
             description: true,
             status: true,
-            updatedAt: true
+            updatedAt: true,
+            matches: {
+              orderBy: { confidence: "desc" },
+              take: 3,
+              select: {
+                id: true,
+                confidence: true,
+                rationale: true,
+                document: {
+                  select: {
+                    id: true,
+                    originalName: true
+                  }
+                }
+              }
+            }
           }
         },
         _count: {
@@ -139,6 +155,131 @@ export class CasesService {
     }
 
     return foundCase;
+  }
+
+  async analyzeChecklist(ownerId: string, caseId: string) {
+    const foundCase = await this.prisma.case.findFirst({
+      where: {
+        id: caseId,
+        ownerId,
+        archivedAt: null
+      },
+      select: {
+        id: true,
+        summary: true,
+        status: true,
+        checklist: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            label: true,
+            description: true,
+            requirementId: true,
+            status: true
+          }
+        },
+        documents: {
+          where: {
+            status: {
+              in: [DocumentStatus.PROCESSED, DocumentStatus.NEEDS_REVIEW]
+            }
+          },
+          select: {
+            id: true,
+            originalName: true,
+            mimeType: true,
+            extractedText: true,
+            entities: {
+              select: {
+                type: true,
+                value: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!foundCase) {
+      throw new NotFoundException("Case not found.");
+    }
+
+    const analysis = analyzeChecklistEvidence({
+      caseSummary: foundCase.summary,
+      checklist: foundCase.checklist,
+      documents: foundCase.documents
+    });
+    const checklistItemIds = foundCase.checklist.map((item) => item.id);
+    const matchData = analysis.flatMap((item) => {
+      if (!item.match || !item.requirementId) {
+        return [];
+      }
+
+      return [
+        {
+          checklistItemId: item.checklistItemId,
+          confidence: item.match.confidence,
+          documentId: item.match.documentId,
+          rationale: item.match.rationale,
+          requirementId: item.requirementId
+        }
+      ];
+    });
+    const foundCount = analysis.filter(
+      (item) => item.status === ChecklistStatus.FOUND || item.status === ChecklistStatus.COMPLETE
+    ).length;
+    const missingCount = analysis.filter((item) => item.status === ChecklistStatus.MISSING).length;
+    const nextCaseStatus = foundCase.checklist.length
+      ? this.getAnalyzedCaseStatus(foundCase.status, missingCount)
+      : foundCase.status;
+
+    await this.prisma.$transaction(async (tx) => {
+      if (checklistItemIds.length) {
+        await tx.caseRequirementMatch.deleteMany({
+          where: {
+            checklistItemId: {
+              in: checklistItemIds
+            }
+          }
+        });
+      }
+
+      for (const item of analysis) {
+        await tx.caseChecklistItem.update({
+          where: { id: item.checklistItemId },
+          data: { status: item.status }
+        });
+      }
+
+      if (matchData.length) {
+        await tx.caseRequirementMatch.createMany({
+          data: matchData
+        });
+      }
+
+      await tx.case.update({
+        where: { id: foundCase.id },
+        data: {
+          status: nextCaseStatus
+        }
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: ownerId,
+          caseId: foundCase.id,
+          action: "case.checklist_analyzed",
+          metadata: {
+            documentsAnalyzed: foundCase.documents.length,
+            foundCount,
+            missingCount,
+            matchCount: matchData.length
+          }
+        }
+      });
+    });
+
+    return this.get(ownerId, caseId);
   }
 
   async update(ownerId: string, caseId: string, input: UpdateCaseDto) {
@@ -221,6 +362,18 @@ export class CasesService {
     if (!foundCase) {
       throw new NotFoundException("Case not found.");
     }
+  }
+
+  private getAnalyzedCaseStatus(currentStatus: CaseStatus, missingCount: number) {
+    if (
+      currentStatus !== CaseStatus.COLLECTING_EVIDENCE &&
+      currentStatus !== CaseStatus.NEEDS_MORE_EVIDENCE &&
+      currentStatus !== CaseStatus.READY_FOR_REVIEW
+    ) {
+      return currentStatus;
+    }
+
+    return missingCount === 0 ? CaseStatus.READY_FOR_REVIEW : CaseStatus.NEEDS_MORE_EVIDENCE;
   }
 
   private toUpdateAuditMetadata(input: UpdateCaseDto) {

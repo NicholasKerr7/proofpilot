@@ -42,7 +42,12 @@ export function ProofPilotApp() {
     try {
       const nextCases = await apiRequest<CaseRecord[]>("/api/cases");
       setCases(nextCases);
-      setSelectedCaseId((currentId) => currentId ?? nextCases[0]?.id ?? null);
+      setSelectedCaseId((currentId) =>
+        currentId && nextCases.some((caseRecord) => caseRecord.id === currentId)
+          ? currentId
+          : nextCases[0]?.id ?? null
+      );
+      return nextCases;
     } finally {
       setIsCaseLoading(false);
     }
@@ -84,7 +89,11 @@ export function ProofPilotApp() {
           return;
         }
         setUser(currentUser);
-        await Promise.all([loadCases(), loadCaseTypes()]);
+        const [nextCases] = await Promise.all([loadCases(), loadCaseTypes()]);
+
+        if (isMounted && nextCases[0]) {
+          await loadCaseDetail(nextCases[0].id);
+        }
       } catch (error) {
         if (isMounted && error instanceof ApiClientError && error.status !== 401) {
           setMessage(error.message);
@@ -101,7 +110,7 @@ export function ProofPilotApp() {
     return () => {
       isMounted = false;
     };
-  }, [loadCases, loadCaseTypes]);
+  }, [loadCaseDetail, loadCases, loadCaseTypes]);
 
   async function authenticate(
     path: "/api/auth/login" | "/api/auth/register",
@@ -116,7 +125,11 @@ export function ProofPilotApp() {
         method: "POST"
       });
       setUser(response.user);
-      await Promise.all([loadCases(), loadCaseTypes()]);
+      const [nextCases] = await Promise.all([loadCases(), loadCaseTypes()]);
+
+      if (nextCases[0]) {
+        await loadCaseDetail(nextCases[0].id);
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Authentication failed.");
     } finally {

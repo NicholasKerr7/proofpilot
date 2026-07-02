@@ -95,6 +95,17 @@ export interface ChecklistItem {
   description: string;
   status: string;
   updatedAt: string;
+  matches?: ChecklistMatch[];
+}
+
+export interface ChecklistMatch {
+  id: string;
+  confidence: number;
+  rationale: string | null;
+  document: {
+    id: string;
+    originalName: string;
+  };
 }
 
 export interface CreateCasePayload {
