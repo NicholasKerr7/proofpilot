@@ -1,0 +1,322 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum CaseStatus {
+  DRAFT
+  COLLECTING_EVIDENCE
+  PROCESSING
+  NEEDS_MORE_EVIDENCE
+  READY_FOR_REVIEW
+  PACKET_GENERATED
+  SUBMITTED
+  RESOLVED
+  ARCHIVED
+}
+
+enum DocumentStatus {
+  UPLOADED
+  PROCESSING
+  PROCESSED
+  FAILED
+  NEEDS_REVIEW
+}
+
+enum PacketStatus {
+  NOT_STARTED
+  GENERATING
+  READY
+  FAILED
+  DOWNLOADED
+}
+
+enum ChecklistStatus {
+  MISSING
+  FOUND
+  NEEDS_REVIEW
+  OPTIONAL
+  COMPLETE
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  cases        Case[]
+  auditLogs    AuditLog[]
+}
+
+model CaseType {
+  id          String         @id @default(cuid())
+  slug        String         @unique
+  name        String
+  description String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  cases       Case[]
+  templates   CaseTemplate[]
+}
+
+model Case {
+  id            String              @id @default(cuid())
+  ownerId       String
+  owner         User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  caseTypeId    String
+  caseType      CaseType            @relation(fields: [caseTypeId], references: [id])
+  title         String
+  platform      String
+  summary       String?
+  status        CaseStatus          @default(DRAFT)
+  deadline      DateTime?
+  archivedAt    DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  documents     Document[]
+  events        CaseEvent[]
+  checklist     CaseChecklistItem[]
+  statements    CaseStatement[]
+  summaries     CaseSummary[]
+  packets       CasePacket[]
+  reminders     Reminder[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+
+  @@index([ownerId, status])
+  @@index([caseTypeId])
+}
+
+model Document {
+  id              String                  @id @default(cuid())
+  caseId          String
+  case            Case                    @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  originalName    String
+  mimeType        String
+  byteSize        Int
+  storageKey      String
+  status          DocumentStatus          @default(UPLOADED)
+  extractedText   String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  versions        DocumentVersion[]
+  entities        DocumentEntity[]
+  processingLogs  DocumentProcessingLog[]
+  eventSources    EventSource[]
+  requirementMatches CaseRequirementMatch[]
+
+  @@index([caseId, status])
+}
+
+model DocumentVersion {
+  id         String   @id @default(cuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  version    Int
+  storageKey String
+  createdAt  DateTime @default(now())
+
+  @@unique([documentId, version])
+}
+
+model DocumentEntity {
+  id         String   @id @default(cuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  type       String
+  value      String
+  confidence Float?
+  createdAt  DateTime @default(now())
+
+  @@index([documentId, type])
+}
+
+model DocumentProcessingLog {
+  id         String   @id @default(cuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  step       String
+  status     String
+  message    String?
+  createdAt  DateTime @default(now())
+}
+
+model CaseEvent {
+  id          String        @id @default(cuid())
+  caseId      String
+  case        Case          @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  occurredAt  DateTime
+  title       String
+  description String?
+  confidence  Float?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  sources     EventSource[]
+
+  @@index([caseId, occurredAt])
+}
+
+model EventSource {
+  id         String    @id @default(cuid())
+  eventId    String
+  event      CaseEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  documentId String
+  document   Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+
+  @@unique([eventId, documentId])
+}
+
+model CaseTemplate {
+  id          String                @id @default(cuid())
+  caseTypeId  String
+  caseType    CaseType              @relation(fields: [caseTypeId], references: [id], onDelete: Cascade)
+  name        String
+  description String
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  requirements TemplateRequirement[]
+}
+
+model TemplateRequirement {
+  id          String                 @id @default(cuid())
+  templateId  String
+  template    CaseTemplate           @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  label       String
+  description String
+  required    Boolean                @default(true)
+  sortOrder   Int                    @default(0)
+  checklist   CaseChecklistItem[]
+  matches     CaseRequirementMatch[]
+}
+
+model CaseChecklistItem {
+  id            String              @id @default(cuid())
+  caseId        String
+  case          Case                @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  requirementId String?
+  requirement   TemplateRequirement? @relation(fields: [requirementId], references: [id])
+  label         String
+  description   String
+  status        ChecklistStatus     @default(MISSING)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  matches       CaseRequirementMatch[]
+
+  @@index([caseId, status])
+}
+
+model CaseRequirementMatch {
+  id             String              @id @default(cuid())
+  requirementId  String
+  requirement    TemplateRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  checklistItemId String?
+  checklistItem  CaseChecklistItem?  @relation(fields: [checklistItemId], references: [id])
+  documentId      String
+  document        Document            @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  confidence      Float
+  rationale       String?
+  createdAt       DateTime            @default(now())
+}
+
+model CaseStatement {
+  id        String             @id @default(cuid())
+  caseId    String
+  case      Case               @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  versions  StatementVersion[]
+}
+
+model StatementVersion {
+  id          String        @id @default(cuid())
+  statementId String
+  statement   CaseStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  content     String
+  version     Int
+  createdAt   DateTime      @default(now())
+
+  @@unique([statementId, version])
+}
+
+model CaseSummary {
+  id        String   @id @default(cuid())
+  caseId    String
+  case      Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CasePacket {
+  id        String         @id @default(cuid())
+  caseId    String
+  case      Case           @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  status    PacketStatus   @default(NOT_STARTED)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  exports   PacketExport[]
+}
+
+model PacketExport {
+  id         String     @id @default(cuid())
+  packetId   String
+  packet     CasePacket @relation(fields: [packetId], references: [id], onDelete: Cascade)
+  storageKey String
+  byteSize   Int?
+  createdAt  DateTime   @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  caseId    String?
+  case      Case?    @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  userId    String
+  type      String
+  title     String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, readAt])
+}
+
+model Reminder {
+  id        String   @id @default(cuid())
+  caseId    String
+  case      Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  remindAt  DateTime
+  message   String
+  sentAt    DateTime?
+  createdAt DateTime @default(now())
+}
+
+model Job {
+  id        String   @id @default(cuid())
+  queueName String
+  jobName   String
+  status    String
+  payload   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  caseId    String?
+  case      Case?    @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([caseId])
+}

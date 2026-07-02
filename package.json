@@ -1,0 +1,25 @@
+{
+  "name": "proofpilot",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "clean": "turbo clean",
+    "db:generate": "pnpm --filter @proofpilot/database db:generate",
+    "db:migrate": "pnpm --filter @proofpilot/database db:migrate",
+    "db:push": "pnpm --filter @proofpilot/database db:push",
+    "db:seed": "pnpm --filter @proofpilot/database db:seed"
+  },
+  "devDependencies": {
+    "turbo": "^2.8.0",
+    "typescript": "^5.9.3"
+  }
+}

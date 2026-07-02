@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+:root {
+  --background: oklch(0.12 0.012 68);
+  --foreground: oklch(0.96 0.01 78);
+  --card: oklch(0.17 0.014 70 / 0.88);
+  --card-foreground: oklch(0.96 0.01 78);
+  --primary: oklch(0.66 0.13 48);
+  --primary-foreground: oklch(0.12 0.016 55);
+  --secondary: oklch(0.23 0.014 70 / 0.86);
+  --secondary-foreground: oklch(0.92 0.012 74);
+  --muted: oklch(0.27 0.012 70);
+  --muted-foreground: oklch(0.72 0.028 78);
+  --accent: oklch(0.86 0.045 83);
+  --accent-foreground: oklch(0.14 0.014 62);
+  --destructive: oklch(0.55 0.16 26);
+  --border: oklch(0.33 0.018 72 / 0.75);
+  --input: oklch(0.2 0.014 70 / 0.9);
+  --ring: oklch(0.72 0.12 48);
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+  --radius-sm: calc(var(--radius) * 0.75);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) * 1.25);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, oklch(0.31 0.08 47 / 0.38), transparent 34rem),
+    radial-gradient(circle at bottom right, oklch(0.32 0.034 183 / 0.18), transparent 30rem),
+    var(--background);
+  color: var(--foreground);
+  overscroll-behavior-y: none;
+}
+
+button,
+a,
+input,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.scroll-container {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.proof-progress {
+  display: block;
+  width: 100%;
+  height: 0.5rem;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background: var(--secondary);
+}
+
+.proof-progress::-webkit-progress-bar {
+  border-radius: 999px;
+  background: var(--secondary);
+}
+
+.proof-progress::-webkit-progress-value {
+  border-radius: 999px;
+  background: var(--primary);
+}
+
+.proof-progress::-moz-progress-bar {
+  border-radius: 999px;
+  background: var(--primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+}
