@@ -90,3 +90,19 @@ export interface CaseStatementSummary {
   updatedAt: string;
   versions: StatementVersionSummary[];
 }
+
+export interface PacketExportSummary {
+  id: string;
+  byteSize: number | null;
+  createdAt: string;
+  downloadUrl: string;
+}
+
+export interface CasePacketSummary {
+  id: string;
+  caseId: string;
+  status: PacketStatus;
+  createdAt: string;
+  updatedAt: string;
+  exports: PacketExportSummary[];
+}

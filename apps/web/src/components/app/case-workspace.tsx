@@ -1,14 +1,14 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { CheckCircle2, Clock3, FileArchive, RefreshCcw } from "lucide-react";
+import { CheckCircle2, Clock3, RefreshCcw } from "lucide-react";
 import { EvidencePanel } from "@/components/app/evidence/evidence-panel";
+import { PacketExportPanel } from "@/components/app/packet-export-panel";
 import { StatementBuilder } from "@/components/app/statement-builder";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import { apiRequest } from "@/lib/client/api";
 import type { CaseRecord } from "@/lib/client/types";
 
@@ -127,6 +127,7 @@ export function CaseWorkspace({ onCaseChanged, selectedCase }: CaseWorkspaceProp
         status: "MISSING",
         updatedAt: ""
       }));
+  const readiness = getReadiness(selectedCase);
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.7fr)]">
@@ -141,7 +142,7 @@ export function CaseWorkspace({ onCaseChanged, selectedCase }: CaseWorkspaceProp
             <CardDescription>{selectedCase.summary ?? "No summary added yet."}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Progress value={getReadiness(selectedCase)} label="Packet readiness" />
+            <Progress value={readiness} label="Packet readiness" />
           </CardContent>
         </Card>
 
@@ -299,29 +300,11 @@ export function CaseWorkspace({ onCaseChanged, selectedCase }: CaseWorkspaceProp
 
         <StatementBuilder onCaseChanged={onCaseChanged} selectedCase={selectedCase} />
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Packet export</CardTitle>
-            <CardDescription>PDF packet sections for review.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <Progress value={getReadiness(selectedCase)} label="Overall readiness" />
-            <Separator />
-            {["Case summary", "Timeline", "Evidence index", "User statement"].map((section) => (
-              <div key={section} className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-primary" />
-                  {section}
-                </span>
-                <Badge variant="secondary">Draft</Badge>
-              </div>
-            ))}
-            <Button>
-              <FileArchive className="h-4 w-4" />
-              Generate packet
-            </Button>
-          </CardContent>
-        </Card>
+        <PacketExportPanel
+          onCaseChanged={onCaseChanged}
+          readiness={readiness}
+          selectedCase={selectedCase}
+        />
       </aside>
     </div>
   );

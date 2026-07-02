@@ -64,6 +64,16 @@ export class CasesController {
     return this.casesService.generateStatement(user.id, id);
   }
 
+  @Get(":id/packets")
+  listPackets(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+    return this.casesService.listPackets(user.id, id);
+  }
+
+  @Post(":id/packet/generate")
+  generatePacket(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+    return this.casesService.generatePacket(user.id, id);
+  }
+
   @Patch(":id")
   update(
     @CurrentUser() user: RequestUser,

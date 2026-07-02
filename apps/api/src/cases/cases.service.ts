@@ -1,12 +1,29 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { CaseStatus, ChecklistStatus, DocumentStatus, Prisma } from "@proofpilot/database";
+import { CaseStatus, ChecklistStatus, DocumentStatus, PacketStatus, Prisma } from "@proofpilot/database";
+import { createPresignedDownloadUrl, writeStoredObjectBytes } from "@proofpilot/storage";
+import { randomUUID } from "node:crypto";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { analyzeChecklistEvidence } from "./case-checklist-analysis.js";
+import { generateCasePacketPdf } from "./case-packet-pdf.js";
 import { generateAppealStatement } from "./case-statement-generation.js";
 import { analyzeTimelineEvidence } from "./case-timeline-analysis.js";
 import type { CreateCaseDto } from "./dto/create-case.dto.js";
 import type { SaveStatementDto } from "./dto/save-statement.dto.js";
 import type { UpdateCaseDto } from "./dto/update-case.dto.js";
+
+interface PrivatePacketRecord {
+  id: string;
+  caseId: string;
+  status: PacketStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  exports: {
+    id: string;
+    storageKey: string;
+    byteSize: number | null;
+    createdAt: Date;
+  }[];
+}
 
 @Injectable()
 export class CasesService {
@@ -448,6 +465,154 @@ export class CasesService {
     return this.upsertStatementDraft(ownerId, caseId, content, "case.statement_generated");
   }
 
+  async listPackets(ownerId: string, caseId: string) {
+    await this.assertCaseOwnership(ownerId, caseId);
+
+    const packets = await this.prisma.casePacket.findMany({
+      where: { caseId },
+      orderBy: { createdAt: "desc" },
+      select: this.getPacketSelect()
+    });
+
+    return Promise.all(packets.map((packet) => this.toPublicPacket(packet)));
+  }
+
+  async generatePacket(ownerId: string, caseId: string) {
+    const foundCase = await this.prisma.case.findFirst({
+      where: {
+        id: caseId,
+        ownerId,
+        archivedAt: null
+      },
+      select: {
+        id: true,
+        title: true,
+        platform: true,
+        summary: true,
+        deadline: true,
+        createdAt: true,
+        updatedAt: true,
+        owner: {
+          select: {
+            email: true,
+            name: true
+          }
+        },
+        caseType: {
+          select: {
+            name: true
+          }
+        },
+        checklist: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            label: true,
+            description: true,
+            status: true,
+            matches: {
+              orderBy: { confidence: "desc" },
+              take: 3,
+              select: {
+                confidence: true,
+                rationale: true,
+                document: {
+                  select: {
+                    originalName: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        documents: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            originalName: true,
+            mimeType: true,
+            byteSize: true,
+            status: true,
+            createdAt: true
+          }
+        },
+        events: {
+          orderBy: { occurredAt: "asc" },
+          select: {
+            occurredAt: true,
+            title: true,
+            description: true,
+            confidence: true,
+            sources: {
+              select: {
+                document: {
+                  select: {
+                    originalName: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        statements: {
+          orderBy: { updatedAt: "desc" },
+          take: 1,
+          select: {
+            content: true,
+            updatedAt: true
+          }
+        }
+      }
+    });
+
+    if (!foundCase) {
+      throw new NotFoundException("Case not found.");
+    }
+
+    const pdfBytes = await generateCasePacketPdf(foundCase);
+    const storageKey = this.createPacketStorageKey(ownerId, caseId);
+    await writeStoredObjectBytes({
+      body: pdfBytes,
+      contentType: "application/pdf",
+      key: storageKey
+    });
+
+    const packet = await this.prisma.$transaction(async (tx) => {
+      const createdPacket = await tx.casePacket.create({
+        data: {
+          caseId,
+          status: PacketStatus.READY,
+          exports: {
+            create: {
+              byteSize: pdfBytes.byteLength,
+              storageKey
+            }
+          }
+        },
+        select: this.getPacketSelect()
+      });
+
+      await tx.case.update({
+        where: { id: caseId },
+        data: { status: CaseStatus.PACKET_GENERATED }
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: ownerId,
+          caseId,
+          action: "case.packet_generated",
+          metadata: {
+            byteSize: pdfBytes.byteLength,
+            packetId: createdPacket.id
+          }
+        }
+      });
+
+      return createdPacket;
+    });
+
+    return this.toPublicPacket(packet);
+  }
+
   async update(ownerId: string, caseId: string, input: UpdateCaseDto) {
     await this.assertCaseOwnership(ownerId, caseId);
     const data: Prisma.CaseUpdateInput = {};
@@ -586,6 +751,50 @@ export class CasesService {
         take: 5
       }
     };
+  }
+
+  private getPacketSelect() {
+    return {
+      id: true,
+      caseId: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+      exports: {
+        orderBy: { createdAt: "desc" as const },
+        select: {
+          id: true,
+          storageKey: true,
+          byteSize: true,
+          createdAt: true
+        }
+      }
+    };
+  }
+
+  private async toPublicPacket(packet: PrivatePacketRecord) {
+    return {
+      id: packet.id,
+      caseId: packet.caseId,
+      status: packet.status,
+      createdAt: packet.createdAt,
+      updatedAt: packet.updatedAt,
+      exports: await Promise.all(
+        packet.exports.map(async (packetExport) => ({
+          id: packetExport.id,
+          byteSize: packetExport.byteSize,
+          createdAt: packetExport.createdAt,
+          downloadUrl: await createPresignedDownloadUrl({
+            expiresInSeconds: 900,
+            key: packetExport.storageKey
+          })
+        }))
+      )
+    };
+  }
+
+  private createPacketStorageKey(ownerId: string, caseId: string) {
+    return `users/${ownerId}/cases/${caseId}/packets/${randomUUID()}.pdf`;
   }
 
   private async upsertStatementDraft(

@@ -130,6 +130,22 @@ export interface CaseStatementResponse {
   statement: CaseStatement | null;
 }
 
+export interface CasePacketExport {
+  id: string;
+  byteSize: number | null;
+  createdAt: string;
+  downloadUrl: string;
+}
+
+export interface CasePacket {
+  id: string;
+  caseId: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  exports: CasePacketExport[];
+}
+
 export interface ChecklistItem {
   id: string;
   label: string;

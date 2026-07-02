@@ -88,6 +88,22 @@ export async function deleteStoredObject(input: { key: string }) {
   await getStorageClient().send(command);
 }
 
+export async function writeStoredObjectBytes(input: {
+  key: string;
+  body: Buffer | Uint8Array;
+  contentType: string;
+}) {
+  const config = getStorageConfig();
+  const command = new PutObjectCommand({
+    Body: input.body,
+    Bucket: config.STORAGE_BUCKET,
+    ContentType: input.contentType,
+    Key: input.key
+  });
+
+  await getStorageClient().send(command);
+}
+
 export async function readStoredObjectBytes(input: { key: string }) {
   const config = getStorageConfig();
   const command = new GetObjectCommand({
