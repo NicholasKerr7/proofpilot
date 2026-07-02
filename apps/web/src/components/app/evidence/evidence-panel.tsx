@@ -19,6 +19,7 @@ import type {
   CreateDocumentResponse,
   EvidenceDocument,
   EvidenceDocumentDetail,
+  EvidenceProcessingStatus,
   ReprocessDocumentResponse
 } from "@/lib/client/types";
 import { cn } from "@/lib/utils";
@@ -39,6 +40,10 @@ type Notice = {
 
 function fetchDocumentDetail(documentId: string) {
   return apiRequest<EvidenceDocumentDetail>(`/api/documents/${documentId}`);
+}
+
+function fetchProcessingStatus(documentId: string) {
+  return apiRequest<EvidenceProcessingStatus>(`/api/documents/${documentId}/processing-status`);
 }
 
 export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePanelProps) {
@@ -132,6 +137,93 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
       isMounted = false;
     };
   }, [selectedDocumentId]);
+
+  useEffect(() => {
+    if (!selectedDocumentId || !isActiveProcessingStatus(selectedDocument?.status)) {
+      return;
+    }
+
+    let isMounted = true;
+    let isRefreshing = false;
+    let isSettled = false;
+
+    async function refreshProcessingStatus() {
+      if (!selectedDocumentId || isRefreshing || isSettled) {
+        return;
+      }
+
+      isRefreshing = true;
+
+      try {
+        const statusUpdate = await fetchProcessingStatus(selectedDocumentId);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setDocuments((currentDocuments) =>
+          currentDocuments.map((document) =>
+            document.id === selectedDocumentId
+              ? { ...document, status: statusUpdate.status, updatedAt: statusUpdate.updatedAt }
+              : document
+          )
+        );
+
+        if (isActiveProcessingStatus(statusUpdate.status)) {
+          setSelectedDocument((currentDocument) =>
+            currentDocument?.id === selectedDocumentId
+              ? {
+                  ...currentDocument,
+                  status: statusUpdate.status,
+                  updatedAt: statusUpdate.updatedAt,
+                  processingLogs: statusUpdate.processingLogs
+                }
+              : currentDocument
+          );
+          return;
+        }
+
+        isSettled = true;
+        const detail = await fetchDocumentDetail(selectedDocumentId);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setSelectedDocument(detail);
+        setDocuments((currentDocuments) =>
+          currentDocuments.map((document) =>
+            document.id === selectedDocumentId
+              ? { ...document, status: detail.status, updatedAt: detail.updatedAt }
+              : document
+          )
+        );
+      } catch (error) {
+        if (isMounted) {
+          isSettled = true;
+          setNotice({
+            tone: "error",
+            text:
+              error instanceof Error
+                ? error.message
+                : "Document processing status could not be refreshed."
+          });
+        }
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    void refreshProcessingStatus();
+    const intervalId = window.setInterval(() => {
+      void refreshProcessingStatus();
+    }, 2000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [selectedDocument?.status, selectedDocumentId]);
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const [file] = Array.from(event.target.files ?? []);
@@ -292,6 +384,7 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
   const canPreviewSelectedDocument = selectedDocument
     ? previewMimeTypes.has(selectedDocument.mimeType)
     : false;
+  const isSelectedDocumentProcessing = isActiveProcessingStatus(selectedDocument?.status);
 
   return (
     <Card>
@@ -481,6 +574,12 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
                   </Badge>
                 </div>
 
+                {isSelectedDocumentProcessing ? (
+                  <p className="rounded-md border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-sm text-amber-100">
+                    Processing evidence. Results will appear here shortly.
+                  </p>
+                ) : null}
+
                 <div className="flex flex-wrap gap-2">
                   <Button asChild variant="outline" size="sm">
                     <a href={selectedDocument.downloadUrl} target="_blank" rel="noreferrer">
@@ -501,7 +600,7 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
                     onClick={() => {
                       void handleReprocess();
                     }}
-                    disabled={isReprocessing || selectedDocument.status === "PROCESSING"}
+                    disabled={isReprocessing || isSelectedDocumentProcessing}
                   >
                     <RefreshCcw className="h-4 w-4" />
                     {isReprocessing ? "Queueing..." : "Reprocess"}
@@ -696,6 +795,10 @@ function formatDateTime(value: string) {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
+}
+
+function isActiveProcessingStatus(status: string | null | undefined) {
+  return status === "UPLOADED" || status === "PROCESSING";
 }
 
 function getStatusVariant(status: string) {
