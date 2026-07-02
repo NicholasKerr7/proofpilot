@@ -1,6 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { DocumentStatus } from "@proofpilot/database";
-import { createPresignedDownloadUrl, createPresignedUploadUrl } from "@proofpilot/storage";
+import {
+  createPresignedDownloadUrl,
+  createPresignedUploadUrl,
+  deleteStoredObject
+} from "@proofpilot/storage";
 import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
 import { PrismaService } from "../prisma/prisma.service.js";
@@ -55,6 +59,15 @@ export class DocumentsService {
             storageKey
           }
         }
+      },
+      select: {
+        id: true,
+        originalName: true,
+        mimeType: true,
+        byteSize: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true
       }
     });
 
@@ -169,9 +182,35 @@ export class DocumentsService {
         id: documentId,
         case: { ownerId }
       },
-      include: {
-        entities: true,
+      select: {
+        id: true,
+        caseId: true,
+        originalName: true,
+        mimeType: true,
+        byteSize: true,
+        status: true,
+        extractedText: true,
+        storageKey: true,
+        createdAt: true,
+        updatedAt: true,
+        entities: {
+          select: {
+            id: true,
+            type: true,
+            value: true,
+            confidence: true,
+            createdAt: true
+          },
+          orderBy: { createdAt: "desc" }
+        },
         processingLogs: {
+          select: {
+            id: true,
+            step: true,
+            status: true,
+            message: true,
+            createdAt: true
+          },
           orderBy: { createdAt: "desc" },
           take: 25
         }
@@ -182,9 +221,11 @@ export class DocumentsService {
       throw new NotFoundException("Document not found.");
     }
 
+    const { storageKey, ...publicDocument } = document;
+
     return {
-      ...document,
-      downloadUrl: await createPresignedDownloadUrl({ key: document.storageKey })
+      ...publicDocument,
+      downloadUrl: await createPresignedDownloadUrl({ key: storageKey })
     };
   }
 
@@ -197,7 +238,11 @@ export class DocumentsService {
       select: {
         id: true,
         caseId: true,
-        originalName: true
+        originalName: true,
+        storageKey: true,
+        versions: {
+          select: { storageKey: true }
+        }
       }
     });
 
@@ -205,9 +250,14 @@ export class DocumentsService {
       throw new NotFoundException("Document not found.");
     }
 
-    await this.prisma.document.delete({
-      where: { id: document.id }
-    });
+    const storageKeys = new Set([
+      document.storageKey,
+      ...document.versions.map((version) => version.storageKey)
+    ]);
+
+    await Promise.all([...storageKeys].map((key) => deleteStoredObject({ key })));
+
+    await this.prisma.document.delete({ where: { id: document.id } });
 
     await this.prisma.auditLog.create({
       data: {

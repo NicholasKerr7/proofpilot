@@ -50,6 +50,30 @@ export interface CreateDocumentResponse {
   };
 }
 
+export interface EvidenceDocumentEntity {
+  id: string;
+  type: string;
+  value: string;
+  confidence: number | null;
+  createdAt: string;
+}
+
+export interface EvidenceProcessingLog {
+  id: string;
+  step: string;
+  status: string;
+  message: string | null;
+  createdAt: string;
+}
+
+export interface EvidenceDocumentDetail extends EvidenceDocument {
+  caseId: string;
+  extractedText: string | null;
+  downloadUrl: string;
+  entities: EvidenceDocumentEntity[];
+  processingLogs: EvidenceProcessingLog[];
+}
+
 export interface ChecklistItem {
   id: string;
   label: string;
