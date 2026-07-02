@@ -22,6 +22,8 @@
 - `PATCH /cases/:id`
 - `DELETE /cases/:id`
 - `POST /cases/:caseId/checklist/analyze`
+- `GET /cases/:caseId/timeline`
+- `POST /cases/:caseId/timeline/analyze`
 
 ## Next Sprints
 
@@ -29,7 +31,6 @@
 - `GET /cases/:caseId/documents`
 - `GET /documents/:documentId`
 - `POST /documents/:documentId/reprocess`
-- `GET /cases/:caseId/timeline`
 - `POST /cases/:caseId/timeline`
 - `GET /cases/:caseId/checklist`
 - `GET /cases/:caseId/statement`

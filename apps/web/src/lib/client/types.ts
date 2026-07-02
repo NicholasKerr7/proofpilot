@@ -22,11 +22,31 @@ export interface CaseRecord {
   updatedAt: string;
   caseType: CaseType;
   checklist?: ChecklistItem[];
+  events?: CaseEvent[];
   _count?: {
     documents: number;
     events: number;
     checklist: number;
     packets?: number;
+  };
+}
+
+export interface CaseEvent {
+  id: string;
+  occurredAt: string;
+  title: string;
+  description: string | null;
+  confidence: number | null;
+  createdAt: string;
+  updatedAt: string;
+  sources: CaseEventSource[];
+}
+
+export interface CaseEventSource {
+  id: string;
+  document: {
+    id: string;
+    originalName: string;
   };
 }
 

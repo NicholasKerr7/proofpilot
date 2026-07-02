@@ -52,6 +52,12 @@ function analyzeCaseChecklist(caseId: string) {
   });
 }
 
+function analyzeCaseTimeline(caseId: string) {
+  return apiRequest(`/api/cases/${caseId}/timeline/analyze`, {
+    method: "POST"
+  });
+}
+
 export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePanelProps) {
   const [documents, setDocuments] = useState<EvidenceDocument[]>([]);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
@@ -207,7 +213,10 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
 
         try {
           if (shouldAnalyzeChecklistAfterProcessing(detail.status)) {
-            await analyzeCaseChecklist(selectedCase.id);
+            await Promise.all([
+              analyzeCaseChecklist(selectedCase.id),
+              analyzeCaseTimeline(selectedCase.id)
+            ]);
           }
 
           await onDocumentsChanged();
@@ -218,7 +227,7 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
               text:
                 error instanceof Error
                   ? error.message
-                  : "Document processed, but case checklist could not be refreshed."
+                  : "Document processed, but case intelligence could not be refreshed."
             });
           }
         }

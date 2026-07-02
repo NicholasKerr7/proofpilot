@@ -29,6 +29,16 @@ export class CasesController {
     return this.casesService.get(user.id, id);
   }
 
+  @Get(":id/timeline")
+  listTimeline(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+    return this.casesService.listTimeline(user.id, id);
+  }
+
+  @Post(":id/timeline/analyze")
+  analyzeTimeline(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+    return this.casesService.analyzeTimeline(user.id, id);
+  }
+
   @Post(":id/checklist/analyze")
   analyzeChecklist(@CurrentUser() user: RequestUser, @Param("id") id: string) {
     return this.casesService.analyzeChecklist(user.id, id);

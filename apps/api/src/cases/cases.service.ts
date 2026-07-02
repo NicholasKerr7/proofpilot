@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { CaseStatus, ChecklistStatus, DocumentStatus, Prisma } from "@proofpilot/database";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { analyzeChecklistEvidence } from "./case-checklist-analysis.js";
+import { analyzeTimelineEvidence } from "./case-timeline-analysis.js";
 import type { CreateCaseDto } from "./dto/create-case.dto.js";
 import type { UpdateCaseDto } from "./dto/update-case.dto.js";
 
@@ -139,6 +140,7 @@ export class CasesService {
             }
           }
         },
+        events: this.getTimelineSelect(),
         _count: {
           select: {
             documents: true,
@@ -155,6 +157,102 @@ export class CasesService {
     }
 
     return foundCase;
+  }
+
+  async listTimeline(ownerId: string, caseId: string) {
+    await this.assertCaseOwnership(ownerId, caseId);
+
+    return this.prisma.caseEvent.findMany({
+      where: { caseId },
+      ...this.getTimelineSelect()
+    });
+  }
+
+  async analyzeTimeline(ownerId: string, caseId: string) {
+    const foundCase = await this.prisma.case.findFirst({
+      where: {
+        id: caseId,
+        ownerId,
+        archivedAt: null
+      },
+      select: {
+        id: true,
+        documents: {
+          where: {
+            status: DocumentStatus.PROCESSED,
+            extractedText: {
+              not: null
+            }
+          },
+          select: {
+            id: true,
+            originalName: true,
+            extractedText: true,
+            entities: {
+              select: {
+                type: true,
+                value: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!foundCase) {
+      throw new NotFoundException("Case not found.");
+    }
+
+    const documentIds = foundCase.documents.map((document) => document.id);
+    const analyzedEvents = analyzeTimelineEvidence(foundCase.documents);
+
+    await this.prisma.$transaction(async (tx) => {
+      if (documentIds.length) {
+        await tx.caseEvent.deleteMany({
+          where: {
+            caseId: foundCase.id,
+            sources: {
+              some: {
+                documentId: {
+                  in: documentIds
+                }
+              }
+            }
+          }
+        });
+      }
+
+      for (const event of analyzedEvents) {
+        await tx.caseEvent.create({
+          data: {
+            caseId: foundCase.id,
+            occurredAt: event.occurredAt,
+            title: event.title,
+            description: event.description,
+            confidence: event.confidence,
+            sources: {
+              create: {
+                documentId: event.documentId
+              }
+            }
+          }
+        });
+      }
+
+      await tx.auditLog.create({
+        data: {
+          userId: ownerId,
+          caseId: foundCase.id,
+          action: "case.timeline_analyzed",
+          metadata: {
+            documentsAnalyzed: foundCase.documents.length,
+            eventCount: analyzedEvents.length
+          }
+        }
+      });
+    });
+
+    return this.get(ownerId, caseId);
   }
 
   async analyzeChecklist(ownerId: string, caseId: string) {
@@ -374,6 +472,32 @@ export class CasesService {
     }
 
     return missingCount === 0 ? CaseStatus.READY_FOR_REVIEW : CaseStatus.NEEDS_MORE_EVIDENCE;
+  }
+
+  private getTimelineSelect() {
+    return {
+      orderBy: { occurredAt: "asc" as const },
+      select: {
+        id: true,
+        occurredAt: true,
+        title: true,
+        description: true,
+        confidence: true,
+        createdAt: true,
+        updatedAt: true,
+        sources: {
+          select: {
+            id: true,
+            document: {
+              select: {
+                id: true,
+                originalName: true
+              }
+            }
+          }
+        }
+      }
+    };
   }
 
   private toUpdateAuditMetadata(input: UpdateCaseDto) {
