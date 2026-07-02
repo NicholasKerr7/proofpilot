@@ -116,24 +116,41 @@ export function CaseWorkspace({ selectedCase }: CaseWorkspaceProps) {
             <CardDescription>Core requirements for an account appeal packet.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3">
-            {checklistPlaceholders.map((item, index) => (
-              <div
-                key={item}
-                className="flex items-center justify-between gap-3 rounded-md border border-border bg-secondary/45 px-3 py-3"
-              >
-                <span className="flex min-w-0 items-center gap-2 text-sm">
-                  {index < 2 ? (
-                    <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
-                  ) : (
-                    <Clock3 className="h-4 w-4 shrink-0 text-primary" />
-                  )}
-                  <span className="truncate">{item}</span>
-                </span>
-                <Badge variant={index < 2 ? "secondary" : "warning"}>
-                  {index < 2 ? "Ready" : "Missing"}
-                </Badge>
-              </div>
-            ))}
+            {(selectedCase.checklist?.length ? selectedCase.checklist : checklistPlaceholders).map((item, index) => {
+              const checklistItem =
+                typeof item === "string"
+                  ? {
+                      id: item,
+                      label: item,
+                      status: index < 2 ? "READY" : "MISSING"
+                    }
+                  : item;
+
+              return (
+                <div
+                  key={checklistItem.id}
+                  className="flex items-center justify-between gap-3 rounded-md border border-border bg-secondary/45 px-3 py-3"
+                >
+                  <span className="flex min-w-0 items-center gap-2 text-sm">
+                    {checklistItem.status === "FOUND" || checklistItem.status === "COMPLETE" ? (
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+                    ) : (
+                      <Clock3 className="h-4 w-4 shrink-0 text-primary" />
+                    )}
+                    <span className="truncate">{checklistItem.label}</span>
+                  </span>
+                  <Badge
+                    variant={
+                      checklistItem.status === "FOUND" || checklistItem.status === "COMPLETE"
+                        ? "success"
+                        : "warning"
+                    }
+                  >
+                    {formatChecklistStatus(checklistItem.status)}
+                  </Badge>
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
 
@@ -184,6 +201,14 @@ export function CaseWorkspace({ selectedCase }: CaseWorkspaceProps) {
       </aside>
     </div>
   );
+}
+
+function formatChecklistStatus(status: string) {
+  return status
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function getReadiness(caseRecord: CaseRecord) {

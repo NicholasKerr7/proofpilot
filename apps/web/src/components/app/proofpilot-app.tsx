@@ -10,11 +10,21 @@ import { CaseDashboard } from "@/components/app/case-dashboard";
 import { CaseWorkspace } from "@/components/app/case-workspace";
 import { CreateCaseForm } from "@/components/app/create-case-form";
 import { apiRequest, ApiClientError } from "@/lib/client/api";
-import type { AuthUser, CaseRecord, CreateCasePayload } from "@/lib/client/types";
+import type { AuthUser, CaseRecord, CaseType, CreateCasePayload } from "@/lib/client/types";
+
+const fallbackCaseTypes: CaseType[] = [
+  {
+    id: "account-ban-appeal",
+    slug: "account-ban-appeal",
+    name: "Account Ban / Appeal Builder",
+    description: "Build an organized appeal packet for account bans, holds, closures, and platform restrictions."
+  }
+];
 
 export function ProofPilotApp() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [cases, setCases] = useState<CaseRecord[]>([]);
+  const [caseTypes, setCaseTypes] = useState<CaseType[]>(fallbackCaseTypes);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [isBooting, setIsBooting] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,6 +48,32 @@ export function ProofPilotApp() {
     }
   }, []);
 
+  const loadCaseTypes = useCallback(async () => {
+    try {
+      const nextCaseTypes = await apiRequest<CaseType[]>("/api/case-types");
+      setCaseTypes(nextCaseTypes.length ? nextCaseTypes : fallbackCaseTypes);
+    } catch {
+      setCaseTypes(fallbackCaseTypes);
+    }
+  }, []);
+
+  const loadCaseDetail = useCallback(async (caseId: string) => {
+    const caseDetail = await apiRequest<CaseRecord>(`/api/cases/${caseId}`);
+    setCases((currentCases) => {
+      const caseExists = currentCases.some((caseRecord) => caseRecord.id === caseDetail.id);
+
+      if (!caseExists) {
+        return [caseDetail, ...currentCases];
+      }
+
+      return currentCases.map((caseRecord) =>
+        caseRecord.id === caseDetail.id ? caseDetail : caseRecord
+      );
+    });
+    setSelectedCaseId(caseDetail.id);
+    return caseDetail;
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -48,7 +84,7 @@ export function ProofPilotApp() {
           return;
         }
         setUser(currentUser);
-        await loadCases();
+        await Promise.all([loadCases(), loadCaseTypes()]);
       } catch (error) {
         if (isMounted && error instanceof ApiClientError && error.status !== 401) {
           setMessage(error.message);
@@ -65,7 +101,7 @@ export function ProofPilotApp() {
     return () => {
       isMounted = false;
     };
-  }, [loadCases]);
+  }, [loadCases, loadCaseTypes]);
 
   async function authenticate(
     path: "/api/auth/login" | "/api/auth/register",
@@ -80,7 +116,7 @@ export function ProofPilotApp() {
         method: "POST"
       });
       setUser(response.user);
-      await loadCases();
+      await Promise.all([loadCases(), loadCaseTypes()]);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Authentication failed.");
     } finally {
@@ -106,11 +142,22 @@ export function ProofPilotApp() {
         method: "POST"
       });
       await loadCases();
-      setSelectedCaseId(createdCase.id);
+      await loadCaseDetail(createdCase.id);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Case creation failed.");
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleSelectCase(caseId: string) {
+    setSelectedCaseId(caseId);
+    setMessage(null);
+
+    try {
+      await loadCaseDetail(caseId);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Case detail could not be loaded.");
     }
   }
 
@@ -186,12 +233,16 @@ export function ProofPilotApp() {
             cases={cases}
             isLoading={isCaseLoading}
             onArchiveCase={handleArchiveCase}
-            onSelectCase={setSelectedCaseId}
+            onSelectCase={handleSelectCase}
             selectedCaseId={selectedCase?.id ?? null}
           />
           <CaseWorkspace selectedCase={selectedCase} />
         </div>
-        <CreateCaseForm isSubmitting={isSubmitting} onCreateCase={handleCreateCase} />
+        <CreateCaseForm
+          caseTypes={caseTypes}
+          isSubmitting={isSubmitting}
+          onCreateCase={handleCreateCase}
+        />
       </div>
     </AppShell>
   );

@@ -21,12 +21,21 @@ export interface CaseRecord {
   createdAt: string;
   updatedAt: string;
   caseType: CaseType;
+  checklist?: ChecklistItem[];
   _count?: {
     documents: number;
     events: number;
     checklist: number;
     packets?: number;
   };
+}
+
+export interface ChecklistItem {
+  id: string;
+  label: string;
+  description: string;
+  status: string;
+  updatedAt: string;
 }
 
 export interface CreateCasePayload {

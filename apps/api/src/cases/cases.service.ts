@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { CaseStatus, Prisma } from "@proofpilot/database";
+import { CaseStatus, ChecklistStatus, Prisma } from "@proofpilot/database";
 import { PrismaService } from "../prisma/prisma.service.js";
 import type { CreateCaseDto } from "./dto/create-case.dto.js";
 import type { UpdateCaseDto } from "./dto/update-case.dto.js";
@@ -17,34 +17,67 @@ export class CasesService {
       throw new NotFoundException("Case type not found.");
     }
 
-    const createdCase = await this.prisma.case.create({
-      data: {
-        ownerId,
-        caseTypeId: caseType.id,
-        title: input.title,
-        platform: input.platform,
-        status: CaseStatus.COLLECTING_EVIDENCE,
-        ...(input.summary ? { summary: input.summary } : {}),
-        ...(input.deadline ? { deadline: new Date(input.deadline) } : {})
-      },
-      include: {
-        caseType: true
-      }
-    });
-
-    await this.prisma.auditLog.create({
-      data: {
-        userId: ownerId,
-        caseId: createdCase.id,
-        action: "case.created",
-        metadata: {
-          title: createdCase.title,
-          platform: createdCase.platform
+    return this.prisma.$transaction(async (tx) => {
+      const createdCase = await tx.case.create({
+        data: {
+          ownerId,
+          caseTypeId: caseType.id,
+          title: input.title,
+          platform: input.platform,
+          status: CaseStatus.COLLECTING_EVIDENCE,
+          ...(input.summary ? { summary: input.summary } : {}),
+          ...(input.deadline ? { deadline: new Date(input.deadline) } : {})
         }
-      }
-    });
+      });
 
-    return createdCase;
+      const template = await tx.caseTemplate.findFirst({
+        where: { caseTypeId: caseType.id },
+        include: {
+          requirements: {
+            orderBy: { sortOrder: "asc" }
+          }
+        }
+      });
+
+      if (template?.requirements.length) {
+        await tx.caseChecklistItem.createMany({
+          data: template.requirements.map((requirement) => ({
+            caseId: createdCase.id,
+            requirementId: requirement.id,
+            label: requirement.label,
+            description: requirement.description,
+            status: requirement.required ? ChecklistStatus.MISSING : ChecklistStatus.OPTIONAL
+          }))
+        });
+      }
+
+      await tx.auditLog.create({
+        data: {
+          userId: ownerId,
+          caseId: createdCase.id,
+          action: "case.created",
+          metadata: {
+            title: createdCase.title,
+            platform: createdCase.platform,
+            checklistItemsCreated: template?.requirements.length ?? 0
+          }
+        }
+      });
+
+      return tx.case.findUniqueOrThrow({
+        where: { id: createdCase.id },
+        include: {
+          caseType: true,
+          _count: {
+            select: {
+              documents: true,
+              events: true,
+              checklist: true
+            }
+          }
+        }
+      });
+    });
   }
 
   list(ownerId: string) {
@@ -79,6 +112,16 @@ export class CasesService {
         auditLogs: {
           orderBy: { createdAt: "desc" },
           take: 20
+        },
+        checklist: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            label: true,
+            description: true,
+            status: true,
+            updatedAt: true
+          }
         },
         _count: {
           select: {

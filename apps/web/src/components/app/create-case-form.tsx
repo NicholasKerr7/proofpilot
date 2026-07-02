@@ -6,15 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { CreateCasePayload } from "@/lib/client/types";
+import type { CaseType, CreateCasePayload } from "@/lib/client/types";
 
 interface CreateCaseFormProps {
+  caseTypes: CaseType[];
   isSubmitting: boolean;
   onCreateCase: (payload: CreateCasePayload) => Promise<void>;
 }
 
-export function CreateCaseForm({ isSubmitting, onCreateCase }: CreateCaseFormProps) {
+export function CreateCaseForm({ caseTypes, isSubmitting, onCreateCase }: CreateCaseFormProps) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -24,7 +26,7 @@ export function CreateCaseForm({ isSubmitting, onCreateCase }: CreateCaseFormPro
       title: String(formData.get("title") ?? ""),
       platform: String(formData.get("platform") ?? ""),
       summary: String(formData.get("summary") ?? ""),
-      caseTypeSlug: "account-ban-appeal"
+      caseTypeSlug: String(formData.get("caseTypeSlug") ?? "account-ban-appeal")
     };
 
     if (deadline) {
@@ -52,6 +54,16 @@ export function CreateCaseForm({ isSubmitting, onCreateCase }: CreateCaseFormPro
               placeholder="PayPal account closure appeal"
               required
             />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="case-type">Case type</Label>
+            <Select id="case-type" name="caseTypeSlug" defaultValue="account-ban-appeal">
+              {caseTypes.map((caseType) => (
+                <option key={caseType.id} value={caseType.slug}>
+                  {caseType.name}
+                </option>
+              ))}
+            </Select>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             <div className="grid gap-2">
