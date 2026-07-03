@@ -23,6 +23,8 @@ pnpm db:seed
 pnpm dev
 ```
 
+Production deployment notes are in [docs/deployment.md](docs/deployment.md).
+
 Default URLs:
 
 - Web: `http://localhost:3000`
