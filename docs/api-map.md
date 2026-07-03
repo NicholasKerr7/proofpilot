@@ -53,4 +53,4 @@
 
 ## Next Sprints
 
-- Upload hardening for file size limits and virus-scan placeholder
+- Rate limiting and request logging for API production readiness

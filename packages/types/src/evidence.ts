@@ -3,6 +3,8 @@ export const docxMimeType =
 export const emailMimeType = "message/rfc822";
 export const csvMimeType = "text/csv";
 export const xlsxMimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+export const evidenceMaxUploadByteSize = 25 * 1024 * 1024;
+export const evidenceMaxUploadSizeLabel = "25 MB";
 
 export const evidenceMimeTypes = [
   "application/pdf",

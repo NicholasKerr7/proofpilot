@@ -1,4 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
+import { evidenceMaxUploadByteSize } from "@proofpilot/types/evidence";
 import { IsInt, IsMimeType, IsString, Max, MaxLength, Min } from "class-validator";
 
 export class CreateDocumentDto {
@@ -15,6 +16,6 @@ export class CreateDocumentDto {
   @ApiProperty({ example: 348112 })
   @IsInt()
   @Min(1)
-  @Max(25 * 1024 * 1024)
+  @Max(evidenceMaxUploadByteSize)
   byteSize!: number;
 }

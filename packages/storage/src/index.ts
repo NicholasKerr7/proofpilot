@@ -3,6 +3,7 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
   type BucketLocationConstraint,
@@ -130,6 +131,21 @@ export async function deleteStoredObject(input: { key: string }) {
   });
 
   await getStorageClient().send(command);
+}
+
+export async function headStoredObject(input: { key: string }) {
+  const config = getStorageConfig();
+  const command = new HeadObjectCommand({
+    Bucket: config.STORAGE_BUCKET,
+    Key: input.key
+  });
+  const response = await getStorageClient().send(command);
+
+  return {
+    byteSize: response.ContentLength ?? 0,
+    contentType: response.ContentType ?? null,
+    lastModified: response.LastModified ?? null
+  };
 }
 
 export async function writeStoredObjectBytes(input: {

@@ -27,3 +27,9 @@ If packet generation stays in `GENERATING`:
 6. Run `pnpm smoke:packet` after the API and worker are restarted.
 
 If document processing stalls, follow the same checks for `document-processing`, then inspect the document processing logs in the document detail API response.
+
+## Upload Validation Runbook
+
+If an uploaded document moves to `FAILED` before processing starts, check the document processing logs for `upload_validation`. The API rejects completed uploads when the stored object is missing, larger than 25 MB, has a different byte size than the reserved upload, or has a mismatched content type.
+
+`virus_scan_placeholder` with status `skipped` means the upload passed metadata validation, but no external scanning provider is configured yet.

@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import {
   evidenceFileTypeListLabel,
+  evidenceMaxUploadByteSize,
+  evidenceMaxUploadSizeLabel,
   evidenceMimeTypeLabels,
   evidenceUploadAccept,
   inferEvidenceMimeTypeFromName,
@@ -31,7 +33,6 @@ import type {
 } from "@/lib/client/types";
 import { cn } from "@/lib/utils";
 
-const maxUploadBytes = 25 * 1024 * 1024;
 const previewMimeTypes = new Set(["application/pdf", "image/png", "image/jpeg", "text/plain"]);
 
 interface EvidencePanelProps {
@@ -305,8 +306,11 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
       return;
     }
 
-    if (file.size > maxUploadBytes) {
-      setNotice({ tone: "error", text: "File is too large. Upload evidence under 25 MB." });
+    if (file.size > evidenceMaxUploadByteSize) {
+      setNotice({
+        tone: "error",
+        text: `File is too large. Upload evidence under ${evidenceMaxUploadSizeLabel}.`
+      });
       return;
     }
 

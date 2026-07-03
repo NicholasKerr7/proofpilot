@@ -60,6 +60,12 @@ pnpm storage:bootstrap
 
 The command loads `.env` and `.env.local`, uses the same `STORAGE_*` variables as the API and worker, and is idempotent. For production providers that do not allow application credentials to create buckets, pre-create `STORAGE_BUCKET` in the provider console and run the command as a verification step.
 
+## Upload Security
+
+Evidence uploads are limited to PDF, PNG, JPG, JPEG, TXT, DOCX, EML, CSV, and XLSX files under 25 MB. The API validates the requested upload metadata before issuing a signed URL and validates the stored object size and content type before queueing document processing.
+
+Invalid completed uploads are marked `FAILED`, logged as `upload_validation`, and are not queued. A `virus_scan_placeholder` processing log is recorded after metadata validation; replace this placeholder with a real scanning provider before broad production uploads.
+
 ## Container Builds
 
 Build the API image:
