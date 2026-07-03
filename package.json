@@ -11,6 +11,7 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "smoke:packet": "node scripts/smoke-packet-flow.mjs",
+    "storage:bootstrap": "pnpm --filter @proofpilot/storage storage:bootstrap",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
     "clean": "turbo clean",

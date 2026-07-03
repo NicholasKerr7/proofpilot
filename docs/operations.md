@@ -23,7 +23,7 @@ If packet generation stays in `GENERATING`:
 2. Confirm the worker service is running and logs `ProofPilot worker is listening on packet-generation.`
 3. Confirm Redis is reachable from both API and worker with the same `REDIS_URL`.
 4. Check worker logs for `ProofPilot worker job failed` entries.
-5. Confirm S3 or MinIO credentials are valid and the configured bucket exists.
+5. Run `pnpm storage:bootstrap` to confirm S3 or MinIO credentials are valid and the configured bucket exists.
 6. Run `pnpm smoke:packet` after the API and worker are restarted.
 
 If document processing stalls, follow the same checks for `document-processing`, then inspect the document processing logs in the document detail API response.

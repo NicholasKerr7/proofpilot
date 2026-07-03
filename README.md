@@ -17,6 +17,7 @@ ProofPilot turns messy evidence into professional appeal and dispute case packet
 cp .env.example .env
 pnpm install
 docker compose up -d
+pnpm storage:bootstrap
 pnpm db:generate
 pnpm db:migrate
 pnpm db:seed
@@ -33,6 +34,8 @@ Default URLs:
 - API: `http://localhost:4000`
 - API docs: `http://localhost:4000/docs`
 - MinIO console: `http://localhost:9001`
+
+`pnpm storage:bootstrap` loads `.env` and `.env.local`, then verifies or creates the configured private storage bucket. Run it after MinIO is up locally and before first API or worker traffic in production.
 
 Local demo login after `pnpm db:seed`:
 

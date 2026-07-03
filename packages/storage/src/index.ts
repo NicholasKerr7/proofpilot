@@ -1,8 +1,12 @@
 import {
+  CreateBucketCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadBucketCommand,
   PutObjectCommand,
   S3Client,
+  type BucketLocationConstraint,
+  type CreateBucketCommandInput,
   type S3ClientConfig
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -44,6 +48,46 @@ export function getStorageClient(env: NodeJS.ProcessEnv = process.env) {
   }
 
   return client;
+}
+
+export async function ensureStorageBucket(env: NodeJS.ProcessEnv = process.env) {
+  const config = getStorageConfig(env);
+  const storageClient = getStorageClient(env);
+
+  try {
+    await storageClient.send(new HeadBucketCommand({ Bucket: config.STORAGE_BUCKET }));
+
+    return {
+      bucket: config.STORAGE_BUCKET,
+      created: false,
+      endpoint: config.STORAGE_ENDPOINT ?? "aws-s3",
+      region: config.STORAGE_REGION
+    };
+  } catch (error) {
+    if (!isMissingBucketError(error)) {
+      throw error;
+    }
+  }
+
+  const createInput: CreateBucketCommandInput = {
+    Bucket: config.STORAGE_BUCKET
+  };
+
+  if (!config.STORAGE_ENDPOINT && config.STORAGE_REGION !== "us-east-1") {
+    createInput.CreateBucketConfiguration = {
+      LocationConstraint: config.STORAGE_REGION as BucketLocationConstraint
+    };
+  }
+
+  await storageClient.send(new CreateBucketCommand(createInput));
+  await storageClient.send(new HeadBucketCommand({ Bucket: config.STORAGE_BUCKET }));
+
+  return {
+    bucket: config.STORAGE_BUCKET,
+    created: true,
+    endpoint: config.STORAGE_ENDPOINT ?? "aws-s3",
+    region: config.STORAGE_REGION
+  };
 }
 
 export async function createPresignedUploadUrl(input: {
@@ -117,4 +161,21 @@ export async function readStoredObjectBytes(input: { key: string }) {
   }
 
   return Buffer.from(await response.Body.transformToByteArray());
+}
+
+function isMissingBucketError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const errorWithMetadata = error as {
+    $metadata?: { httpStatusCode?: number };
+    Code?: string;
+    code?: string;
+    name?: string;
+  };
+  const statusCode = errorWithMetadata.$metadata?.httpStatusCode;
+  const errorCode = errorWithMetadata.Code ?? errorWithMetadata.code ?? errorWithMetadata.name;
+
+  return statusCode === 404 || errorCode === "NotFound" || errorCode === "NoSuchBucket";
 }

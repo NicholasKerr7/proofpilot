@@ -50,6 +50,16 @@ Set this for the web service:
 
 - `NEXT_PUBLIC_API_URL`
 
+## Storage Setup
+
+Create or verify the private evidence bucket before first API or worker traffic:
+
+```bash
+pnpm storage:bootstrap
+```
+
+The command loads `.env` and `.env.local`, uses the same `STORAGE_*` variables as the API and worker, and is idempotent. For production providers that do not allow application credentials to create buckets, pre-create `STORAGE_BUCKET` in the provider console and run the command as a verification step.
+
 ## Container Builds
 
 Build the API image:
@@ -101,7 +111,7 @@ After `pnpm db:seed`, use the seeded demo account:
 - Email: `nicholas.kerr@proofpilot.test`
 - Password: `Password123!`
 
-With PostgreSQL, Redis, MinIO, the API, and the worker running, verify the authenticated packet queue and export flow:
+With PostgreSQL, Redis, MinIO, the bootstrapped storage bucket, the API, and the worker running, verify the authenticated packet queue and export flow:
 
 ```bash
 pnpm smoke:packet

@@ -53,4 +53,4 @@
 
 ## Next Sprints
 
-- Storage bucket bootstrap automation for local and production setup
+- Upload hardening for file size limits and virus-scan placeholder
