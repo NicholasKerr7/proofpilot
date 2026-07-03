@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Archive, ArrowUpRight, FileText, FolderOpen, Search, ShieldCheck, TriangleAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,10 @@ export function CaseDashboard({
   onSelectCase,
   selectedCaseId
 }: CaseDashboardProps) {
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const metrics = getMetrics(cases);
+  const filteredCases = filterCases(cases, query, statusFilter);
 
   return (
     <div className="grid gap-5">
@@ -45,14 +49,36 @@ export function CaseDashboard({
       </section>
 
       <Card>
-        <CardHeader className="gap-3 sm:flex sm:flex-row sm:items-center sm:justify-between">
+        <CardHeader className="gap-3">
           <div>
             <CardTitle>Case command center</CardTitle>
             <CardDescription>Private cases owned by your account.</CardDescription>
           </div>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input aria-label="Search cases" className="pl-9 sm:w-64" placeholder="Search cases" />
+          <div className="grid gap-3 lg:grid-cols-[minmax(220px,320px)_1fr] lg:items-center">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                aria-label="Search cases"
+                className="pl-9"
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search cases"
+                value={query}
+              />
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {statusFilters.map((filter) => (
+                <Button
+                  key={filter.value}
+                  type="button"
+                  variant={statusFilter === filter.value ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setStatusFilter(filter.value)}
+                  className="shrink-0"
+                >
+                  {filter.label}
+                </Button>
+              ))}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="grid gap-3">
@@ -62,7 +88,17 @@ export function CaseDashboard({
               No cases yet. Create the first appeal case to start collecting evidence.
             </div>
           ) : null}
-          {cases.map((caseRecord) => {
+          {!isLoading && cases.length > 0 && filteredCases.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border bg-secondary/35 p-5 text-sm text-muted-foreground">
+              No cases match the current search and filter.
+            </div>
+          ) : null}
+          {!isLoading && filteredCases.length > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Showing {filteredCases.length} of {cases.length} cases
+            </p>
+          ) : null}
+          {filteredCases.map((caseRecord) => {
             const readiness = getReadiness(caseRecord);
             const isSelected = selectedCaseId === caseRecord.id;
 
@@ -104,6 +140,63 @@ export function CaseDashboard({
       </Card>
     </div>
   );
+}
+
+const statusFilters = [
+  { label: "All", value: "all" },
+  { label: "Collecting", value: "collecting" },
+  { label: "Needs evidence", value: "needs_evidence" },
+  { label: "Ready", value: "ready" },
+  { label: "Packet", value: "packet" }
+] as const;
+
+type StatusFilter = (typeof statusFilters)[number]["value"];
+
+function filterCases(cases: CaseRecord[], query: string, statusFilter: StatusFilter) {
+  const normalizedQuery = normalizeSearch(query);
+
+  return cases.filter((caseRecord) => {
+    const matchesQuery =
+      normalizedQuery.length === 0 ||
+      normalizeSearch(
+        [
+          caseRecord.title,
+          caseRecord.platform,
+          caseRecord.status,
+          caseRecord.summary,
+          caseRecord.caseType.name,
+          caseRecord.deadline
+        ]
+          .filter(Boolean)
+          .join(" ")
+      ).includes(normalizedQuery);
+
+    return matchesQuery && matchesStatusFilter(caseRecord.status, statusFilter);
+  });
+}
+
+function matchesStatusFilter(status: string, statusFilter: StatusFilter) {
+  if (statusFilter === "all") {
+    return true;
+  }
+
+  if (statusFilter === "collecting") {
+    return status === "COLLECTING_EVIDENCE" || status === "PROCESSING";
+  }
+
+  if (statusFilter === "needs_evidence") {
+    return status === "NEEDS_MORE_EVIDENCE";
+  }
+
+  if (statusFilter === "ready") {
+    return status === "READY_FOR_REVIEW";
+  }
+
+  return status === "PACKET_GENERATED" || status === "SUBMITTED" || status === "RESOLVED";
+}
+
+function normalizeSearch(value: string) {
+  return value.trim().toLowerCase();
 }
 
 function getMetrics(cases: CaseRecord[]) {

@@ -21,6 +21,8 @@
 - `GET /cases/:id`
 - `PATCH /cases/:id`
 - `DELETE /cases/:id`
+- `POST /cases/:caseId/documents`
+- `GET /cases/:caseId/documents`
 - `GET /cases/:caseId/checklist`
 - `POST /cases/:caseId/checklist/analyze`
 - `GET /cases/:caseId/timeline`
@@ -32,9 +34,15 @@
 - `GET /cases/:caseId/packets`
 - `POST /cases/:caseId/packet/generate`
 
+## Documents
+
+- `GET /documents/:documentId`
+- `DELETE /documents/:documentId`
+- `POST /documents/:documentId/complete`
+- `GET /documents/:documentId/processing-status`
+- `POST /documents/:documentId/reprocess`
+
 ## Next Sprints
 
-- `POST /cases/:caseId/documents`
-- `GET /cases/:caseId/documents`
-- `GET /documents/:documentId`
-- `POST /documents/:documentId/reprocess`
+- DOCX, email export, CSV, and XLSX evidence adapters
+- Packet job queue for larger cases and long-running exports
