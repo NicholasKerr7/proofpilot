@@ -39,6 +39,12 @@ Local demo login after `pnpm db:seed`:
 - Email: `nicholas.kerr@proofpilot.test`
 - Password: `Password123!`
 
+Run the authenticated packet flow smoke check after `pnpm dev` is running:
+
+```bash
+pnpm smoke:packet
+```
+
 ## MVP Scope
 
 The first product slice is Account Ban / Appeal Builder:

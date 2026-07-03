@@ -99,3 +99,11 @@ After `pnpm db:seed`, use the seeded demo account:
 
 - Email: `nicholas.kerr@proofpilot.test`
 - Password: `Password123!`
+
+With PostgreSQL, Redis, MinIO, the API, and the worker running, verify the authenticated packet queue and export flow:
+
+```bash
+pnpm smoke:packet
+```
+
+The smoke check uses `PROOFPILOT_API_URL=http://localhost:4000` by default. Override `PROOFPILOT_SMOKE_EMAIL`, `PROOFPILOT_SMOKE_PASSWORD`, `PROOFPILOT_SMOKE_TIMEOUT_MS`, `PROOFPILOT_SMOKE_KEEP_CASE=1`, or `PROOFPILOT_SMOKE_SKIP_DOWNLOAD=1` when needed.

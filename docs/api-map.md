@@ -52,4 +52,4 @@
 
 ## Next Sprints
 
-- End-to-end smoke coverage for the authenticated packet flow
+- Worker queue observability and operational runbooks
