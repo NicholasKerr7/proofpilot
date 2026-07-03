@@ -12,6 +12,7 @@ import type { CasePacket, CaseRecord } from "@/lib/client/types";
 
 interface PacketExportPanelProps {
   onCaseChanged: (caseId: string) => Promise<unknown>;
+  onNotificationsChanged: () => void;
   readiness: number;
   selectedCase: CaseRecord;
 }
@@ -23,6 +24,7 @@ type Notice = {
 
 export function PacketExportPanel({
   onCaseChanged,
+  onNotificationsChanged,
   readiness,
   selectedCase
 }: PacketExportPanelProps) {
@@ -84,6 +86,7 @@ export function PacketExportPanel({
         ...currentPackets.filter((packet) => packet.id !== generatedPacket.id)
       ]);
       await onCaseChanged(selectedCase.id);
+      onNotificationsChanged();
       setNotice({ tone: "success", text: "Packet generated and ready to download." });
     } catch (error) {
       setNotice({

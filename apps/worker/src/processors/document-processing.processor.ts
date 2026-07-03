@@ -28,7 +28,15 @@ export async function processUploadedDocument(job: Job<ProcessDocumentJobData>) 
       id: true,
       originalName: true,
       mimeType: true,
-      storageKey: true
+      storageKey: true,
+      case: {
+        select: {
+          id: true,
+          ownerId: true,
+          platform: true,
+          title: true
+        }
+      }
     }
   });
 
@@ -104,19 +112,41 @@ export async function processUploadedDocument(job: Job<ProcessDocumentJobData>) 
   } catch (error) {
     const message = error instanceof Error ? error.message : "Document processing failed.";
 
-    await prisma.document.update({
-      where: { id: document.id },
-      data: { status: DocumentStatus.FAILED }
-    });
-
-    await prisma.documentProcessingLog.create({
-      data: {
-        documentId: document.id,
-        step: "process_uploaded_document",
-        status: "failed",
-        message
-      }
-    });
+    await prisma.$transaction([
+      prisma.document.update({
+        where: { id: document.id },
+        data: { status: DocumentStatus.FAILED }
+      }),
+      prisma.documentProcessingLog.create({
+        data: {
+          documentId: document.id,
+          step: "process_uploaded_document",
+          status: "failed",
+          message
+        }
+      }),
+      prisma.notification.create({
+        data: {
+          userId: document.case.ownerId,
+          caseId: document.case.id,
+          type: "processing_failed",
+          title: "Evidence processing failed",
+          body: `${document.originalName} needs review for ${document.case.title}. ${truncateMessage(message)}`
+        }
+      }),
+      prisma.auditLog.create({
+        data: {
+          userId: document.case.ownerId,
+          caseId: document.case.id,
+          action: "document.processing_failed",
+          metadata: {
+            documentId: document.id,
+            message,
+            originalName: document.originalName
+          }
+        }
+      })
+    ]);
 
     throw error;
   }
@@ -216,6 +246,10 @@ function limitExtractedText(value: string) {
   }
 
   return `${value.slice(0, maxExtractedTextChars)}\n\n[Truncated after ${maxExtractedTextChars} characters]`;
+}
+
+function truncateMessage(value: string) {
+  return value.length <= 180 ? value : `${value.slice(0, 177)}...`;
 }
 
 async function extractPdfText(bytes: Buffer) {

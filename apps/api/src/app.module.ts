@@ -5,6 +5,7 @@ import { CasesModule } from "./cases/cases.module.js";
 import { CaseTypesModule } from "./case-types/case-types.module.js";
 import { DocumentsModule } from "./documents/documents.module.js";
 import { HealthController } from "./health/health.controller.js";
+import { NotificationsModule } from "./notifications/notifications.module.js";
 import { PrismaModule } from "./prisma/prisma.module.js";
 import { QueueModule } from "./queue/queue.module.js";
 
@@ -16,7 +17,8 @@ import { QueueModule } from "./queue/queue.module.js";
     AuthModule,
     CaseTypesModule,
     CasesModule,
-    DocumentsModule
+    DocumentsModule,
+    NotificationsModule
   ],
   controllers: [HealthController]
 })

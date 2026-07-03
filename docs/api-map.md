@@ -42,6 +42,14 @@
 - `GET /documents/:documentId/processing-status`
 - `POST /documents/:documentId/reprocess`
 
+## Notifications and Reminders
+
+- `GET /notifications`
+- `PATCH /notifications/:notificationId/read`
+- `GET /cases/:caseId/reminders`
+- `POST /cases/:caseId/reminders`
+- `DELETE /reminders/:reminderId`
+
 ## Next Sprints
 
 - DOCX, email export, CSV, and XLSX evidence adapters

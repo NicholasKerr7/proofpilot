@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import { ChecklistPanel } from "@/components/app/checklist-panel";
 import { EvidencePanel } from "@/components/app/evidence/evidence-panel";
 import { PacketExportPanel } from "@/components/app/packet-export-panel";
+import { ReminderPanel } from "@/components/app/reminder-panel";
 import { StatementBuilder } from "@/components/app/statement-builder";
 import { TimelinePanel } from "@/components/app/timeline-panel";
 import { Badge } from "@/components/ui/badge";
@@ -13,10 +14,15 @@ import type { CaseRecord } from "@/lib/client/types";
 
 interface CaseWorkspaceProps {
   onCaseChanged: (caseId: string) => Promise<unknown>;
+  onNotificationsChanged: () => void;
   selectedCase: CaseRecord | null;
 }
 
-export function CaseWorkspace({ onCaseChanged, selectedCase }: CaseWorkspaceProps) {
+export function CaseWorkspace({
+  onCaseChanged,
+  onNotificationsChanged,
+  selectedCase
+}: CaseWorkspaceProps) {
   const selectedCaseId = selectedCase?.id ?? null;
   const handleDocumentsChanged = useCallback(async () => {
     if (selectedCaseId) {
@@ -70,11 +76,18 @@ export function CaseWorkspace({ onCaseChanged, selectedCase }: CaseWorkspaceProp
       </div>
 
       <aside className="grid gap-5">
+        <ReminderPanel
+          key={selectedCase.id}
+          onNotificationsChanged={onNotificationsChanged}
+          selectedCase={selectedCase}
+        />
+
         <ChecklistPanel selectedCase={selectedCase} onCaseChanged={onCaseChanged} />
 
         <StatementBuilder onCaseChanged={onCaseChanged} selectedCase={selectedCase} />
 
         <PacketExportPanel
+          onNotificationsChanged={onNotificationsChanged}
           onCaseChanged={onCaseChanged}
           readiness={readiness}
           selectedCase={selectedCase}

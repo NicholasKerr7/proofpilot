@@ -152,6 +152,30 @@ export interface CasePacket {
   exports: CasePacketExport[];
 }
 
+export interface AppNotification {
+  id: string;
+  caseId: string | null;
+  type: string;
+  title: string;
+  body: string;
+  readAt: string | null;
+  createdAt: string;
+  case: {
+    id: string;
+    platform: string;
+    title: string;
+  } | null;
+}
+
+export interface CaseReminder {
+  id: string;
+  caseId: string;
+  remindAt: string;
+  message: string;
+  sentAt: string | null;
+  createdAt: string;
+}
+
 export interface ChecklistItem {
   id: string;
   label: string;

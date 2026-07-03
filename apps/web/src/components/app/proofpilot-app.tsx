@@ -9,6 +9,7 @@ import { AppShell } from "@/components/app/app-shell";
 import { CaseDashboard } from "@/components/app/case-dashboard";
 import { CaseWorkspace } from "@/components/app/case-workspace";
 import { CreateCaseForm } from "@/components/app/create-case-form";
+import { NotificationCenter } from "@/components/app/notification-center";
 import { apiRequest, ApiClientError } from "@/lib/client/api";
 import type { AuthUser, CaseRecord, CaseType, CreateCasePayload } from "@/lib/client/types";
 
@@ -30,6 +31,7 @@ export function ProofPilotApp() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCaseLoading, setIsCaseLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [notificationRefreshKey, setNotificationRefreshKey] = useState(0);
 
   const selectedCase = useMemo(
     () => cases.find((caseRecord) => caseRecord.id === selectedCaseId) ?? cases[0] ?? null,
@@ -60,6 +62,10 @@ export function ProofPilotApp() {
     } catch {
       setCaseTypes(fallbackCaseTypes);
     }
+  }, []);
+
+  const refreshNotifications = useCallback(() => {
+    setNotificationRefreshKey((currentKey) => currentKey + 1);
   }, []);
 
   const loadCaseDetail = useCallback(async (caseId: string) => {
@@ -125,6 +131,7 @@ export function ProofPilotApp() {
         method: "POST"
       });
       setUser(response.user);
+      refreshNotifications();
       const [nextCases] = await Promise.all([loadCases(), loadCaseTypes()]);
 
       if (nextCases[0]) {
@@ -143,6 +150,7 @@ export function ProofPilotApp() {
     setUser(null);
     setCases([]);
     setSelectedCaseId(null);
+    refreshNotifications();
   }
 
   async function handleCreateCase(payload: CreateCasePayload) {
@@ -156,6 +164,7 @@ export function ProofPilotApp() {
       });
       await loadCases();
       await loadCaseDetail(createdCase.id);
+      refreshNotifications();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Case creation failed.");
     } finally {
@@ -242,6 +251,8 @@ export function ProofPilotApp() {
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
         <div className="grid gap-5">
+          <NotificationCenter refreshKey={notificationRefreshKey} />
+
           <CaseDashboard
             cases={cases}
             isLoading={isCaseLoading}
@@ -249,7 +260,11 @@ export function ProofPilotApp() {
             onSelectCase={handleSelectCase}
             selectedCaseId={selectedCase?.id ?? null}
           />
-          <CaseWorkspace onCaseChanged={loadCaseDetail} selectedCase={selectedCase} />
+          <CaseWorkspace
+            onCaseChanged={loadCaseDetail}
+            onNotificationsChanged={refreshNotifications}
+            selectedCase={selectedCase}
+          />
         </div>
         <CreateCaseForm
           caseTypes={caseTypes}

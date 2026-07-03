@@ -632,6 +632,16 @@ export class CasesService {
         }
       });
 
+      await tx.notification.create({
+        data: {
+          userId: ownerId,
+          caseId,
+          type: "packet_ready",
+          title: "Packet ready",
+          body: `${foundCase.platform} packet for ${foundCase.title} is ready to download.`
+        }
+      });
+
       return createdPacket;
     });
 
