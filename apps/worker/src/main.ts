@@ -4,7 +4,10 @@ import {
   documentProcessingQueueName,
   type ProcessDocumentJobData
 } from "./queues/document-processing.queue.js";
-import { processUploadedDocument } from "./processors/document-processing.processor.js";
+import {
+  processUploadedDocument,
+  shutdownDocumentProcessor
+} from "./processors/document-processing.processor.js";
 
 const env = getWorkerEnv();
 const redisUrl = new URL(env.REDIS_URL);
@@ -54,4 +57,5 @@ worker.on("failed", (job, error) => {
 
 process.on("SIGTERM", async () => {
   await worker.close();
+  await shutdownDocumentProcessor();
 });

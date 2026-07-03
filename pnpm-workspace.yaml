@@ -9,6 +9,7 @@ allowBuilds:
   msgpackr-extract: true
   prisma: true
   sharp: true
+  tesseract.js: false
   unrs-resolver: true
 
 onlyBuiltDependencies:

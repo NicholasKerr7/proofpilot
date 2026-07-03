@@ -3,11 +3,17 @@ import { DocumentStatus, getPrismaClient } from "@proofpilot/database";
 import { readStoredObjectBytes } from "@proofpilot/storage";
 import { docxMimeType } from "@proofpilot/types/evidence";
 import mammoth from "mammoth";
+import { mkdir } from "node:fs/promises";
 import { PDFParse } from "pdf-parse";
+import Tesseract from "tesseract.js";
+import { getWorkerEnv } from "../config/env.js";
 import type { ProcessDocumentJobData } from "../queues/document-processing.queue.js";
 
 const prisma = getPrismaClient();
 const maxExtractedTextChars = 250_000;
+const workerEnv = getWorkerEnv();
+
+type OcrWorker = Awaited<ReturnType<typeof Tesseract.createWorker>>;
 
 interface ExtractedEntity {
   type: string;
@@ -22,6 +28,8 @@ interface ProcessingResult {
   step: string;
   message: string;
 }
+
+let ocrWorkerPromise: Promise<OcrWorker> | null = null;
 
 export async function processUploadedDocument(job: Job<ProcessDocumentJobData>) {
   const document = await prisma.document.findUnique({
@@ -234,16 +242,43 @@ async function processDocumentContent(document: {
   }
 
   if (document.mimeType === "image/png" || document.mimeType === "image/jpeg") {
-    return adapterPendingResult(
-      "extract_text_from_image",
-      "Image OCR adapter is pending. Review the file manually for now."
-    );
+    const bytes = await readStoredObjectBytes({ key: document.storageKey });
+    const result = await extractImageText(bytes);
+    const entities = extractEntities(result.extractedText);
+
+    if (!result.extractedText.trim()) {
+      return {
+        extractedText: null,
+        entities: [],
+        status: DocumentStatus.NEEDS_REVIEW,
+        step: "extract_text_from_image",
+        message: "Image OCR completed but did not detect readable text."
+      };
+    }
+
+    return {
+      extractedText: result.extractedText,
+      entities,
+      status: DocumentStatus.PROCESSED,
+      step: "extract_text_from_image",
+      message: `Extracted ${result.extractedText.length} characters and ${entities.length} entities from image OCR.${formatOcrConfidence(result.confidence)}`
+    };
   }
 
   return adapterPendingResult(
     "classify_document",
     `No processing adapter is available for ${document.mimeType}.`
   );
+}
+
+export async function shutdownDocumentProcessor() {
+  if (!ocrWorkerPromise) {
+    return;
+  }
+
+  const worker = await ocrWorkerPromise.catch(() => null);
+  ocrWorkerPromise = null;
+  await worker?.terminate();
 }
 
 function adapterPendingResult(step: string, message: string): ProcessingResult {
@@ -300,6 +335,55 @@ async function extractDocxText(bytes: Buffer) {
 
 function formatDocxMessages(messageCount: number) {
   return messageCount ? ` Mammoth returned ${messageCount} parser message(s).` : "";
+}
+
+async function extractImageText(bytes: Buffer) {
+  const worker = await getOcrWorker();
+  const result = await worker.recognize(bytes);
+
+  return {
+    confidence: result.data.confidence,
+    extractedText: limitExtractedText(normalizeText(result.data.text))
+  };
+}
+
+function getOcrWorker() {
+  if (!ocrWorkerPromise) {
+    ocrWorkerPromise = createOcrWorker().catch((error) => {
+      ocrWorkerPromise = null;
+      throw error;
+    });
+  }
+
+  return ocrWorkerPromise;
+}
+
+async function createOcrWorker() {
+  await mkdir(workerEnv.OCR_CACHE_PATH, { recursive: true });
+
+  const options: Partial<Tesseract.WorkerOptions> = {
+    cachePath: workerEnv.OCR_CACHE_PATH
+  };
+
+  if (workerEnv.TESSERACT_LANG_PATH) {
+    options.langPath = workerEnv.TESSERACT_LANG_PATH;
+  }
+
+  const worker = await Tesseract.createWorker(
+    workerEnv.OCR_LANGUAGES,
+    Tesseract.OEM.LSTM_ONLY,
+    options
+  );
+  await worker.setParameters({
+    preserve_interword_spaces: "1",
+    tessedit_pageseg_mode: Tesseract.PSM.SPARSE_TEXT
+  });
+
+  return worker;
+}
+
+function formatOcrConfidence(confidence: number) {
+  return Number.isFinite(confidence) ? ` Average confidence: ${Math.round(confidence)}%.` : "";
 }
 
 function extractEntities(text: string) {

@@ -40,6 +40,11 @@ Set these for the worker service:
 - `STORAGE_SECRET_ACCESS_KEY`
 - `STORAGE_ENDPOINT` when using S3-compatible storage outside AWS S3
 - `STORAGE_FORCE_PATH_STYLE=true` when using MinIO or another path-style provider
+- `OCR_LANGUAGES=eng`
+- `OCR_CACHE_PATH=/tmp/proofpilot-ocr`
+- `TESSERACT_LANG_PATH` optional path or URL for pre-hosted Tesseract traineddata files
+
+Image OCR uses Tesseract.js in the worker service. Give `OCR_CACHE_PATH` writable storage so language data can be reused between jobs; for locked-down production networks, provide `TESSERACT_LANG_PATH` instead of relying on the default language-data download path.
 
 Set this for the web service:
 
