@@ -52,5 +52,5 @@
 
 ## Next Sprints
 
-- Focused API and worker tests for queued document and packet workflows
 - Prisma migrations for production database changes
+- End-to-end smoke coverage for the authenticated packet flow

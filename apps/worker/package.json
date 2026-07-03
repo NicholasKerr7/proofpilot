@@ -9,7 +9,7 @@
     "start": "node dist/main.js",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "tsc --noEmit"
+    "test": "vitest run"
   },
   "dependencies": {
     "@proofpilot/database": "workspace:*",
@@ -30,6 +30,7 @@
     "@types/node": "^20.19.43",
     "@types/pdfkit": "^0.17.6",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.9"
   }
 }
