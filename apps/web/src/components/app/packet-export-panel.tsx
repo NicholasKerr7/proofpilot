@@ -32,6 +32,7 @@ export function PacketExportPanel({
   const [notice, setNotice] = useState<Notice | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const hasGeneratingPacket = packets.some((packet) => packet.status === "GENERATING");
 
   useEffect(() => {
     let isMounted = true;
@@ -41,9 +42,7 @@ export function PacketExportPanel({
       setNotice(null);
 
       try {
-        const nextPackets = await apiRequest<CasePacket[]>(
-          `/api/cases/${selectedCase.id}/packets`
-        );
+        const nextPackets = await fetchCasePackets(selectedCase.id);
 
         if (isMounted) {
           setPackets(nextPackets);
@@ -69,12 +68,74 @@ export function PacketExportPanel({
     };
   }, [selectedCase.id]);
 
+  useEffect(() => {
+    if (!hasGeneratingPacket) {
+      return;
+    }
+
+    let isMounted = true;
+    const intervalId = window.setInterval(() => {
+      async function refreshQueuedPacket() {
+        try {
+          const nextPackets = await fetchCasePackets(selectedCase.id);
+
+          if (!isMounted) {
+            return;
+          }
+
+          setPackets(nextPackets);
+
+          if (nextPackets.some((packet) => packet.status === "GENERATING")) {
+            return;
+          }
+
+          window.clearInterval(intervalId);
+          await onCaseChanged(selectedCase.id);
+
+          if (!isMounted) {
+            return;
+          }
+
+          onNotificationsChanged();
+
+          const latestPacket = nextPackets[0] ?? null;
+          if (latestPacket?.status === "READY") {
+            setNotice({ tone: "success", text: "Packet is ready to download." });
+          } else if (latestPacket?.status === "FAILED") {
+            setNotice({
+              tone: "error",
+              text: "Packet generation failed. Review export history and retry."
+            });
+          }
+        } catch (error) {
+          if (isMounted) {
+            setNotice({
+              tone: "error",
+              text: error instanceof Error ? error.message : "Packet status could not be refreshed."
+            });
+          }
+        }
+      }
+
+      void refreshQueuedPacket();
+    }, 2500);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [hasGeneratingPacket, onCaseChanged, onNotificationsChanged, selectedCase.id]);
+
   async function handleGeneratePacket() {
+    if (hasGeneratingPacket) {
+      return;
+    }
+
     setIsGenerating(true);
-    setNotice({ tone: "info", text: "Generating PDF packet..." });
+    setNotice({ tone: "info", text: "Queueing packet generation..." });
 
     try {
-      const generatedPacket = await apiRequest<CasePacket>(
+      const queuedPacket = await apiRequest<CasePacket>(
         `/api/cases/${selectedCase.id}/packet/generate`,
         {
           method: "POST"
@@ -82,12 +143,13 @@ export function PacketExportPanel({
       );
 
       setPackets((currentPackets) => [
-        generatedPacket,
-        ...currentPackets.filter((packet) => packet.id !== generatedPacket.id)
+        queuedPacket,
+        ...currentPackets.filter((packet) => packet.id !== queuedPacket.id)
       ]);
-      await onCaseChanged(selectedCase.id);
-      onNotificationsChanged();
-      setNotice({ tone: "success", text: "Packet generated and ready to download." });
+      setNotice({
+        tone: "info",
+        text: "Packet generation queued. This panel will refresh when it is ready."
+      });
     } catch (error) {
       setNotice({
         tone: "error",
@@ -99,7 +161,10 @@ export function PacketExportPanel({
   }
 
   const latestPacket = packets[0] ?? null;
-  const latestExport = latestPacket?.exports[0] ?? null;
+  const latestReadyPacket = packets.find(
+    (packet) => packet.status === "READY" && packet.exports.length > 0
+  );
+  const latestExport = latestReadyPacket?.exports[0] ?? null;
   const sections = getPacketSections(selectedCase);
 
   return (
@@ -110,7 +175,11 @@ export function PacketExportPanel({
             <CardTitle>Packet export</CardTitle>
             <CardDescription>Generate and download the PDF case packet.</CardDescription>
           </div>
-          {latestPacket ? <Badge variant="success">{formatStatus(latestPacket.status)}</Badge> : null}
+          {latestPacket ? (
+            <Badge variant={getPacketStatusVariant(latestPacket.status)}>
+              {formatStatus(latestPacket.status)}
+            </Badge>
+          ) : null}
         </div>
       </CardHeader>
       <CardContent className="grid gap-4">
@@ -139,10 +208,10 @@ export function PacketExportPanel({
             onClick={() => {
               void handleGeneratePacket();
             }}
-            disabled={isGenerating}
+            disabled={isGenerating || hasGeneratingPacket}
           >
             <FileArchive className="h-4 w-4" />
-            {isGenerating ? "Generating..." : "Generate packet"}
+            {hasGeneratingPacket ? "Packet queued" : isGenerating ? "Queueing..." : "Generate packet"}
           </Button>
           {latestExport ? (
             <Button asChild variant="secondary">
@@ -171,8 +240,6 @@ export function PacketExportPanel({
           </div>
           {packets.length ? (
             packets.slice(0, 3).map((packet) => {
-              const packetExport = packet.exports[0];
-
               return (
                 <div
                   key={packet.id}
@@ -183,7 +250,7 @@ export function PacketExportPanel({
                     <span className="text-muted-foreground">{formatDateTime(packet.createdAt)}</span>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {packetExport?.byteSize ? formatBytes(packetExport.byteSize) : "PDF export"}
+                    {getPacketHistoryLabel(packet)}
                   </p>
                 </div>
               );
@@ -197,6 +264,10 @@ export function PacketExportPanel({
       </CardContent>
     </Card>
   );
+}
+
+function fetchCasePackets(caseId: string) {
+  return apiRequest<CasePacket[]>(`/api/cases/${caseId}/packets`);
 }
 
 function getPacketSections(caseRecord: CaseRecord) {
@@ -249,6 +320,16 @@ function getNoticeClassName(tone: Notice["tone"]) {
   return "rounded-md border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-sm text-amber-100";
 }
 
+const packetStatusVariants = {
+  FAILED: "danger",
+  GENERATING: "warning",
+  READY: "success"
+} as const;
+
+function getPacketStatusVariant(status: string) {
+  return packetStatusVariants[status as keyof typeof packetStatusVariants] ?? "secondary";
+}
+
 function formatStatus(status: string) {
   return status
     .toLowerCase()
@@ -264,6 +345,24 @@ function formatDateTime(value: string) {
     minute: "2-digit",
     month: "short"
   }).format(new Date(value));
+}
+
+function getPacketHistoryLabel(packet: CasePacket) {
+  const packetExport = packet.exports[0];
+
+  if (typeof packetExport?.byteSize === "number") {
+    return formatBytes(packetExport.byteSize);
+  }
+
+  if (packet.status === "GENERATING") {
+    return "Generation in progress";
+  }
+
+  if (packet.status === "FAILED") {
+    return "No PDF generated";
+  }
+
+  return "PDF export";
 }
 
 function formatBytes(value: number) {

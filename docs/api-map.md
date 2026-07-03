@@ -52,4 +52,5 @@
 
 ## Next Sprints
 
-- Packet job queue for larger cases and long-running exports
+- Focused API and worker tests for queued document and packet workflows
+- Prisma migrations for production database changes

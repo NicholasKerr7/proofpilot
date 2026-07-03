@@ -1,10 +1,14 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  ServiceUnavailableException
+} from "@nestjs/common";
 import { CaseStatus, ChecklistStatus, DocumentStatus, PacketStatus, Prisma } from "@proofpilot/database";
-import { createPresignedDownloadUrl, writeStoredObjectBytes } from "@proofpilot/storage";
-import { randomUUID } from "node:crypto";
+import { createPresignedDownloadUrl } from "@proofpilot/storage";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { PacketGenerationQueueService } from "../queue/packet-generation-queue.service.js";
 import { analyzeChecklistEvidence } from "./case-checklist-analysis.js";
-import { generateCasePacketPdf } from "./case-packet-pdf.js";
 import { generateAppealStatement } from "./case-statement-generation.js";
 import { analyzeTimelineEvidence } from "./case-timeline-analysis.js";
 import type { CreateCaseDto } from "./dto/create-case.dto.js";
@@ -28,7 +32,10 @@ interface PrivatePacketRecord {
 
 @Injectable()
 export class CasesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly packetGenerationQueue: PacketGenerationQueueService
+  ) {}
 
   async create(ownerId: string, input: CreateCaseDto) {
     const caseType = await this.prisma.caseType.findUnique({
@@ -510,81 +517,7 @@ export class CasesService {
         archivedAt: null
       },
       select: {
-        id: true,
-        title: true,
-        platform: true,
-        summary: true,
-        deadline: true,
-        createdAt: true,
-        updatedAt: true,
-        owner: {
-          select: {
-            email: true,
-            name: true
-          }
-        },
-        caseType: {
-          select: {
-            name: true
-          }
-        },
-        checklist: {
-          orderBy: { createdAt: "asc" },
-          select: {
-            label: true,
-            description: true,
-            status: true,
-            matches: {
-              orderBy: { confidence: "desc" },
-              take: 3,
-              select: {
-                confidence: true,
-                rationale: true,
-                document: {
-                  select: {
-                    originalName: true
-                  }
-                }
-              }
-            }
-          }
-        },
-        documents: {
-          orderBy: { createdAt: "asc" },
-          select: {
-            originalName: true,
-            mimeType: true,
-            byteSize: true,
-            status: true,
-            createdAt: true
-          }
-        },
-        events: {
-          orderBy: { occurredAt: "asc" },
-          select: {
-            occurredAt: true,
-            title: true,
-            description: true,
-            confidence: true,
-            sources: {
-              select: {
-                document: {
-                  select: {
-                    originalName: true
-                  }
-                }
-              }
-            }
-          }
-        },
-        statements: {
-          orderBy: { updatedAt: "desc" },
-          take: 1,
-          select: {
-            content: true,
-            updatedAt: true
-          }
-        }
+        id: true
       }
     });
 
@@ -592,57 +525,70 @@ export class CasesService {
       throw new NotFoundException("Case not found.");
     }
 
-    const pdfBytes = await generateCasePacketPdf(foundCase);
-    const storageKey = this.createPacketStorageKey(ownerId, caseId);
-    await writeStoredObjectBytes({
-      body: pdfBytes,
-      contentType: "application/pdf",
-      key: storageKey
+    const existingPacket = await this.prisma.casePacket.findFirst({
+      where: {
+        caseId: foundCase.id,
+        status: PacketStatus.GENERATING
+      },
+      orderBy: { createdAt: "desc" },
+      select: this.getPacketSelect()
     });
 
-    const packet = await this.prisma.$transaction(async (tx) => {
-      const createdPacket = await tx.casePacket.create({
-        data: {
-          caseId,
-          status: PacketStatus.READY,
-          exports: {
-            create: {
-              byteSize: pdfBytes.byteLength,
-              storageKey
+    if (existingPacket) {
+      return this.toPublicPacket(existingPacket);
+    }
+
+    const packet = await this.prisma.casePacket.create({
+      data: {
+        caseId: foundCase.id,
+        status: PacketStatus.GENERATING
+      },
+      select: this.getPacketSelect()
+    });
+
+    let jobId: string | null = null;
+
+    try {
+      const job = await this.packetGenerationQueue.addGeneratePacketJob({
+        caseId: foundCase.id,
+        ownerId,
+        packetId: packet.id
+      });
+      jobId = job.id ?? null;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Packet generation could not be queued.";
+
+      await this.prisma.$transaction([
+        this.prisma.casePacket.update({
+          where: { id: packet.id },
+          data: { status: PacketStatus.FAILED }
+        }),
+        this.prisma.auditLog.create({
+          data: {
+            userId: ownerId,
+            caseId: foundCase.id,
+            action: "case.packet_generation_queue_failed",
+            metadata: {
+              message,
+              packetId: packet.id
             }
           }
-        },
-        select: this.getPacketSelect()
-      });
+        })
+      ]);
 
-      await tx.case.update({
-        where: { id: caseId },
-        data: { status: CaseStatus.PACKET_GENERATED }
-      });
+      throw new ServiceUnavailableException("Packet generation could not be queued. Try again shortly.");
+    }
 
-      await tx.auditLog.create({
-        data: {
-          userId: ownerId,
-          caseId,
-          action: "case.packet_generated",
-          metadata: {
-            byteSize: pdfBytes.byteLength,
-            packetId: createdPacket.id
-          }
+    await this.prisma.auditLog.create({
+      data: {
+        userId: ownerId,
+        caseId: foundCase.id,
+        action: "case.packet_generation_queued",
+        metadata: {
+          jobId,
+          packetId: packet.id
         }
-      });
-
-      await tx.notification.create({
-        data: {
-          userId: ownerId,
-          caseId,
-          type: "packet_ready",
-          title: "Packet ready",
-          body: `${foundCase.platform} packet for ${foundCase.title} is ready to download.`
-        }
-      });
-
-      return createdPacket;
+      }
     });
 
     return this.toPublicPacket(packet);
@@ -862,10 +808,6 @@ export class CasesService {
         }))
       )
     };
-  }
-
-  private createPacketStorageKey(ownerId: string, caseId: string) {
-    return `users/${ownerId}/cases/${caseId}/packets/${randomUUID()}.pdf`;
   }
 
   private async upsertStatementDraft(

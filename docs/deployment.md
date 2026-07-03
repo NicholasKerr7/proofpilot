@@ -4,7 +4,7 @@ ProofPilot runs as three production services:
 
 - `apps/web`: Next.js frontend, intended for Vercel.
 - `apps/api`: NestJS API, container target `api`.
-- `apps/worker`: BullMQ document processor, container target `worker`.
+- `apps/worker`: BullMQ document processor and packet generator, container target `worker`.
 
 ## Required Runtime Services
 
@@ -44,7 +44,7 @@ Set these for the worker service:
 - `OCR_CACHE_PATH=/tmp/proofpilot-ocr`
 - `TESSERACT_LANG_PATH` optional path or URL for pre-hosted Tesseract traineddata files
 
-Image OCR uses Tesseract.js in the worker service. Give `OCR_CACHE_PATH` writable storage so language data can be reused between jobs; for locked-down production networks, provide `TESSERACT_LANG_PATH` instead of relying on the default language-data download path.
+Image OCR and packet PDF generation run in the worker service. Give `OCR_CACHE_PATH` writable storage so language data can be reused between jobs; for locked-down production networks, provide `TESSERACT_LANG_PATH` instead of relying on the default language-data download path.
 
 Set this for the web service:
 

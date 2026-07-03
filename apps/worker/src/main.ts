@@ -5,9 +5,14 @@ import {
   type ProcessDocumentJobData
 } from "./queues/document-processing.queue.js";
 import {
+  packetGenerationQueueName,
+  type GeneratePacketJobData
+} from "./queues/packet-generation.queue.js";
+import {
   processUploadedDocument,
   shutdownDocumentProcessor
 } from "./processors/document-processing.processor.js";
+import { generateCasePacket } from "./processors/packet-generation.processor.js";
 
 const env = getWorkerEnv();
 const redisUrl = new URL(env.REDIS_URL);
@@ -31,7 +36,7 @@ if (redisUrl.password) {
   connection.password = decodeURIComponent(redisUrl.password);
 }
 
-const worker = new Worker<ProcessDocumentJobData>(
+const documentWorker = new Worker<ProcessDocumentJobData>(
   documentProcessingQueueName,
   async (job) => {
     if (job.name === "process_uploaded_document") {
@@ -43,19 +48,37 @@ const worker = new Worker<ProcessDocumentJobData>(
   { connection }
 );
 
-worker.on("ready", () => {
-  console.log(`ProofPilot worker is listening on ${documentProcessingQueueName}.`);
-});
+const packetWorker = new Worker<GeneratePacketJobData>(
+  packetGenerationQueueName,
+  async (job) => {
+    if (job.name === "generate_case_packet") {
+      return generateCasePacket(job);
+    }
 
-worker.on("failed", (job, error) => {
-  console.error("ProofPilot worker job failed", {
-    jobId: job?.id,
-    name: job?.name,
-    error: error.message
-  });
-});
+    throw new Error(`Unsupported job name: ${job.name}`);
+  },
+  { connection }
+);
+
+attachWorkerLogging(documentWorker, documentProcessingQueueName);
+attachWorkerLogging(packetWorker, packetGenerationQueueName);
 
 process.on("SIGTERM", async () => {
-  await worker.close();
+  await Promise.all([documentWorker.close(), packetWorker.close()]);
   await shutdownDocumentProcessor();
 });
+
+function attachWorkerLogging(worker: Worker, queueName: string) {
+  worker.on("ready", () => {
+    console.log(`ProofPilot worker is listening on ${queueName}.`);
+  });
+
+  worker.on("failed", (job, error) => {
+    console.error("ProofPilot worker job failed", {
+      queueName,
+      jobId: job?.id,
+      name: job?.name,
+      error: error.message
+    });
+  });
+}

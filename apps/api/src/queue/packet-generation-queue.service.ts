@@ -3,31 +3,32 @@ import { Queue } from "bullmq";
 import { getApiEnv } from "../config/env.js";
 import { parseRedisConnection } from "./redis-connection.js";
 
-export const documentProcessingQueueName = "document-processing";
+export const packetGenerationQueueName = "packet-generation";
 
-export interface ProcessDocumentJobData {
-  documentId: string;
+export interface GeneratePacketJobData {
+  packetId: string;
   caseId: string;
   ownerId: string;
 }
 
 @Injectable()
-export class DocumentProcessingQueueService implements OnModuleDestroy {
-  private readonly queue: Queue<ProcessDocumentJobData>;
+export class PacketGenerationQueueService implements OnModuleDestroy {
+  private readonly queue: Queue<GeneratePacketJobData>;
 
   constructor() {
-    this.queue = new Queue<ProcessDocumentJobData>(documentProcessingQueueName, {
+    this.queue = new Queue<GeneratePacketJobData>(packetGenerationQueueName, {
       connection: parseRedisConnection(getApiEnv().REDIS_URL)
     });
   }
 
-  async addProcessDocumentJob(data: ProcessDocumentJobData) {
-    return this.queue.add("process_uploaded_document", data, {
+  async addGeneratePacketJob(data: GeneratePacketJobData) {
+    return this.queue.add("generate_case_packet", data, {
       attempts: 3,
       backoff: {
         type: "exponential",
-        delay: 5000
+        delay: 10000
       },
+      jobId: data.packetId,
       removeOnComplete: {
         age: 60 * 60 * 24,
         count: 1000
