@@ -1,7 +1,9 @@
 import type { Job } from "bullmq";
 import { DocumentStatus, getPrismaClient } from "@proofpilot/database";
 import { readStoredObjectBytes } from "@proofpilot/storage";
-import { docxMimeType } from "@proofpilot/types/evidence";
+import { docxMimeType, emailMimeType } from "@proofpilot/types/evidence";
+import type { AddressObject, ParsedMail } from "mailparser";
+import { simpleParser } from "mailparser";
 import mammoth from "mammoth";
 import { mkdir } from "node:fs/promises";
 import { PDFParse } from "pdf-parse";
@@ -241,6 +243,30 @@ async function processDocumentContent(document: {
     };
   }
 
+  if (document.mimeType === emailMimeType) {
+    const bytes = await readStoredObjectBytes({ key: document.storageKey });
+    const result = await extractEmailText(bytes);
+    const entities = extractEntities(result.extractedText);
+
+    if (!result.extractedText.trim()) {
+      return {
+        extractedText: null,
+        entities: [],
+        status: DocumentStatus.NEEDS_REVIEW,
+        step: "extract_text_from_email",
+        message: "Email export was readable but contained no extractable text."
+      };
+    }
+
+    return {
+      extractedText: result.extractedText,
+      entities,
+      status: DocumentStatus.PROCESSED,
+      step: "extract_text_from_email",
+      message: `Extracted ${result.extractedText.length} characters and ${entities.length} entities from EML evidence.${formatEmailAttachments(result.attachmentCount)}`
+    };
+  }
+
   if (document.mimeType === "image/png" || document.mimeType === "image/jpeg") {
     const bytes = await readStoredObjectBytes({ key: document.storageKey });
     const result = await extractImageText(bytes);
@@ -335,6 +361,85 @@ async function extractDocxText(bytes: Buffer) {
 
 function formatDocxMessages(messageCount: number) {
   return messageCount ? ` Mammoth returned ${messageCount} parser message(s).` : "";
+}
+
+async function extractEmailText(bytes: Buffer) {
+  const mail = await simpleParser(bytes, {
+    maxHtmlLengthToParse: 500_000
+  });
+  const extractedText = limitExtractedText(normalizeText(formatEmailForEvidence(mail)));
+
+  return {
+    attachmentCount: mail.attachments.length,
+    extractedText
+  };
+}
+
+function formatEmailForEvidence(mail: ParsedMail) {
+  const bodyText =
+    mail.text?.trim() || (typeof mail.html === "string" ? htmlToPlainText(mail.html) : "");
+  const lines = [
+    "Email export",
+    `Subject: ${mail.subject?.trim() || "No subject"}`,
+    `From: ${formatAddressObject(mail.from)}`,
+    `To: ${formatAddressObjects(mail.to)}`,
+    `Cc: ${formatAddressObjects(mail.cc)}`,
+    `Date: ${mail.date?.toISOString() ?? "No date header"}`,
+    `Message-ID: ${mail.messageId ?? "No message ID"}`,
+    `Attachments: ${formatAttachmentList(mail)}`,
+    "",
+    "Body",
+    bodyText || "No email body text found."
+  ];
+
+  return lines.join("\n");
+}
+
+function formatAddressObjects(addresses: AddressObject | AddressObject[] | undefined) {
+  if (!addresses) {
+    return "None";
+  }
+
+  return (Array.isArray(addresses) ? addresses : [addresses])
+    .map(formatAddressObject)
+    .filter(Boolean)
+    .join("; ");
+}
+
+function formatAddressObject(address: AddressObject | undefined) {
+  return address?.text?.trim() || "None";
+}
+
+function formatAttachmentList(mail: ParsedMail) {
+  if (!mail.attachments.length) {
+    return "None";
+  }
+
+  return mail.attachments
+    .map((attachment) => {
+      const filename = attachment.filename?.trim() || "unnamed attachment";
+      return `${filename} (${attachment.contentType}, ${attachment.size} bytes)`;
+    })
+    .join("; ");
+}
+
+function htmlToPlainText(html: string) {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li|tr|h[1-6])>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
+}
+
+function formatEmailAttachments(attachmentCount: number) {
+  return attachmentCount ? ` ${attachmentCount} attachment(s) were indexed by filename.` : "";
 }
 
 async function extractImageText(bytes: Buffer) {

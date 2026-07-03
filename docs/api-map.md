@@ -52,5 +52,5 @@
 
 ## Next Sprints
 
-- Email export, CSV, and XLSX evidence adapters
+- CSV and XLSX evidence adapters
 - Packet job queue for larger cases and long-running exports
