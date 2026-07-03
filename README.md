@@ -18,10 +18,12 @@ cp .env.example .env
 pnpm install
 docker compose up -d
 pnpm db:generate
-pnpm db:push
+pnpm db:migrate
 pnpm db:seed
 pnpm dev
 ```
+
+If you already initialized a local database with the older `pnpm db:push` flow, see the migration baseline note in [docs/deployment.md](docs/deployment.md).
 
 Production deployment notes are in [docs/deployment.md](docs/deployment.md).
 

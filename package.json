@@ -14,6 +14,7 @@
     "test": "turbo test",
     "clean": "turbo clean",
     "db:generate": "pnpm --filter @proofpilot/database db:generate",
+    "db:deploy": "pnpm --filter @proofpilot/database db:deploy",
     "db:migrate": "pnpm --filter @proofpilot/database db:migrate",
     "db:push": "pnpm --filter @proofpilot/database db:push",
     "db:seed": "pnpm --filter @proofpilot/database db:seed"

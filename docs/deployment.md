@@ -68,15 +68,20 @@ The Dockerfile intentionally uses separate `api` and `worker` targets from one m
 
 ## Database Setup
 
-Run Prisma schema setup before first production traffic:
+Apply Prisma migrations before first production traffic:
 
 ```bash
 pnpm db:generate
-pnpm db:push
-pnpm db:seed
+pnpm db:deploy
 ```
 
-For production migrations, replace `db:push` with generated Prisma migrations before launch.
+Run `pnpm db:seed` only for local demo or controlled staging data. The seed creates the demo Nicholas Kerr account and sample case records.
+
+If an existing non-empty database was created before migrations with `pnpm db:push`, baseline it only after confirming the schema matches the initial migration:
+
+```bash
+pnpm --filter @proofpilot/database exec prisma migrate resolve --applied 20260703130000_init
+```
 
 ## Health Checks
 
