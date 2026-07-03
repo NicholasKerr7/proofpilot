@@ -16,10 +16,12 @@
     "@proofpilot/storage": "workspace:*",
     "@proofpilot/types": "workspace:*",
     "bullmq": "^5.68.1",
+    "csv-parse": "^7.0.0",
     "mailparser": "^3.9.12",
     "mammoth": "^1.12.0",
     "pdf-parse": "^2.4.5",
     "tesseract.js": "^7.0.0",
+    "xlsx": "^0.18.5",
     "zod": "^4.2.1"
   },
   "devDependencies": {

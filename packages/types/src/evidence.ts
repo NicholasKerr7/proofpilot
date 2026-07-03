@@ -1,6 +1,8 @@
 export const docxMimeType =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 export const emailMimeType = "message/rfc822";
+export const csvMimeType = "text/csv";
+export const xlsxMimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 export const evidenceMimeTypes = [
   "application/pdf",
@@ -8,7 +10,9 @@ export const evidenceMimeTypes = [
   "image/jpeg",
   "text/plain",
   docxMimeType,
-  emailMimeType
+  emailMimeType,
+  csvMimeType,
+  xlsxMimeType
 ] as const;
 
 export type EvidenceMimeType = (typeof evidenceMimeTypes)[number];
@@ -19,7 +23,9 @@ export const evidenceMimeTypeLabels = {
   "image/png": "PNG",
   "text/plain": "TXT",
   [docxMimeType]: "DOCX",
-  [emailMimeType]: "EML"
+  [emailMimeType]: "EML",
+  [csvMimeType]: "CSV",
+  [xlsxMimeType]: "XLSX"
 } satisfies Record<EvidenceMimeType, string>;
 
 export const evidenceUploadAccept = [
@@ -30,10 +36,13 @@ export const evidenceUploadAccept = [
   ".txt",
   ".docx",
   ".eml",
+  ".csv",
+  ".xlsx",
   ...evidenceMimeTypes
 ].join(",");
 
-export const evidenceFileTypeListLabel = "PDF, PNG, JPG, JPEG, TXT, DOCX, or EML";
+export const evidenceFileTypeListLabel =
+  "PDF, PNG, JPG, JPEG, TXT, DOCX, EML, CSV, or XLSX";
 
 const evidenceMimeTypeSet = new Set<string>(evidenceMimeTypes);
 
@@ -58,6 +67,10 @@ export function inferEvidenceMimeTypeFromName(originalName: string): EvidenceMim
       return docxMimeType;
     case "eml":
       return emailMimeType;
+    case "csv":
+      return csvMimeType;
+    case "xlsx":
+      return xlsxMimeType;
     default:
       return null;
   }

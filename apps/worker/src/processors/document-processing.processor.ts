@@ -1,7 +1,12 @@
 import type { Job } from "bullmq";
 import { DocumentStatus, getPrismaClient } from "@proofpilot/database";
 import { readStoredObjectBytes } from "@proofpilot/storage";
-import { docxMimeType, emailMimeType } from "@proofpilot/types/evidence";
+import {
+  csvMimeType,
+  docxMimeType,
+  emailMimeType,
+  xlsxMimeType
+} from "@proofpilot/types/evidence";
 import type { AddressObject, ParsedMail } from "mailparser";
 import { simpleParser } from "mailparser";
 import mammoth from "mammoth";
@@ -10,6 +15,11 @@ import { PDFParse } from "pdf-parse";
 import Tesseract from "tesseract.js";
 import { getWorkerEnv } from "../config/env.js";
 import type { ProcessDocumentJobData } from "../queues/document-processing.queue.js";
+import {
+  extractCsvEvidenceText,
+  extractXlsxEvidenceText,
+  type SpreadsheetExtractionResult
+} from "./spreadsheet-extraction.js";
 
 const prisma = getPrismaClient();
 const maxExtractedTextChars = 250_000;
@@ -267,6 +277,34 @@ async function processDocumentContent(document: {
     };
   }
 
+  if (document.mimeType === csvMimeType || document.mimeType === xlsxMimeType) {
+    const bytes = await readStoredObjectBytes({ key: document.storageKey });
+    const result =
+      document.mimeType === csvMimeType
+        ? extractCsvEvidenceText(bytes)
+        : extractXlsxEvidenceText(bytes);
+    const entities = extractEntities(result.extractedText);
+    const label = document.mimeType === csvMimeType ? "CSV" : "XLSX";
+
+    if (result.rowCount === 0) {
+      return {
+        extractedText: null,
+        entities: [],
+        status: DocumentStatus.NEEDS_REVIEW,
+        step: "extract_text_from_spreadsheet",
+        message: `${label} file was readable but contained no extractable rows.`
+      };
+    }
+
+    return {
+      extractedText: result.extractedText,
+      entities,
+      status: DocumentStatus.PROCESSED,
+      step: "extract_text_from_spreadsheet",
+      message: `Extracted ${result.extractedText.length} characters and ${entities.length} entities from ${label} evidence across ${result.rowCount} row(s).${formatSpreadsheetTruncation(result)}`
+    };
+  }
+
   if (document.mimeType === "image/png" || document.mimeType === "image/jpeg") {
     const bytes = await readStoredObjectBytes({ key: document.storageKey });
     const result = await extractImageText(bytes);
@@ -440,6 +478,12 @@ function htmlToPlainText(html: string) {
 
 function formatEmailAttachments(attachmentCount: number) {
   return attachmentCount ? ` ${attachmentCount} attachment(s) were indexed by filename.` : "";
+}
+
+function formatSpreadsheetTruncation(result: SpreadsheetExtractionResult) {
+  return result.truncated
+    ? ` Preview was truncated across ${result.sheetCount} sheet(s).`
+    : "";
 }
 
 async function extractImageText(bytes: Buffer) {
