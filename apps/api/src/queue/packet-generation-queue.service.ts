@@ -1,6 +1,7 @@
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
 import { Queue } from "bullmq";
 import { getApiEnv } from "../config/env.js";
+import { getQueueHealthSnapshot } from "./queue-health-snapshot.js";
 import { parseRedisConnection } from "./redis-connection.js";
 
 export const packetGenerationQueueName = "packet-generation";
@@ -35,6 +36,10 @@ export class PacketGenerationQueueService implements OnModuleDestroy {
       },
       removeOnFail: false
     });
+  }
+
+  getHealthSnapshot() {
+    return getQueueHealthSnapshot(this.queue, packetGenerationQueueName);
   }
 
   async onModuleDestroy() {

@@ -3,6 +3,7 @@
 ## Health
 
 - `GET /health`
+- `GET /health/queues`
 
 ## Auth
 
@@ -52,4 +53,4 @@
 
 ## Next Sprints
 
-- Worker queue observability and operational runbooks
+- Storage bucket bootstrap automation for local and production setup

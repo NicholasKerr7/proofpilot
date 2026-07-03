@@ -81,4 +81,12 @@ function attachWorkerLogging(worker: Worker, queueName: string) {
       error: error.message
     });
   });
+
+  worker.on("completed", (job) => {
+    console.log("ProofPilot worker job completed", {
+      queueName,
+      jobId: job.id,
+      name: job.name
+    });
+  });
 }

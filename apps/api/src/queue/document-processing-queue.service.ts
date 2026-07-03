@@ -1,6 +1,7 @@
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
 import { Queue } from "bullmq";
 import { getApiEnv } from "../config/env.js";
+import { getQueueHealthSnapshot } from "./queue-health-snapshot.js";
 import { parseRedisConnection } from "./redis-connection.js";
 
 export const documentProcessingQueueName = "document-processing";
@@ -34,6 +35,10 @@ export class DocumentProcessingQueueService implements OnModuleDestroy {
       },
       removeOnFail: false
     });
+  }
+
+  getHealthSnapshot() {
+    return getQueueHealthSnapshot(this.queue, documentProcessingQueueName);
   }
 
   async onModuleDestroy() {

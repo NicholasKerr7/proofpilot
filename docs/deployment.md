@@ -89,9 +89,10 @@ The API exposes:
 
 ```txt
 GET /health
+GET /health/queues
 ```
 
-Use this endpoint for platform health checks and load balancer probes.
+Use `GET /health` for platform health checks and load balancer probes. Use `GET /health/queues` for Redis and BullMQ operational checks. Queue operations guidance is in [operations.md](operations.md).
 
 ## Local Smoke Test
 
