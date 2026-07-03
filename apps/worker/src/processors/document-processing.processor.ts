@@ -1,6 +1,8 @@
 import type { Job } from "bullmq";
 import { DocumentStatus, getPrismaClient } from "@proofpilot/database";
 import { readStoredObjectBytes } from "@proofpilot/storage";
+import { docxMimeType } from "@proofpilot/types/evidence";
+import mammoth from "mammoth";
 import { PDFParse } from "pdf-parse";
 import type { ProcessDocumentJobData } from "../queues/document-processing.queue.js";
 
@@ -207,6 +209,30 @@ async function processDocumentContent(document: {
     };
   }
 
+  if (document.mimeType === docxMimeType) {
+    const bytes = await readStoredObjectBytes({ key: document.storageKey });
+    const result = await extractDocxText(bytes);
+    const entities = extractEntities(result.extractedText);
+
+    if (!result.extractedText.trim()) {
+      return {
+        extractedText: null,
+        entities: [],
+        status: DocumentStatus.NEEDS_REVIEW,
+        step: "extract_text_from_docx",
+        message: "DOCX was readable but did not contain extractable text."
+      };
+    }
+
+    return {
+      extractedText: result.extractedText,
+      entities,
+      status: DocumentStatus.PROCESSED,
+      step: "extract_text_from_docx",
+      message: `Extracted ${result.extractedText.length} characters and ${entities.length} entities from DOCX evidence.${formatDocxMessages(result.messageCount)}`
+    };
+  }
+
   if (document.mimeType === "image/png" || document.mimeType === "image/jpeg") {
     return adapterPendingResult(
       "extract_text_from_image",
@@ -261,6 +287,19 @@ async function extractPdfText(bytes: Buffer) {
   } finally {
     await parser.destroy();
   }
+}
+
+async function extractDocxText(bytes: Buffer) {
+  const result = await mammoth.extractRawText({ buffer: bytes });
+
+  return {
+    extractedText: limitExtractedText(normalizeText(result.value)),
+    messageCount: result.messages.length
+  };
+}
+
+function formatDocxMessages(messageCount: number) {
+  return messageCount ? ` Mammoth returned ${messageCount} parser message(s).` : "";
 }
 
 function extractEntities(text: string) {

@@ -14,7 +14,9 @@
   "dependencies": {
     "@proofpilot/database": "workspace:*",
     "@proofpilot/storage": "workspace:*",
+    "@proofpilot/types": "workspace:*",
     "bullmq": "^5.68.1",
+    "mammoth": "^1.12.0",
     "pdf-parse": "^2.4.5",
     "zod": "^4.2.1"
   },

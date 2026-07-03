@@ -23,4 +23,4 @@ ProofPilot starts with one case type: Account Ban / Appeal Builder.
 
 ## Evidence Types
 
-MVP uploads will support PDF, PNG, JPG, JPEG, and TXT. DOCX, email exports, CSV, and XLSX come after the first packet flow works.
+MVP uploads currently support PDF, PNG, JPG, JPEG, TXT, and DOCX. Email exports, CSV, and XLSX come after the first packet flow is hardened.

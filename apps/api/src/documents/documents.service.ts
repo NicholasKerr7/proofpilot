@@ -5,18 +5,12 @@ import {
   createPresignedUploadUrl,
   deleteStoredObject
 } from "@proofpilot/storage";
+import { evidenceFileTypeListLabel, isEvidenceMimeType } from "@proofpilot/types/evidence";
 import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { DocumentProcessingQueueService } from "../queue/document-processing-queue.service.js";
 import type { CreateDocumentDto } from "./dto/create-document.dto.js";
-
-const allowedMimeTypes = new Set([
-  "application/pdf",
-  "image/png",
-  "image/jpeg",
-  "text/plain"
-]);
 
 @Injectable()
 export class DocumentsService {
@@ -26,8 +20,10 @@ export class DocumentsService {
   ) {}
 
   async create(ownerId: string, caseId: string, input: CreateDocumentDto) {
-    if (!allowedMimeTypes.has(input.mimeType)) {
-      throw new BadRequestException("Unsupported file type. Upload PDF, PNG, JPG, JPEG, or TXT.");
+    if (!isEvidenceMimeType(input.mimeType)) {
+      throw new BadRequestException(
+        `Unsupported file type. Upload ${evidenceFileTypeListLabel}.`
+      );
     }
 
     const foundCase = await this.prisma.case.findFirst({

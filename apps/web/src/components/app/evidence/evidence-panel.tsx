@@ -10,6 +10,13 @@ import {
   UploadCloud,
   X
 } from "lucide-react";
+import {
+  evidenceFileTypeListLabel,
+  evidenceMimeTypeLabels,
+  evidenceUploadAccept,
+  inferEvidenceMimeTypeFromName,
+  isEvidenceMimeType
+} from "@proofpilot/types/evidence";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,7 +32,6 @@ import type {
 import { cn } from "@/lib/utils";
 
 const maxUploadBytes = 25 * 1024 * 1024;
-const allowedMimeTypes = new Set(["application/pdf", "image/png", "image/jpeg", "text/plain"]);
 const previewMimeTypes = new Set(["application/pdf", "image/png", "image/jpeg", "text/plain"]);
 
 interface EvidencePanelProps {
@@ -289,10 +295,12 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
       return;
     }
 
-    if (!allowedMimeTypes.has(file.type)) {
+    const mimeType = getUploadMimeType(file);
+
+    if (!mimeType) {
       setNotice({
         tone: "error",
-        text: "Unsupported file type. Upload PDF, PNG, JPG, JPEG, or TXT."
+        text: `Unsupported file type. Upload ${evidenceFileTypeListLabel}.`
       });
       return;
     }
@@ -312,7 +320,7 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
         {
           body: JSON.stringify({
             originalName: file.name,
-            mimeType: file.type,
+            mimeType,
             byteSize: file.size
           }),
           method: "POST"
@@ -439,7 +447,7 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
           <input
             className="sr-only"
             type="file"
-            accept=".pdf,.png,.jpg,.jpeg,.txt,application/pdf,image/png,image/jpeg,text/plain"
+            accept={evidenceUploadAccept}
             onChange={handleFileChange}
             disabled={isUploading}
           />
@@ -451,7 +459,7 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
               {isUploading ? "Uploading evidence..." : "Choose or drop an evidence file"}
             </span>
             <span className="mt-2 block text-sm leading-6 text-muted-foreground">
-              PDF, PNG, JPG, JPEG, or TXT under 25 MB.
+              {evidenceFileTypeListLabel} under 25 MB.
             </span>
           </span>
         </label>
@@ -813,14 +821,7 @@ function formatStatus(status: string) {
 }
 
 function formatMimeType(mimeType: string) {
-  const labels: Record<string, string> = {
-    "application/pdf": "PDF",
-    "image/jpeg": "JPEG",
-    "image/png": "PNG",
-    "text/plain": "TXT"
-  };
-
-  return labels[mimeType] ?? mimeType;
+  return isEvidenceMimeType(mimeType) ? evidenceMimeTypeLabels[mimeType] : mimeType;
 }
 
 function formatDateTime(value: string) {
@@ -852,4 +853,12 @@ function getStatusVariant(status: string) {
   }
 
   return "secondary";
+}
+
+function getUploadMimeType(file: File) {
+  if (isEvidenceMimeType(file.type)) {
+    return file.type;
+  }
+
+  return inferEvidenceMimeTypeFromName(file.name);
 }
