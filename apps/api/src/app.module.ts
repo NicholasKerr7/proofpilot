@@ -1,8 +1,10 @@
-import { Module } from "@nestjs/common";
+import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { AuthModule } from "./auth/auth.module.js";
 import { CasesModule } from "./cases/cases.module.js";
 import { CaseTypesModule } from "./case-types/case-types.module.js";
+import { RateLimitMiddleware } from "./common/middleware/rate-limit.middleware.js";
+import { RequestLoggingMiddleware } from "./common/middleware/request-logging.middleware.js";
 import { DocumentsModule } from "./documents/documents.module.js";
 import { HealthController } from "./health/health.controller.js";
 import { NotificationsModule } from "./notifications/notifications.module.js";
@@ -22,4 +24,8 @@ import { QueueModule } from "./queue/queue.module.js";
   ],
   controllers: [HealthController]
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestLoggingMiddleware, RateLimitMiddleware).forRoutes("*");
+  }
+}

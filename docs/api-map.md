@@ -53,4 +53,4 @@
 
 ## Next Sprints
 
-- Rate limiting and request logging for API production readiness
+- Error monitoring integration and production alerting notes

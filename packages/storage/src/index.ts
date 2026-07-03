@@ -13,13 +13,31 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { z } from "zod";
 
+const booleanEnvSchema = z.preprocess((value) => {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const normalizedValue = value.trim().toLowerCase();
+
+  if (["1", "true", "yes", "on"].includes(normalizedValue)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "off"].includes(normalizedValue)) {
+    return false;
+  }
+
+  return value;
+}, z.boolean());
+
 const storageEnvSchema = z.object({
   STORAGE_ENDPOINT: z.string().url().optional(),
   STORAGE_REGION: z.string().default("us-east-1"),
   STORAGE_BUCKET: z.string().min(1),
   STORAGE_ACCESS_KEY_ID: z.string().min(1),
   STORAGE_SECRET_ACCESS_KEY: z.string().min(1),
-  STORAGE_FORCE_PATH_STYLE: z.coerce.boolean().default(true)
+  STORAGE_FORCE_PATH_STYLE: booleanEnvSchema.default(true)
 });
 
 let client: S3Client | null = null;

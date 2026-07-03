@@ -33,3 +33,9 @@ If document processing stalls, follow the same checks for `document-processing`,
 If an uploaded document moves to `FAILED` before processing starts, check the document processing logs for `upload_validation`. The API rejects completed uploads when the stored object is missing, larger than 25 MB, has a different byte size than the reserved upload, or has a mismatched content type.
 
 `virus_scan_placeholder` with status `skipped` means the upload passed metadata validation, but no external scanning provider is configured yet.
+
+## Rate Limit Runbook
+
+API responses with `429 Too Many Requests` include `RateLimit-Limit`, `RateLimit-Remaining`, and `RateLimit-Reset` headers. Use `x-request-id` from the response to find the matching structured request log entry.
+
+If legitimate traffic is throttled, tune `RATE_LIMIT_MAX` and `RATE_LIMIT_WINDOW_MS`. In multi-instance production deployments, use an edge or gateway limiter because the built-in limiter is process-local.

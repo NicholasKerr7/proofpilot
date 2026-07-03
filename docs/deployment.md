@@ -22,6 +22,9 @@ Set these for the API service:
 - `JWT_SECRET`
 - `DATABASE_URL`
 - `REDIS_URL`
+- `RATE_LIMIT_MAX=120`
+- `RATE_LIMIT_WINDOW_MS=60000`
+- `TRUST_PROXY=true` when the API is behind a trusted reverse proxy or load balancer
 - `STORAGE_REGION`
 - `STORAGE_BUCKET`
 - `STORAGE_ACCESS_KEY_ID`
@@ -109,6 +112,12 @@ GET /health/queues
 ```
 
 Use `GET /health` for platform health checks and load balancer probes. Use `GET /health/queues` for Redis and BullMQ operational checks. Queue operations guidance is in [operations.md](operations.md).
+
+## Request Logging And Rate Limits
+
+The API emits structured JSON request logs with method, path, status, duration, IP, user agent, and `x-request-id`. Request bodies and authorization headers are not logged.
+
+Process-local rate limiting is enabled for API routes with `RATE_LIMIT_MAX` requests per `RATE_LIMIT_WINDOW_MS`; health endpoints are bypassed so platform probes are not throttled. For multi-instance production deployments, place a shared edge or gateway rate limiter in front of the API.
 
 ## Local Smoke Test
 

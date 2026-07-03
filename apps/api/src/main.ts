@@ -9,6 +9,13 @@ async function bootstrap() {
   const env = getApiEnv();
   const app = await NestFactory.create(AppModule);
 
+  if (env.TRUST_PROXY) {
+    const expressInstance = app.getHttpAdapter().getInstance() as {
+      set?: (setting: string, value: unknown) => void;
+    };
+    expressInstance.set?.("trust proxy", 1);
+  }
+
   app.enableCors({
     origin: env.WEB_ORIGIN,
     credentials: true
