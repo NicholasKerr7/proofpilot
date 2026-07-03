@@ -30,6 +30,11 @@ Default URLs:
 - API docs: `http://localhost:4000/docs`
 - MinIO console: `http://localhost:9001`
 
+Local demo login after `pnpm db:seed`:
+
+- Email: `nicholas.kerr@proofpilot.test`
+- Password: `Password123!`
+
 ## MVP Scope
 
 The first product slice is Account Ban / Appeal Builder:
