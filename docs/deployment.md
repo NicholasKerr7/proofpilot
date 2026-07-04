@@ -127,6 +127,10 @@ Unhandled API errors are normalized by a global exception filter. Client respons
 
 Set `ERROR_MONITORING_WEBHOOK_URL` to forward sanitized 500-level events to an external monitor or alert router. Configure alerts for repeated 500s, queue health degradation from `GET /health/queues`, and packet generation failures in worker logs.
 
+## Accessibility And Responsive QA
+
+Accessibility and responsive verification notes are in [accessibility.md](accessibility.md). Run the mobile, tablet, and desktop viewport checklist before production release and after major layout changes.
+
 ## Local Smoke Test
 
 After `pnpm db:seed`, use the seeded demo account:

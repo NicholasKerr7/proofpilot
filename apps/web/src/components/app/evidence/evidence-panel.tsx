@@ -457,7 +457,7 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
           />
           <span>
             <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-md bg-primary/20 text-primary">
-              <UploadCloud className="h-6 w-6" />
+              <UploadCloud className="h-6 w-6" aria-hidden="true" />
             </span>
             <span className="block font-semibold">
               {isUploading ? "Uploading evidence..." : "Choose or drop an evidence file"}
@@ -474,7 +474,12 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
               <span>Upload progress</span>
               <span>{uploadProgress}%</span>
             </div>
-            <progress className="proof-progress" value={uploadProgress} max={100}>
+            <progress
+              className="proof-progress"
+              value={uploadProgress}
+              max={100}
+              aria-label="Upload progress"
+            >
               {uploadProgress}%
             </progress>
           </div>
@@ -490,6 +495,7 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
               notice.tone === "error" ? "border-red-400/30 bg-red-400/10 text-red-100" : null,
               notice.tone === "info" ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : null
             )}
+            role={notice.tone === "error" ? "alert" : "status"}
           >
             {notice.text}
           </p>
@@ -507,7 +513,7 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
                   void refreshDocuments();
                 }}
               >
-                <RefreshCcw className="h-4 w-4" />
+                <RefreshCcw className="h-4 w-4" aria-hidden="true" />
                 Refresh
               </Button>
             </div>
@@ -533,10 +539,11 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
                   <div className="flex items-center justify-between gap-3">
                     <button
                       type="button"
-                      className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                      className="flex min-w-0 flex-1 items-center gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       onClick={() => setSelectedDocumentId(document.id)}
+                      aria-pressed={isSelected}
                     >
-                      <FileText className="h-4 w-4 shrink-0 text-primary" />
+                      <FileText className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                       <span className="min-w-0">
                         <span className="block truncate font-medium">{document.originalName}</span>
                         <span className="block text-xs text-muted-foreground">
@@ -555,7 +562,7 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
                         aria-label={`Delete ${document.originalName}`}
                         onClick={() => setDocumentToDelete(document)}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
                       </Button>
                     </span>
                   </div>
@@ -571,7 +578,7 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
                           onClick={() => setDocumentToDelete(null)}
                           disabled={isDeleting}
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-4 w-4" aria-hidden="true" />
                           Cancel
                         </Button>
                         <Button
@@ -583,7 +590,7 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
                           }}
                           disabled={isDeleting}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
                           {isDeleting ? "Deleting..." : "Delete"}
                         </Button>
                       </span>
@@ -628,13 +635,13 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
                 <div className="flex flex-wrap gap-2">
                   <Button asChild variant="outline" size="sm">
                     <a href={selectedDocument.downloadUrl} target="_blank" rel="noreferrer">
-                      <ExternalLink className="h-4 w-4" />
+                      <ExternalLink className="h-4 w-4" aria-hidden="true" />
                       Open file
                     </a>
                   </Button>
                   <Button asChild variant="secondary" size="sm">
                     <a href={selectedDocument.downloadUrl} download>
-                      <Download className="h-4 w-4" />
+                      <Download className="h-4 w-4" aria-hidden="true" />
                       Download
                     </a>
                   </Button>
@@ -647,7 +654,7 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
                     }}
                     disabled={isReprocessing || isSelectedDocumentProcessing}
                   >
-                    <RefreshCcw className="h-4 w-4" />
+                    <RefreshCcw className="h-4 w-4" aria-hidden="true" />
                     {isReprocessing ? "Queueing..." : "Reprocess"}
                   </Button>
                   <Button
@@ -656,7 +663,7 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
                     size="sm"
                     onClick={() => setDocumentToDelete(selectedDocument)}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
                     Delete
                   </Button>
                 </div>
@@ -672,7 +679,7 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
                         onClick={() => setDocumentToDelete(null)}
                         disabled={isDeleting}
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-4 w-4" aria-hidden="true" />
                         Cancel
                       </Button>
                       <Button
@@ -684,7 +691,7 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
                         }}
                         disabled={isDeleting}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
                         {isDeleting ? "Deleting..." : "Delete"}
                       </Button>
                     </span>

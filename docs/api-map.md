@@ -53,4 +53,4 @@
 
 ## Next Sprints
 
-- Accessibility and responsive layout verification pass
+- Tablet and desktop visual reference integration when assets arrive

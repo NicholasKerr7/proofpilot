@@ -49,7 +49,7 @@ export function AuthPanel({ error, isSubmitting, onLogin, onRegister }: AuthPane
             <ApiStatus />
           </div>
           <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-md border border-primary/35 bg-primary/15 text-primary">
-            <ShieldCheck className="h-6 w-6" />
+            <ShieldCheck className="h-6 w-6" aria-hidden="true" />
           </div>
           <h1 className="max-w-2xl text-3xl font-semibold tracking-normal text-foreground sm:text-4xl">
             Build a professional appeal packet from screenshots, emails, PDFs, and notes.
@@ -101,13 +101,20 @@ export function AuthPanel({ error, isSubmitting, onLogin, onRegister }: AuthPane
               </div>
 
               {error ? (
-                <p className="rounded-md border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-sm text-amber-100">
+                <p
+                  className="rounded-md border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-sm text-amber-100"
+                  role="alert"
+                >
                   {error}
                 </p>
               ) : null}
 
               <Button type="submit" disabled={isSubmitting}>
-                {mode === "login" ? <LogIn className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+                {mode === "login" ? (
+                  <LogIn className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <UserPlus className="h-4 w-4" aria-hidden="true" />
+                )}
                 {isSubmitting ? "Working..." : mode === "login" ? "Log in" : "Create account"}
               </Button>
             </form>
@@ -121,7 +128,7 @@ export function AuthPanel({ error, isSubmitting, onLogin, onRegister }: AuthPane
               onClick={() => setMode(mode === "login" ? "register" : "login")}
             >
               {mode === "login" ? "Create a new account" : "Use an existing account"}
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Button>
           </CardContent>
         </Card>

@@ -41,7 +41,7 @@ export function CaseDashboard({
                 <p className="mt-1 text-xs text-muted-foreground">{metric.detail}</p>
               </div>
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-secondary text-primary">
-                <metric.icon className="h-5 w-5" />
+                <metric.icon className="h-5 w-5" aria-hidden="true" />
               </div>
             </CardContent>
           </Card>
@@ -65,7 +65,11 @@ export function CaseDashboard({
                 value={query}
               />
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-1">
+            <div
+              className="flex gap-2 overflow-x-auto pb-1"
+              role="group"
+              aria-label="Filter cases by status"
+            >
               {statusFilters.map((filter) => (
                 <Button
                   key={filter.value}
@@ -74,6 +78,7 @@ export function CaseDashboard({
                   size="sm"
                   onClick={() => setStatusFilter(filter.value)}
                   className="shrink-0"
+                  aria-pressed={statusFilter === filter.value}
                 >
                   {filter.label}
                 </Button>
@@ -106,6 +111,7 @@ export function CaseDashboard({
               <article
                 key={caseRecord.id}
                 className="grid gap-4 rounded-lg border border-border bg-secondary/45 p-4 md:grid-cols-[1fr_190px] md:items-center"
+                aria-current={isSelected ? "true" : undefined}
               >
                 <div>
                   <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -123,12 +129,22 @@ export function CaseDashboard({
                 <div className="grid gap-2">
                   <Progress value={readiness} label="Packet readiness" />
                   <div className="grid grid-cols-2 gap-2">
-                    <Button variant="outline" size="sm" onClick={() => onSelectCase(caseRecord.id)}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onSelectCase(caseRecord.id)}
+                      aria-label={`Open ${caseRecord.title}`}
+                    >
                       Open
-                      <ArrowUpRight className="h-4 w-4" />
+                      <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => onArchiveCase(caseRecord.id)}>
-                      <Archive className="h-4 w-4" />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onArchiveCase(caseRecord.id)}
+                      aria-label={`Archive ${caseRecord.title}`}
+                    >
+                      <Archive className="h-4 w-4" aria-hidden="true" />
                       Archive
                     </Button>
                   </div>

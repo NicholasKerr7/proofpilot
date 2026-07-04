@@ -20,11 +20,17 @@ interface AppShellProps {
 
 export function AppShell({ children, user, onLogout }: AppShellProps) {
   return (
-    <main className="min-h-screen pb-24 lg:pb-0">
+    <div className="min-h-screen pb-24 lg:pb-0">
+      <a
+        href="#proofpilot-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:font-semibold focus:text-foreground focus:ring-2 focus:ring-ring"
+      >
+        Skip to workspace
+      </a>
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-border bg-background/82 px-4 py-5 backdrop-blur lg:flex lg:flex-col">
         <div className="flex items-center gap-3 px-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-md border border-primary/35 bg-primary/15 text-primary">
-            <ShieldCheck className="h-5 w-5" />
+            <ShieldCheck className="h-5 w-5" aria-hidden="true" />
           </div>
           <div>
             <p className="text-sm font-semibold">ProofPilot</p>
@@ -32,14 +38,16 @@ export function AppShell({ children, user, onLogout }: AppShellProps) {
           </div>
         </div>
 
-        <nav className="mt-8 grid gap-1">
+        <nav className="mt-8 grid gap-1" aria-label="Primary">
           {navItems.map((item, index) => (
             <Button
               key={item.label}
+              type="button"
               variant={index === 0 ? "secondary" : "ghost"}
               className="justify-start"
+              aria-current={index === 0 ? "page" : undefined}
             >
-              <item.icon className="h-4 w-4" />
+              <item.icon className="h-4 w-4" aria-hidden="true" />
               {item.label}
             </Button>
           ))}
@@ -50,8 +58,8 @@ export function AppShell({ children, user, onLogout }: AppShellProps) {
             <p className="text-sm font-semibold">{user.name ?? user.email}</p>
             <p className="truncate text-xs text-muted-foreground">{user.email}</p>
           </div>
-          <Button variant="outline" onClick={onLogout}>
-            <LogOut className="h-4 w-4" />
+          <Button type="button" variant="outline" onClick={onLogout}>
+            <LogOut className="h-4 w-4" aria-hidden="true" />
             Sign out
           </Button>
         </div>
@@ -61,7 +69,7 @@ export function AppShell({ children, user, onLogout }: AppShellProps) {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-md border border-primary/35 bg-primary/15 text-primary">
-              <ShieldCheck className="h-5 w-5" />
+              <ShieldCheck className="h-5 w-5" aria-hidden="true" />
             </div>
             <div>
               <p className="text-sm font-semibold">ProofPilot</p>
@@ -72,23 +80,31 @@ export function AppShell({ children, user, onLogout }: AppShellProps) {
         </div>
       </header>
 
-      <section className="mx-auto flex w-full max-w-[1560px] flex-col gap-5 px-4 py-4 sm:px-6 lg:pl-72 lg:pr-8 lg:pt-8">
+      <main
+        id="proofpilot-content"
+        tabIndex={-1}
+        className="mx-auto flex w-full max-w-[1560px] flex-col gap-5 px-4 py-4 focus:outline-none sm:px-6 lg:pl-72 lg:pr-8 lg:pt-8"
+      >
         {children}
-      </section>
+      </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-4 border-t border-border bg-background/92 px-2 pb-3 pt-2 backdrop-blur lg:hidden">
+      <nav
+        className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-4 border-t border-border bg-background/92 px-2 pb-3 pt-2 backdrop-blur lg:hidden"
+        aria-label="Primary mobile"
+      >
         {navItems.map((item, index) => (
           <button
             key={item.label}
             type="button"
             className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-md text-xs text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[active=true]:bg-secondary data-[active=true]:text-foreground"
             data-active={index === 0}
+            aria-current={index === 0 ? "page" : undefined}
           >
-            <item.icon className="h-5 w-5" />
+            <item.icon className="h-5 w-5" aria-hidden="true" />
             <span>{item.label}</span>
           </button>
         ))}
       </nav>
-    </main>
+    </div>
   );
 }
