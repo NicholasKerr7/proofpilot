@@ -1,11 +1,6 @@
 import { Injectable, type NestMiddleware } from "@nestjs/common";
 import type { NextFunction, Request, Response } from "express";
-import { getApiEnv } from "../../config/env.js";
-
-interface RateLimitConfig {
-  RATE_LIMIT_MAX: number;
-  RATE_LIMIT_WINDOW_MS: number;
-}
+import { getRateLimitEnv } from "../../config/env.js";
 
 interface RateLimitBucket {
   count: number;
@@ -14,10 +9,9 @@ interface RateLimitBucket {
 
 @Injectable()
 export class RateLimitMiddleware implements NestMiddleware {
+  private readonly config = getRateLimitEnv();
   private readonly buckets = new Map<string, RateLimitBucket>();
   private lastCleanupAt = 0;
-
-  constructor(private readonly config: RateLimitConfig = getApiEnv()) {}
 
   use(request: Request, response: Response, next: NextFunction) {
     if (isRateLimitBypassed(request)) {

@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RateLimitMiddleware } from "./rate-limit.middleware.js";
 
 function createRequest(input: Partial<Request> = {}) {
@@ -27,10 +27,13 @@ describe("RateLimitMiddleware", () => {
   let middleware: RateLimitMiddleware;
 
   beforeEach(() => {
-    middleware = new RateLimitMiddleware({
-      RATE_LIMIT_MAX: 2,
-      RATE_LIMIT_WINDOW_MS: 60_000
-    });
+    vi.stubEnv("RATE_LIMIT_MAX", "2");
+    vi.stubEnv("RATE_LIMIT_WINDOW_MS", "60000");
+    middleware = new RateLimitMiddleware();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("allows requests until the bucket reaches its limit", () => {

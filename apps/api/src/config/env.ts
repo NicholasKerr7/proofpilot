@@ -32,6 +32,11 @@ const apiEnvSchema = z.object({
   TRUST_PROXY: booleanEnvSchema.default(false)
 });
 
+const rateLimitEnvSchema = apiEnvSchema.pick({
+  RATE_LIMIT_MAX: true,
+  RATE_LIMIT_WINDOW_MS: true
+});
+
 export function getApiEnv(env: NodeJS.ProcessEnv = process.env) {
   const parsedEnv = apiEnvSchema.parse(env);
 
@@ -39,4 +44,8 @@ export function getApiEnv(env: NodeJS.ProcessEnv = process.env) {
     ...parsedEnv,
     ERROR_MONITORING_ENVIRONMENT: parsedEnv.ERROR_MONITORING_ENVIRONMENT ?? parsedEnv.NODE_ENV
   };
+}
+
+export function getRateLimitEnv(env: NodeJS.ProcessEnv = process.env) {
+  return rateLimitEnvSchema.parse(env);
 }
