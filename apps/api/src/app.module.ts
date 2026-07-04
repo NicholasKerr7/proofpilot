@@ -7,6 +7,7 @@ import { RateLimitMiddleware } from "./common/middleware/rate-limit.middleware.j
 import { RequestLoggingMiddleware } from "./common/middleware/request-logging.middleware.js";
 import { DocumentsModule } from "./documents/documents.module.js";
 import { HealthController } from "./health/health.controller.js";
+import { MonitoringModule } from "./monitoring/monitoring.module.js";
 import { NotificationsModule } from "./notifications/notifications.module.js";
 import { PrismaModule } from "./prisma/prisma.module.js";
 import { QueueModule } from "./queue/queue.module.js";
@@ -16,6 +17,7 @@ import { QueueModule } from "./queue/queue.module.js";
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     QueueModule,
+    MonitoringModule,
     AuthModule,
     CaseTypesModule,
     CasesModule,

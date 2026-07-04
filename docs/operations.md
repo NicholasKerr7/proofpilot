@@ -39,3 +39,9 @@ If an uploaded document moves to `FAILED` before processing starts, check the do
 API responses with `429 Too Many Requests` include `RateLimit-Limit`, `RateLimit-Remaining`, and `RateLimit-Reset` headers. Use `x-request-id` from the response to find the matching structured request log entry.
 
 If legitimate traffic is throttled, tune `RATE_LIMIT_MAX` and `RATE_LIMIT_WINDOW_MS`. In multi-instance production deployments, use an edge or gateway limiter because the built-in limiter is process-local.
+
+## Error Monitoring Runbook
+
+For `500` API responses, capture `x-request-id` from the response and search API logs for the same request ID. The API logs sanitized error monitoring events for 500-level exceptions and can forward them to `ERROR_MONITORING_WEBHOOK_URL`.
+
+Alert on repeated 500s for the same route, repeated `ProofPilot worker job failed` events, and `GET /health/queues` returning `degraded`.

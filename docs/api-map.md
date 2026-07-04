@@ -53,4 +53,4 @@
 
 ## Next Sprints
 
-- Error monitoring integration and production alerting notes
+- Accessibility and responsive layout verification pass

@@ -22,6 +22,8 @@ Set these for the API service:
 - `JWT_SECRET`
 - `DATABASE_URL`
 - `REDIS_URL`
+- `ERROR_MONITORING_ENVIRONMENT=production`
+- `ERROR_MONITORING_WEBHOOK_URL` optional HTTPS webhook for sanitized 500-level API error events
 - `RATE_LIMIT_MAX=120`
 - `RATE_LIMIT_WINDOW_MS=60000`
 - `TRUST_PROXY=true` when the API is behind a trusted reverse proxy or load balancer
@@ -118,6 +120,12 @@ Use `GET /health` for platform health checks and load balancer probes. Use `GET 
 The API emits structured JSON request logs with method, path, status, duration, IP, user agent, and `x-request-id`. Request bodies and authorization headers are not logged.
 
 Process-local rate limiting is enabled for API routes with `RATE_LIMIT_MAX` requests per `RATE_LIMIT_WINDOW_MS`; health endpoints are bypassed so platform probes are not throttled. For multi-instance production deployments, place a shared edge or gateway rate limiter in front of the API.
+
+## Error Monitoring And Alerts
+
+Unhandled API errors are normalized by a global exception filter. Client responses receive a sanitized `500` body with `x-request-id`; server logs receive a structured error event with service, environment, method, path, status, request ID, error name, message, and stack.
+
+Set `ERROR_MONITORING_WEBHOOK_URL` to forward sanitized 500-level events to an external monitor or alert router. Configure alerts for repeated 500s, queue health degradation from `GET /health/queues`, and packet generation failures in worker logs.
 
 ## Local Smoke Test
 

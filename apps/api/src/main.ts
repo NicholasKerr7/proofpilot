@@ -3,7 +3,9 @@ import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module.js";
+import { HttpExceptionFilter } from "./common/filters/http-exception.filter.js";
 import { getApiEnv } from "./config/env.js";
+import { ErrorMonitoringService } from "./monitoring/error-monitoring.service.js";
 
 async function bootstrap() {
   const env = getApiEnv();
@@ -27,6 +29,7 @@ async function bootstrap() {
       transform: true
     })
   );
+  app.useGlobalFilters(new HttpExceptionFilter(app.get(ErrorMonitoringService)));
 
   const config = new DocumentBuilder()
     .setTitle("ProofPilot API")

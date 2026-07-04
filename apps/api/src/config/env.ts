@@ -25,11 +25,18 @@ const apiEnvSchema = z.object({
   DATABASE_URL: z.string().min(1),
   JWT_SECRET: z.string().min(24),
   REDIS_URL: z.string().url().default("redis://localhost:6379"),
+  ERROR_MONITORING_ENVIRONMENT: z.string().min(1).optional(),
+  ERROR_MONITORING_WEBHOOK_URL: z.string().url().optional(),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(120),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   TRUST_PROXY: booleanEnvSchema.default(false)
 });
 
 export function getApiEnv(env: NodeJS.ProcessEnv = process.env) {
-  return apiEnvSchema.parse(env);
+  const parsedEnv = apiEnvSchema.parse(env);
+
+  return {
+    ...parsedEnv,
+    ERROR_MONITORING_ENVIRONMENT: parsedEnv.ERROR_MONITORING_ENVIRONMENT ?? parsedEnv.NODE_ENV
+  };
 }
