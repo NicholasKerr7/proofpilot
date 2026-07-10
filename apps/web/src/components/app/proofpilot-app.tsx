@@ -223,7 +223,7 @@ export function ProofPilotApp() {
 
   return (
     <AppShell user={user} onLogout={handleLogout}>
-      <div className="grid gap-4 rounded-lg border border-border bg-card/70 p-4 backdrop-blur sm:p-5 lg:grid-cols-[1fr_auto] lg:items-center">
+      <div className="grid gap-4 rounded-lg border border-border bg-card/70 p-4 backdrop-blur sm:p-5 md:grid-cols-[1fr_auto] md:items-center md:p-6">
         <div>
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <Badge>Account Ban / Appeal Builder</Badge>
@@ -231,14 +231,18 @@ export function ProofPilotApp() {
               <ApiStatus />
             </div>
           </div>
-          <h1 className="max-w-3xl text-2xl font-semibold tracking-normal text-foreground sm:text-3xl">
+          <h1 className="max-w-3xl text-2xl font-semibold tracking-normal text-foreground sm:text-3xl md:text-4xl">
             Build and manage private appeal cases.
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
             Create a case, collect evidence, review gaps, draft the statement, and prepare a packet.
           </p>
         </div>
-        <Button onClick={() => setSelectedCaseId(cases[0]?.id ?? null)} variant="outline">
+        <Button
+          className="md:self-end"
+          onClick={() => setSelectedCaseId(cases[0]?.id ?? null)}
+          variant="outline"
+        >
           Current cases: {cases.length}
         </Button>
       </div>
@@ -249,8 +253,8 @@ export function ProofPilotApp() {
         </p>
       ) : null}
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
-        <div className="grid gap-5">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
+        <div className="grid grid-cols-1 gap-5">
           <NotificationCenter refreshKey={notificationRefreshKey} />
 
           <CaseDashboard

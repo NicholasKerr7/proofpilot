@@ -501,8 +501,8 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
           </p>
         ) : null}
 
-        <div className="grid gap-4 2xl:grid-cols-[minmax(0,0.9fr)_minmax(360px,1.1fr)]">
-          <div className="grid gap-2 text-sm">
+        <div className="grid grid-cols-1 gap-4 2xl:grid-cols-[minmax(0,0.9fr)_minmax(360px,1.1fr)]">
+          <div className="grid grid-cols-1 gap-2 text-sm">
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs font-medium uppercase text-muted-foreground">Evidence vault</p>
               <Button
@@ -532,7 +532,7 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
                 <div
                   key={document.id}
                   className={cn(
-                    "grid gap-2 rounded-md border border-border bg-secondary/45 px-3 py-2",
+                    "grid grid-cols-1 gap-2 rounded-md border border-border bg-secondary/45 px-3 py-2",
                     isSelected ? "border-primary/55 bg-primary/10" : null
                   )}
                 >
@@ -611,7 +611,7 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
             ) : null}
 
             {!isDetailLoading && selectedDocument ? (
-              <div className="grid gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate font-semibold">{selectedDocument.originalName}</p>
@@ -729,7 +729,7 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
                   <p className="text-xs font-medium uppercase text-muted-foreground">
                     Processing logs
                   </p>
-                  <div className="grid gap-2">
+                  <div className="grid grid-cols-1 gap-2">
                     {selectedDocument.processingLogs.length === 0 ? (
                       <p className="rounded-md border border-border bg-background/55 px-3 py-2 text-sm text-muted-foreground">
                         No processing logs yet.

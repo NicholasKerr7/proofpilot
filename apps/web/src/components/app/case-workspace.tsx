@@ -49,41 +49,43 @@ export function CaseWorkspace({
   const readiness = getReadiness(selectedCase);
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.7fr)]">
-      <div className="grid gap-5">
-        <Card>
-          <CardHeader>
-            <div className="flex flex-wrap items-center gap-2">
+    <div className="grid grid-cols-1 gap-5">
+      <Card>
+        <CardHeader className="md:grid-cols-[minmax(0,1fr)_auto] md:items-start md:gap-5">
+          <div>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
               <Badge>{selectedCase.platform}</Badge>
               <Badge variant="secondary">{selectedCase.caseType.name}</Badge>
             </div>
-            <CardTitle>{selectedCase.title}</CardTitle>
+            <CardTitle className="text-xl md:text-2xl">{selectedCase.title}</CardTitle>
             <CardDescription>{selectedCase.summary ?? "No summary added yet."}</CardDescription>
-          </CardHeader>
-          <CardContent>
+          </div>
+          <div className="min-w-52 rounded-md border border-border bg-secondary/35 p-3">
             <Progress value={readiness} label="Packet readiness" />
-          </CardContent>
-        </Card>
+          </div>
+        </CardHeader>
+      </Card>
 
-        <div className="grid gap-5 xl:grid-cols-2">
-          <EvidencePanel
-            selectedCase={selectedCase}
-            onDocumentsChanged={handleDocumentsChanged}
-          />
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+        <EvidencePanel
+          selectedCase={selectedCase}
+          onDocumentsChanged={handleDocumentsChanged}
+        />
 
-          <TimelinePanel selectedCase={selectedCase} onCaseChanged={onCaseChanged} />
-        </div>
+        <TimelinePanel selectedCase={selectedCase} onCaseChanged={onCaseChanged} />
       </div>
 
-      <aside className="grid gap-5">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+        <ChecklistPanel selectedCase={selectedCase} onCaseChanged={onCaseChanged} />
+
         <ReminderPanel
           key={selectedCase.id}
           onNotificationsChanged={onNotificationsChanged}
           selectedCase={selectedCase}
         />
+      </div>
 
-        <ChecklistPanel selectedCase={selectedCase} onCaseChanged={onCaseChanged} />
-
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.55fr)]">
         <StatementBuilder onCaseChanged={onCaseChanged} selectedCase={selectedCase} />
 
         <PacketExportPanel
@@ -92,7 +94,7 @@ export function CaseWorkspace({
           readiness={readiness}
           selectedCase={selectedCase}
         />
-      </aside>
+      </div>
     </div>
   );
 }

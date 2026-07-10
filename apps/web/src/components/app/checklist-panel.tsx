@@ -162,7 +162,7 @@ export function ChecklistPanel({ onCaseChanged, selectedCase }: ChecklistPanelPr
           </p>
         ) : null}
 
-        <div className="grid gap-2">
+        <div className="grid grid-cols-1 gap-2">
           {checklistItems.map((checklistItem) => {
             const firstMatch = checklistItem.matches?.[0];
             const isExpanded = expandedItemId === checklistItem.id;
@@ -207,9 +207,9 @@ export function ChecklistPanel({ onCaseChanged, selectedCase }: ChecklistPanelPr
                 </div>
 
                 {isExpanded ? (
-                  <div className="grid gap-3 px-3 pb-3">
+                  <div className="grid grid-cols-1 gap-3 px-3 pb-3">
                     <Separator />
-                    <div className="grid gap-1.5">
+                    <div className="grid grid-cols-1 gap-1.5">
                       <p className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
                         Requirement
                       </p>
@@ -219,7 +219,7 @@ export function ChecklistPanel({ onCaseChanged, selectedCase }: ChecklistPanelPr
                     </div>
 
                     {checklistItem.matches?.length ? (
-                      <div className="grid gap-2">
+                      <div className="grid grid-cols-1 gap-2">
                         <p className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
                           Matched evidence
                         </p>

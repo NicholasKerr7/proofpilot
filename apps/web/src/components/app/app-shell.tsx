@@ -20,7 +20,7 @@ interface AppShellProps {
 
 export function AppShell({ children, user, onLogout }: AppShellProps) {
   return (
-    <div className="min-h-screen pb-24 lg:pb-0">
+    <div className="min-h-screen pb-28 lg:pb-0">
       <a
         href="#proofpilot-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:font-semibold focus:text-foreground focus:ring-2 focus:ring-ring"
@@ -65,7 +65,7 @@ export function AppShell({ children, user, onLogout }: AppShellProps) {
         </div>
       </aside>
 
-      <header className="sticky top-0 z-30 border-b border-border bg-background/82 px-4 py-3 backdrop-blur lg:hidden">
+      <header className="sticky top-0 z-30 border-b border-border bg-background/82 px-4 py-3 backdrop-blur md:px-8 md:py-4 lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-md border border-primary/35 bg-primary/15 text-primary">
@@ -83,13 +83,13 @@ export function AppShell({ children, user, onLogout }: AppShellProps) {
       <main
         id="proofpilot-content"
         tabIndex={-1}
-        className="mx-auto flex w-full max-w-[1560px] flex-col gap-5 px-4 py-4 focus:outline-none sm:px-6 lg:pl-72 lg:pr-8 lg:pt-8"
+        className="mx-auto flex w-full max-w-[1560px] flex-col gap-5 px-4 py-4 focus:outline-none sm:px-6 md:gap-6 md:px-8 md:py-6 lg:pl-72 lg:pr-8 lg:pt-8"
       >
         {children}
       </main>
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-4 border-t border-border bg-background/92 px-2 pb-3 pt-2 backdrop-blur lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 mx-auto grid max-w-3xl grid-cols-4 border-t border-border bg-background/92 px-2 pb-4 pt-2 backdrop-blur md:border-x md:px-4 lg:hidden"
         aria-label="Primary mobile"
       >
         {navItems.map((item, index) => (

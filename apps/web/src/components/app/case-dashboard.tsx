@@ -30,8 +30,8 @@ export function CaseDashboard({
   const filteredCases = filterCases(cases, query, statusFilter);
 
   return (
-    <div className="grid gap-5">
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-5">
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
         {metrics.map((metric) => (
           <Card key={metric.label}>
             <CardContent className="flex items-start justify-between gap-4 p-4">
@@ -54,7 +54,7 @@ export function CaseDashboard({
             <CardTitle>Case command center</CardTitle>
             <CardDescription>Private cases owned by your account.</CardDescription>
           </div>
-          <div className="grid gap-3 lg:grid-cols-[minmax(220px,320px)_1fr] lg:items-center">
+          <div className="grid gap-3 md:grid-cols-[minmax(220px,320px)_1fr] md:items-center">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input

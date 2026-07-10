@@ -41,9 +41,9 @@ export function AuthPanel({ error, isSubmitting, onLogin, onRegister }: AuthPane
   }
 
   return (
-    <main className="grid min-h-screen place-items-center px-4 py-6">
+    <main className="grid min-h-screen place-items-center px-4 py-6 md:px-8 md:py-10">
       <div className="grid w-full max-w-5xl gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,0.65fr)] lg:items-center">
-        <section className="rounded-lg border border-border bg-card/70 p-5 backdrop-blur sm:p-7">
+        <section className="rounded-lg border border-border bg-card/70 p-5 backdrop-blur sm:p-7 md:p-8">
           <div className="mb-5 flex flex-wrap items-center gap-2">
             <Badge>Account Ban / Appeal Builder</Badge>
             <ApiStatus />
@@ -51,7 +51,7 @@ export function AuthPanel({ error, isSubmitting, onLogin, onRegister }: AuthPane
           <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-md border border-primary/35 bg-primary/15 text-primary">
             <ShieldCheck className="h-6 w-6" aria-hidden="true" />
           </div>
-          <h1 className="max-w-2xl text-3xl font-semibold tracking-normal text-foreground sm:text-4xl">
+          <h1 className="max-w-2xl text-3xl font-semibold tracking-normal text-foreground sm:text-4xl md:text-[2.65rem] md:leading-tight">
             Build a professional appeal packet from screenshots, emails, PDFs, and notes.
           </h1>
           <p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground">
