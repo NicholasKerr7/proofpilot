@@ -53,4 +53,4 @@
 
 ## Next Sprints
 
-- Tablet and desktop visual reference integration when assets arrive
+- Desktop visual reference integration when assets arrive

@@ -16,7 +16,7 @@ ProofPilot is mobile-first, with tablet and desktop layouts layered on top of th
 Verify these viewports before release:
 
 - `375 x 812`: mobile capture and bottom navigation.
-- `768 x 1024`: tablet review layout.
+- `768 x 1024`: tablet review layout, compared against [tablet-reference.md](design/tablet-reference.md).
 - `1280 x 900`: desktop command-center layout.
 - `1440 x 1100`: wide desktop density and line lengths.
 

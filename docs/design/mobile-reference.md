@@ -56,9 +56,10 @@ Use these screens first while building the Account Ban / Appeal Builder flow:
 
 ## Later Breakpoints
 
-When tablet and desktop assets are provided, add them under:
+Tablet references are available in [tablet-reference.md](tablet-reference.md).
 
-- `docs/design/tablet-reference/`
+When desktop assets are provided, add them under:
+
 - `docs/design/desktop-reference/`
 
-Mobile remains the source of truth until those references are added.
+Mobile remains the base source of truth, with tablet references layered on top for responsive layout decisions.
