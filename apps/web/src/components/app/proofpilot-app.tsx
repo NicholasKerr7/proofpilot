@@ -15,6 +15,7 @@ import { EvidenceUploadView } from "@/components/app/evidence-upload-view";
 import { HomeDashboard } from "@/components/app/home-dashboard";
 import { MoreMenu } from "@/components/app/more-menu";
 import { NotificationCenter } from "@/components/app/notification-center";
+import { ReportsPanel } from "@/components/app/reports/reports-panel";
 import { Badge } from "@/components/ui/badge";
 import { apiRequest, ApiClientError } from "@/lib/client/api";
 import type { AuthUser, CaseRecord, CaseType, CreateCasePayload } from "@/lib/client/types";
@@ -354,9 +355,19 @@ export function ProofPilotApp() {
           onOpenAccount={handleOpenAccount}
           onOpenCase={handleOpenCase}
           onOpenNotifications={() => handleNavigate("notifications")}
+          onOpenReports={() => handleNavigate("reports")}
           onViewCases={() => handleNavigate("cases")}
           selectedCase={selectedCase}
           user={user}
+        />
+      ) : null}
+
+      {activeView === "reports" ? (
+        <ReportsPanel
+          cases={cases}
+          onOpenCase={(caseId) => {
+            void handleOpenCase(caseId);
+          }}
         />
       ) : null}
 

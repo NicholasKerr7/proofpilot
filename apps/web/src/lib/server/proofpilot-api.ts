@@ -43,7 +43,7 @@ export async function clearAuthToken() {
   cookieStore.delete(authCookieName);
 }
 
-export async function proxyToProofPilotApi(path: string, init: RequestInit = {}) {
+export async function fetchProofPilotApi(path: string, init: RequestInit = {}) {
   const token = await getAuthToken();
   const headers = new Headers(init.headers);
 
@@ -55,12 +55,16 @@ export async function proxyToProofPilotApi(path: string, init: RequestInit = {})
     headers.set("Content-Type", "application/json");
   }
 
+  return fetch(`${getApiBaseUrl()}${path}`, {
+    ...init,
+    headers,
+    cache: "no-store"
+  });
+}
+
+export async function proxyToProofPilotApi(path: string, init: RequestInit = {}) {
   try {
-    const response = await fetch(`${getApiBaseUrl()}${path}`, {
-      ...init,
-      headers,
-      cache: "no-store"
-    });
+    const response = await fetchProofPilotApi(path, init);
     const payload = parseBody(await response.text());
 
     return NextResponse.json(payload ?? {}, {

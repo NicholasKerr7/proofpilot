@@ -10,7 +10,13 @@ describe("case activity presentation", () => {
       startsWith: "document."
     });
     expect(getCaseActivityActionFilter("case")).toEqual({
-      in: ["case.created", "case.updated", "case.archived", "demo.seeded"]
+      in: [
+        "case.created",
+        "case.updated",
+        "case.archived",
+        "report.csv_exported",
+        "demo.seeded"
+      ]
     });
   });
 
@@ -50,5 +56,28 @@ describe("case activity presentation", () => {
 
     expect(item.detail).toBe("The packet can be retried.");
     expect(item).not.toHaveProperty("metadata");
+  });
+
+  it("presents a selected-case report export without exposing export options", () => {
+    const item = toCaseActivityItem({
+      id: "activity-3",
+      action: "report.csv_exported",
+      metadata: {
+        rowCount: 1,
+        sections: ["overview", "evidence"],
+        from: "2026-07-01",
+        to: "2026-07-31"
+      },
+      createdAt
+    });
+
+    expect(item).toEqual({
+      id: "activity-3",
+      action: "report.csv_exported",
+      category: "case",
+      title: "CSV report exported",
+      detail: "1 case row",
+      createdAt: createdAt.toISOString()
+    });
   });
 });

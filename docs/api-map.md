@@ -54,6 +54,11 @@
 - `POST /cases/:caseId/reminders`
 - `DELETE /reminders/:reminderId`
 
+## Reports
+
+- `GET /reports/summary`
+- `GET /reports/export`
+
 ## Next Sprints
 
 - Desktop visual reference integration when assets arrive

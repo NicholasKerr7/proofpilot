@@ -15,7 +15,13 @@ type ActivityActionFilter =
   | { in: string[] }
   | { startsWith: string };
 
-const caseActions = ["case.created", "case.updated", "case.archived", "demo.seeded"];
+const caseActions = [
+  "case.created",
+  "case.updated",
+  "case.archived",
+  "report.csv_exported",
+  "demo.seeded"
+];
 
 export function getCaseActivityActionFilter(
   category: CaseActivityCategory
@@ -71,6 +77,8 @@ function getActivityPresentation(
       return activity("case", "Case details updated", getUpdatedFieldsDetail(metadata));
     case "case.archived":
       return activity("case", "Case archived", readString(metadata, "title"));
+    case "report.csv_exported":
+      return activity("case", "CSV report exported", getReportRowDetail(metadata));
     case "demo.seeded":
       return activity("case", "Demo workspace prepared", readString(metadata, "title"));
     case "document.created_upload_url":
@@ -182,6 +190,16 @@ function getChecklistDetail(metadata: Record<string, unknown>) {
 function getVersionDetail(metadata: Record<string, unknown>) {
   const version = readNumber(metadata, "version");
   return version === null ? null : `Version ${version}`;
+}
+
+function getReportRowDetail(metadata: Record<string, unknown>) {
+  const rowCount = readNumber(metadata, "rowCount");
+
+  if (rowCount === null) {
+    return null;
+  }
+
+  return `${rowCount} ${rowCount === 1 ? "case row" : "case rows"}`;
 }
 
 function getPacketSizeDetail(metadata: Record<string, unknown>) {

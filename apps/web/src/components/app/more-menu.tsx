@@ -2,6 +2,7 @@
 
 import {
   Activity,
+  BarChart3,
   Bell,
   CalendarClock,
   ChevronRight,
@@ -46,6 +47,7 @@ interface MoreMenuProps {
   onOpenAccount: (section: AccountSection) => void;
   onOpenCase: (caseId: string, destinationId: CaseDestinationId) => Promise<void>;
   onOpenNotifications: () => void;
+  onOpenReports: () => void;
   onViewCases: () => void;
   selectedCase: CaseRecord | null;
   user: AuthUser;
@@ -56,6 +58,7 @@ export function MoreMenu({
   onOpenAccount,
   onOpenCase,
   onOpenNotifications,
+  onOpenReports,
   onViewCases,
   selectedCase,
   user
@@ -134,6 +137,12 @@ export function MoreMenu({
               icon={Bell}
               label="Inbox"
               onClick={onOpenNotifications}
+            />
+            <MoreDestination
+              detail="Compare current readiness and export case data."
+              icon={BarChart3}
+              label="Reports"
+              onClick={onOpenReports}
             />
           </CardContent>
         </Card>

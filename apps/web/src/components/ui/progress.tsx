@@ -3,11 +3,13 @@ import { cn } from "@/lib/utils";
 export function Progress({
   value,
   className,
-  label
+  label,
+  ariaLabel
 }: {
   value: number;
   className?: string;
   label?: string;
+  ariaLabel?: string;
 }) {
   const safeValue = Math.min(100, Math.max(0, value));
 
@@ -23,7 +25,7 @@ export function Progress({
         className="proof-progress"
         value={safeValue}
         max={100}
-        aria-label={label ?? "Progress"}
+        aria-label={ariaLabel ?? label ?? "Progress"}
       />
     </div>
   );
