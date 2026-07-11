@@ -15,6 +15,7 @@ describe("case activity presentation", () => {
         "case.updated",
         "case.archived",
         "report.csv_exported",
+        "support.request_created",
         "demo.seeded"
       ]
     });
@@ -77,6 +78,29 @@ describe("case activity presentation", () => {
       category: "case",
       title: "CSV report exported",
       detail: "1 case row",
+      createdAt: createdAt.toISOString()
+    });
+  });
+
+  it("presents a selected-case support request without exposing its message", () => {
+    const item = toCaseActivityItem({
+      id: "activity-4",
+      action: "support.request_created",
+      metadata: {
+        requestId: "request-1",
+        subject: "Help reviewing missing evidence",
+        category: "CASE_ASSISTANCE",
+        priority: "NORMAL"
+      },
+      createdAt
+    });
+
+    expect(item).toEqual({
+      id: "activity-4",
+      action: "support.request_created",
+      category: "case",
+      title: "Support request sent",
+      detail: "Help reviewing missing evidence",
       createdAt: createdAt.toISOString()
     });
   });

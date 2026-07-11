@@ -42,6 +42,27 @@ enum ChecklistStatus {
   COMPLETE
 }
 
+enum SupportRequestCategory {
+  CASE_ASSISTANCE
+  ACCOUNT_ACCESS
+  BILLING
+  TECHNICAL
+  SECURITY_PRIVACY
+  OTHER
+}
+
+enum SupportRequestPriority {
+  LOW
+  NORMAL
+  HIGH
+}
+
+enum SupportRequestStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
@@ -51,6 +72,7 @@ model User {
   updatedAt    DateTime  @updatedAt
   cases        Case[]
   auditLogs    AuditLog[]
+  supportRequests SupportRequest[]
 }
 
 model CaseType {
@@ -87,6 +109,7 @@ model Case {
   reminders     Reminder[]
   notifications Notification[]
   auditLogs     AuditLog[]
+  supportRequests SupportRequest[]
 
   @@index([ownerId, status])
   @@index([caseTypeId])
@@ -319,4 +342,23 @@ model AuditLog {
 
   @@index([userId, createdAt])
   @@index([caseId])
+}
+
+model SupportRequest {
+  id        String                 @id @default(cuid())
+  userId    String
+  user      User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  caseId    String?
+  case      Case?                  @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  category  SupportRequestCategory
+  subject   String
+  message   String
+  priority  SupportRequestPriority @default(NORMAL)
+  status    SupportRequestStatus   @default(OPEN)
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([caseId])
+  @@index([status, createdAt])
 }

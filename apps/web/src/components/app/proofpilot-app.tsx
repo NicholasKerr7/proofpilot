@@ -13,6 +13,7 @@ import type { CaseDestinationId } from "@/components/app/cases/case-utils";
 import { CreateCaseForm } from "@/components/app/create-case-form";
 import { EvidenceUploadView } from "@/components/app/evidence-upload-view";
 import { HomeDashboard } from "@/components/app/home-dashboard";
+import { HelpCenterPanel } from "@/components/app/help/help-center-panel";
 import { MoreMenu } from "@/components/app/more-menu";
 import { NotificationCenter } from "@/components/app/notification-center";
 import { ReportsPanel } from "@/components/app/reports/reports-panel";
@@ -354,6 +355,7 @@ export function ProofPilotApp() {
           onCreateCase={() => handleNavigate("create")}
           onOpenAccount={handleOpenAccount}
           onOpenCase={handleOpenCase}
+          onOpenHelp={() => handleNavigate("help")}
           onOpenNotifications={() => handleNavigate("notifications")}
           onOpenReports={() => handleNavigate("reports")}
           onViewCases={() => handleNavigate("cases")}
@@ -368,6 +370,14 @@ export function ProofPilotApp() {
           onOpenCase={(caseId) => {
             void handleOpenCase(caseId);
           }}
+        />
+      ) : null}
+
+      {activeView === "help" ? (
+        <HelpCenterPanel
+          cases={cases}
+          onSupportRequestCreated={refreshNotifications}
+          selectedCaseId={selectedCase?.id ?? null}
         />
       ) : null}
 

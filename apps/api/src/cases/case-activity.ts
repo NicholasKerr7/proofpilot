@@ -20,6 +20,7 @@ const caseActions = [
   "case.updated",
   "case.archived",
   "report.csv_exported",
+  "support.request_created",
   "demo.seeded"
 ];
 
@@ -79,6 +80,8 @@ function getActivityPresentation(
       return activity("case", "Case archived", readString(metadata, "title"));
     case "report.csv_exported":
       return activity("case", "CSV report exported", getReportRowDetail(metadata));
+    case "support.request_created":
+      return activity("case", "Support request sent", readString(metadata, "subject"));
     case "demo.seeded":
       return activity("case", "Demo workspace prepared", readString(metadata, "title"));
     case "document.created_upload_url":

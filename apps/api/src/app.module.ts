@@ -12,6 +12,7 @@ import { NotificationsModule } from "./notifications/notifications.module.js";
 import { PrismaModule } from "./prisma/prisma.module.js";
 import { QueueModule } from "./queue/queue.module.js";
 import { ReportsModule } from "./reports/reports.module.js";
+import { SupportModule } from "./support/support.module.js";
 
 @Module({
   imports: [
@@ -24,7 +25,8 @@ import { ReportsModule } from "./reports/reports.module.js";
     CasesModule,
     DocumentsModule,
     NotificationsModule,
-    ReportsModule
+    ReportsModule,
+    SupportModule
   ],
   controllers: [HealthController]
 })

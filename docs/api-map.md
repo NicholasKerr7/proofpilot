@@ -59,6 +59,12 @@
 - `GET /reports/summary`
 - `GET /reports/export`
 
+## Support
+
+- `GET /support/requests`
+- `POST /support/requests`
+- `POST /support/article-feedback`
+
 ## Next Sprints
 
 - Desktop visual reference integration when assets arrive

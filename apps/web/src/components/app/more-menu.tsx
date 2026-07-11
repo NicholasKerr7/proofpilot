@@ -6,6 +6,7 @@ import {
   Bell,
   CalendarClock,
   ChevronRight,
+  CircleHelp,
   Clock3,
   FileArchive,
   FolderOpen,
@@ -46,6 +47,7 @@ interface MoreMenuProps {
   onCreateCase: () => void;
   onOpenAccount: (section: AccountSection) => void;
   onOpenCase: (caseId: string, destinationId: CaseDestinationId) => Promise<void>;
+  onOpenHelp: () => void;
   onOpenNotifications: () => void;
   onOpenReports: () => void;
   onViewCases: () => void;
@@ -57,6 +59,7 @@ export function MoreMenu({
   onCreateCase,
   onOpenAccount,
   onOpenCase,
+  onOpenHelp,
   onOpenNotifications,
   onOpenReports,
   onViewCases,
@@ -111,6 +114,12 @@ export function MoreMenu({
               icon={ShieldCheck}
               label="Security"
               onClick={() => onOpenAccount("security")}
+            />
+            <MoreDestination
+              detail="Search guides, read articles, and contact support."
+              icon={CircleHelp}
+              label="Help Center"
+              onClick={onOpenHelp}
             />
           </CardContent>
         </Card>
