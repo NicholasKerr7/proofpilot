@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FileText, Save, WandSparkles } from "lucide-react";
+import {
+  FileCheck2,
+  FileText,
+  Lightbulb,
+  Paperclip,
+  Save,
+  WandSparkles,
+  type LucideIcon
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +27,35 @@ type Notice = {
   tone: "success" | "error" | "info";
   text: string;
 };
+
+type WritingTip = {
+  description: string;
+  icon: LucideIcon;
+  title: string;
+};
+
+const writingTips: WritingTip[] = [
+  {
+    description: "Stick to the facts and avoid emotional or accusatory language.",
+    icon: Lightbulb,
+    title: "Be clear and factual"
+  },
+  {
+    description: "Describe how the account closure affects your personal or business activity.",
+    icon: Paperclip,
+    title: "Explain the impact"
+  },
+  {
+    description: "Clearly request a review and reinstatement of your account.",
+    icon: FileCheck2,
+    title: "Request reinstatement"
+  },
+  {
+    description: "Reference documents that verify your identity and account activity.",
+    icon: FileText,
+    title: "Attach supporting documents"
+  }
+];
 
 export function StatementBuilder({ onCaseChanged, selectedCase }: StatementBuilderProps) {
   const [statement, setStatement] = useState<CaseStatement | null>(null);
@@ -136,49 +173,59 @@ export function StatementBuilder({ onCaseChanged, selectedCase }: StatementBuild
       </CardHeader>
       <CardContent className="grid gap-4">
         {notice ? (
-          <p className={getNoticeClassName(notice.tone)}>
+          <p
+            aria-live="polite"
+            className={getNoticeClassName(notice.tone)}
+            role={notice.tone === "error" ? "alert" : "status"}
+          >
             {notice.text}
           </p>
         ) : null}
 
-        <div className="grid gap-2">
-          <Label htmlFor="statement">Draft statement</Label>
-          <Textarea
-            className="min-h-64 resize-y"
-            disabled={isLoading || isSaving || isGenerating}
-            id="statement"
-            onChange={(event) => setDraftContent(event.target.value)}
-            placeholder="Generate a draft or write the appeal statement."
-            value={draftContent}
-          />
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-            <span>{draftContent.trim().length.toLocaleString()} characters</span>
-            {statement ? <span>Saved {formatDateTime(statement.updatedAt)}</span> : null}
-          </div>
-        </div>
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_14rem]">
+          <div className="grid min-w-0 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="statement">Draft statement</Label>
+              <Textarea
+                className="min-h-64 resize-y md:min-h-96"
+                disabled={isLoading || isSaving || isGenerating}
+                id="statement"
+                onChange={(event) => setDraftContent(event.target.value)}
+                placeholder="Generate a draft or write the appeal statement."
+                value={draftContent}
+              />
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                <span>{draftContent.trim().length.toLocaleString()} characters</span>
+                {statement ? <span>Saved {formatDateTime(statement.updatedAt)}</span> : null}
+              </div>
+            </div>
 
-        <div className="grid gap-2 sm:grid-cols-2">
-          <Button
-            type="button"
-            onClick={() => {
-              void handleSave();
-            }}
-            disabled={!canSave}
-          >
-            <Save className="h-4 w-4" />
-            {isSaving ? "Saving..." : "Save draft"}
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => {
-              void handleGenerate();
-            }}
-            disabled={isSaving || isGenerating}
-          >
-            <WandSparkles className="h-4 w-4" />
-            {isGenerating ? "Generating..." : "Generate draft"}
-          </Button>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Button
+                type="button"
+                onClick={() => {
+                  void handleSave();
+                }}
+                disabled={!canSave}
+              >
+                <Save className="h-4 w-4" />
+                {isSaving ? "Saving..." : "Save draft"}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  void handleGenerate();
+                }}
+                disabled={isSaving || isGenerating}
+              >
+                <WandSparkles className="h-4 w-4" />
+                {isGenerating ? "Generating..." : "Generate draft"}
+              </Button>
+            </div>
+          </div>
+
+          <WritingTips />
         </div>
 
         {statement?.versions.length ? (
@@ -205,6 +252,38 @@ export function StatementBuilder({ onCaseChanged, selectedCase }: StatementBuild
         ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+function WritingTips() {
+  return (
+    <aside
+      aria-labelledby="statement-writing-tips"
+      className="self-start rounded-md border border-border bg-secondary/30 p-4"
+    >
+      <h4
+        id="statement-writing-tips"
+        className="flex items-center gap-2 text-xs font-semibold uppercase tracking-normal text-primary"
+      >
+        <Lightbulb className="h-4 w-4" aria-hidden="true" />
+        Writing tips
+      </h4>
+      <div className="mt-3 divide-y divide-border">
+        {writingTips.map((tip) => {
+          const Icon = tip.icon;
+
+          return (
+            <div key={tip.title} className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-2 py-3 first:pt-0 last:pb-0">
+              <Icon className="mt-0.5 h-4 w-4 text-primary" aria-hidden="true" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">{tip.title}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{tip.description}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </aside>
   );
 }
 
