@@ -36,6 +36,22 @@ export function matchesNotificationFilter(
   return Boolean(notification.case) && !notification.type.startsWith("packet_");
 }
 
+export function matchesNotificationSearch(notification: AppNotification, query: string) {
+  const normalizedQuery = query.trim().toLowerCase();
+
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  return [
+    notification.title,
+    notification.body,
+    formatNotificationType(notification.type),
+    notification.case?.platform,
+    notification.case?.title
+  ].some((value) => value?.toLowerCase().includes(normalizedQuery));
+}
+
 export function groupNotificationsByRecency(
   notifications: AppNotification[],
   now = new Date()

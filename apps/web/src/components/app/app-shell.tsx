@@ -3,10 +3,10 @@
 import { useState } from "react";
 import Image from "next/image";
 import {
-  Bell,
   ChevronDown,
   FolderOpen,
   Home,
+  Inbox,
   LogOut,
   Menu,
   UploadCloud,
@@ -36,7 +36,7 @@ const navItems: Array<{
   { label: "Home", view: "home", icon: Home },
   { label: "Cases", view: "cases", icon: FolderOpen },
   { label: "Upload", view: "upload", icon: UploadCloud },
-  { label: "Alerts", view: "notifications", icon: Bell },
+  { label: "Inbox", view: "notifications", icon: Inbox },
   { label: "More", view: "more", icon: Menu }
 ];
 

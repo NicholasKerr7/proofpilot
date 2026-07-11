@@ -24,7 +24,7 @@ export function NotificationList({
   if (!isLoading && !notifications.length) {
     return (
       <p className="rounded-md border border-dashed border-border bg-secondary/25 px-3 py-4 text-sm text-muted-foreground">
-        No notifications match this filter.
+        No inbox items match this search or filter.
       </p>
     );
   }
