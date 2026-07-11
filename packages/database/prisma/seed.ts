@@ -262,32 +262,91 @@ async function main() {
     }
   });
 
-  await prisma.auditLog.upsert({
-    where: { id: "demo-nicholas-audit-seeded" },
-    update: {
-      caseId: demoCase.id,
-      metadata: {
-        email: user.email,
-        title: demoCase.title
-      },
-      userId: user.id
+  const activityNow = new Date();
+  const demoActivityLogs: Array<{
+    action: string;
+    createdAt: Date;
+    id: string;
+    metadata: Record<string, string | number>;
+  }> = [
+    {
+      id: "demo-nicholas-audit-case-created",
+      action: "case.created",
+      createdAt: addDays(activityNow, -12),
+      metadata: { platform: demoCase.platform, title: demoCase.title }
     },
-    create: {
+    {
+      id: "demo-nicholas-audit-timeline-created",
+      action: "case.timeline_event_created",
+      createdAt: addDays(activityNow, -3),
+      metadata: {
+        eventId: "demo-nicholas-event-appeal-draft",
+        title: "Appeal packet draft started"
+      }
+    },
+    {
+      id: "demo-nicholas-audit-reminder-created",
+      action: "case.reminder_created",
+      createdAt: addMinutes(activityNow, -220),
+      metadata: {
+        reminderId: "demo-nicholas-reminder-review",
+        remindAt: reminderDate.toISOString()
+      }
+    },
+    {
+      id: "demo-nicholas-audit-statement-saved",
+      action: "case.statement_saved",
+      createdAt: addMinutes(activityNow, -165),
+      metadata: { statementId: demoStatementId, version: 1 }
+    },
+    {
+      id: "demo-nicholas-audit-checklist-analyzed",
+      action: "case.checklist_analyzed",
+      createdAt: addMinutes(activityNow, -110),
+      metadata: { foundCount: 2, missingCount: 4, documentsAnalyzed: 0, matchCount: 0 }
+    },
+    {
+      id: "demo-nicholas-audit-timeline-analyzed",
+      action: "case.timeline_analyzed",
+      createdAt: addMinutes(activityNow, -55),
+      metadata: { documentsAnalyzed: 0, eventCount: demoEvents.length }
+    },
+    {
       id: "demo-nicholas-audit-seeded",
       action: "demo.seeded",
-      caseId: demoCase.id,
-      metadata: {
-        email: user.email,
-        title: demoCase.title
-      },
-      userId: user.id
+      createdAt: addMinutes(activityNow, -20),
+      metadata: { email: user.email, title: demoCase.title }
     }
-  });
+  ];
+
+  for (const activityLog of demoActivityLogs) {
+    await prisma.auditLog.upsert({
+      where: { id: activityLog.id },
+      update: {
+        action: activityLog.action,
+        caseId: demoCase.id,
+        createdAt: activityLog.createdAt,
+        metadata: activityLog.metadata,
+        userId: user.id
+      },
+      create: {
+        ...activityLog,
+        caseId: demoCase.id,
+        userId: user.id
+      }
+    });
+  }
 }
 
 function addDays(value: Date, days: number) {
   const nextDate = new Date(value);
   nextDate.setDate(nextDate.getDate() + days);
+  return nextDate;
+}
+
+function addMinutes(value: Date, minutes: number) {
+  const nextDate = new Date(value);
+  nextDate.setMinutes(nextDate.getMinutes() + minutes);
   return nextDate;
 }
 

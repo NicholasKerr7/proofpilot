@@ -7,7 +7,8 @@ export type CaseDestinationId =
   | "evidence-checklist"
   | "statement-builder"
   | "packet-export"
-  | "case-reminders";
+  | "case-reminders"
+  | "case-activity";
 
 export type CaseStatusVariant = "default" | "secondary" | "success" | "warning";
 

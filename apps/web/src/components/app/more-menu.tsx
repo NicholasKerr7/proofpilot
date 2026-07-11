@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Activity,
   Bell,
   CalendarClock,
   ChevronRight,
@@ -36,7 +37,8 @@ const caseCommands: Array<{
   { destinationId: "evidence-checklist", icon: ListChecks, label: "Checklist" },
   { destinationId: "statement-builder", icon: PenLine, label: "Statement" },
   { destinationId: "packet-export", icon: FileArchive, label: "Packet" },
-  { destinationId: "case-reminders", icon: CalendarClock, label: "Reminders" }
+  { destinationId: "case-reminders", icon: CalendarClock, label: "Reminders" },
+  { destinationId: "case-activity", icon: Activity, label: "Activity" }
 ];
 
 interface MoreMenuProps {
@@ -149,11 +151,15 @@ export function MoreMenu({
         </CardHeader>
         <CardContent>
           {selectedCase ? (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {caseCommands.map((command) => (
                 <Button
                   key={command.destinationId}
-                  className="justify-start"
+                  className={
+                    command.destinationId === "case-activity"
+                      ? "col-span-2 justify-start sm:col-span-1"
+                      : "justify-start"
+                  }
                   onClick={() => {
                     void onOpenCase(selectedCase.id, command.destinationId);
                   }}

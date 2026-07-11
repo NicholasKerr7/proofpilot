@@ -22,6 +22,7 @@
 - `POST /cases`
 - `GET /cases`
 - `GET /cases/:id`
+- `GET /cases/:id/activity`
 - `PATCH /cases/:id`
 - `DELETE /cases/:id`
 - `POST /cases/:caseId/documents`

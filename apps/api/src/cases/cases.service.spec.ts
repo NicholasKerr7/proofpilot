@@ -35,7 +35,9 @@ function createPrismaMock() {
   return {
     $transaction: vi.fn(async (operations: Promise<unknown>[]) => Promise.all(operations)),
     auditLog: {
-      create: vi.fn().mockResolvedValue({})
+      count: vi.fn(),
+      create: vi.fn().mockResolvedValue({}),
+      findMany: vi.fn()
     },
     case: {
       findFirst: vi.fn()
@@ -61,7 +63,7 @@ function createService(prisma: PrismaMock, queue: QueueMock) {
   );
 }
 
-describe("CasesService packet generation queueing", () => {
+describe("CasesService", () => {
   let prisma: PrismaMock;
   let queue: QueueMock;
   let service: CasesService;
@@ -172,5 +174,103 @@ describe("CasesService packet generation queueing", () => {
       }
     });
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns paginated, sanitized case activity for the owner", async () => {
+    const firstCreatedAt = new Date("2026-05-13T14:30:00.000Z");
+    const secondCreatedAt = new Date("2026-05-13T14:20:00.000Z");
+    prisma.case.findFirst.mockResolvedValue({ id: caseId });
+    prisma.auditLog.findMany.mockResolvedValue([
+      {
+        id: "activity-1",
+        action: "document.upload_completed",
+        metadata: {
+          documentId: "document-1",
+          originalName: "account-notice.pdf",
+          jobId: "private-job-id"
+        },
+        createdAt: firstCreatedAt
+      },
+      {
+        id: "activity-2",
+        action: "document.processing_failed",
+        metadata: {
+          documentId: "document-2",
+          originalName: "support-thread.png",
+          message: "Internal provider details"
+        },
+        createdAt: secondCreatedAt
+      }
+    ]);
+    prisma.auditLog.count.mockResolvedValue(3);
+
+    const result = await service.listActivity(ownerId, caseId, {
+      category: "evidence",
+      limit: 2,
+      offset: 0
+    });
+
+    const where = {
+      caseId,
+      action: { startsWith: "document." }
+    };
+    expect(prisma.case.findFirst).toHaveBeenCalledWith({
+      where: {
+        archivedAt: null,
+        id: caseId,
+        ownerId
+      },
+      select: { id: true }
+    });
+    expect(prisma.auditLog.findMany).toHaveBeenCalledWith({
+      where,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      skip: 0,
+      take: 2,
+      select: {
+        id: true,
+        action: true,
+        metadata: true,
+        createdAt: true
+      }
+    });
+    expect(prisma.auditLog.count).toHaveBeenCalledWith({ where });
+    expect(result).toEqual({
+      items: [
+        {
+          id: "activity-1",
+          action: "document.upload_completed",
+          category: "evidence",
+          title: "Document uploaded",
+          detail: "account-notice.pdf",
+          createdAt: firstCreatedAt.toISOString()
+        },
+        {
+          id: "activity-2",
+          action: "document.processing_failed",
+          category: "evidence",
+          title: "Document processing failed",
+          detail: "support-thread.png",
+          createdAt: secondCreatedAt.toISOString()
+        }
+      ],
+      total: 3,
+      hasMore: true
+    });
+  });
+
+  it("rejects activity access when the case is not owned by the user", async () => {
+    prisma.case.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.listActivity(ownerId, caseId, {
+        category: "all",
+        limit: 20,
+        offset: 0
+      })
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(prisma.auditLog.findMany).not.toHaveBeenCalled();
+    expect(prisma.auditLog.count).not.toHaveBeenCalled();
   });
 });

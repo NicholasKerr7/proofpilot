@@ -6,13 +6,16 @@ import {
 } from "@nestjs/common";
 import { CaseStatus, ChecklistStatus, DocumentStatus, PacketStatus, Prisma } from "@proofpilot/database";
 import { createPresignedDownloadUrl } from "@proofpilot/storage";
+import type { CaseActivityResponse } from "@proofpilot/types";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { PacketGenerationQueueService } from "../queue/packet-generation-queue.service.js";
 import { analyzeChecklistEvidence } from "./case-checklist-analysis.js";
+import { getCaseActivityActionFilter, toCaseActivityItem } from "./case-activity.js";
 import { generateAppealStatement } from "./case-statement-generation.js";
 import { analyzeTimelineEvidence } from "./case-timeline-analysis.js";
 import type { CreateCaseDto } from "./dto/create-case.dto.js";
 import type { CreateTimelineEventDto } from "./dto/create-timeline-event.dto.js";
+import type { ListCaseActivityQueryDto } from "./dto/list-case-activity-query.dto.js";
 import type { SaveStatementDto } from "./dto/save-statement.dto.js";
 import type { UpdateCaseDto } from "./dto/update-case.dto.js";
 
@@ -140,10 +143,6 @@ export class CasesService {
       },
       include: {
         caseType: true,
-        auditLogs: {
-          orderBy: { createdAt: "desc" },
-          take: 20
-        },
         checklist: this.getChecklistSelect(),
         events: this.getTimelineSelect(),
         _count: {
@@ -163,6 +162,42 @@ export class CasesService {
     }
 
     return foundCase;
+  }
+
+  async listActivity(
+    ownerId: string,
+    caseId: string,
+    query: ListCaseActivityQueryDto
+  ): Promise<CaseActivityResponse> {
+    await this.assertCaseOwnership(ownerId, caseId);
+
+    const actionFilter = getCaseActivityActionFilter(query.category);
+    const where: Prisma.AuditLogWhereInput = {
+      caseId,
+      ...(actionFilter ? { action: actionFilter } : {})
+    };
+    const [logs, total] = await this.prisma.$transaction([
+      this.prisma.auditLog.findMany({
+        where,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        skip: query.offset,
+        take: query.limit,
+        select: {
+          id: true,
+          action: true,
+          metadata: true,
+          createdAt: true
+        }
+      }),
+      this.prisma.auditLog.count({ where })
+    ]);
+    const items = logs.map(toCaseActivityItem);
+
+    return {
+      items,
+      total,
+      hasMore: query.offset + items.length < total
+    };
   }
 
   async listTimeline(ownerId: string, caseId: string) {

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Activity,
   ArrowRight,
   CalendarDays,
   CheckCircle2,
@@ -48,7 +49,8 @@ const actionIcons: Record<CaseDestinationId, LucideIcon> = {
   "evidence-checklist": ListChecks,
   "statement-builder": PenLine,
   "packet-export": FileArchive,
-  "case-reminders": CalendarDays
+  "case-reminders": CalendarDays,
+  "case-activity": Activity
 };
 
 export function HomeDashboard({

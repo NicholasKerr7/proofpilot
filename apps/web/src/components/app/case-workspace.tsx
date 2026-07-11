@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import {
   ArrowLeft,
   ArrowRight,
+  Activity,
   CalendarDays,
   Clock3,
   FileArchive,
@@ -12,6 +13,7 @@ import {
   UploadCloud,
   type LucideIcon
 } from "lucide-react";
+import { ActivityPanel } from "@/components/app/activity/activity-panel";
 import { CaseProgressRing } from "@/components/app/cases/case-progress-ring";
 import {
   formatCaseDate,
@@ -178,6 +180,8 @@ export function CaseWorkspace({
           selectedCase={selectedCase}
         />
       </div>
+
+      <ActivityPanel key={`activity-${selectedCase.id}`} selectedCase={selectedCase} />
     </div>
   );
 }
@@ -190,7 +194,8 @@ const workspaceNavItems = [
   { label: "Checklist", href: "#evidence-checklist" },
   { label: "Statement", href: "#statement-builder" },
   { label: "Packet", href: "#packet-export" },
-  { label: "Reminders", href: "#case-reminders" }
+  { label: "Reminders", href: "#case-reminders" },
+  { label: "Activity", href: "#case-activity" }
 ];
 
 interface NextActionsPanelProps {
@@ -205,7 +210,8 @@ const actionIcons: Record<CaseDestinationId, LucideIcon> = {
   "evidence-checklist": ListChecks,
   "statement-builder": PenLine,
   "packet-export": FileArchive,
-  "case-reminders": CalendarDays
+  "case-reminders": CalendarDays,
+  "case-activity": Activity
 };
 
 function NextActionsPanel({ readiness, selectedCase }: NextActionsPanelProps) {
