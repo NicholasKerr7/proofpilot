@@ -123,7 +123,7 @@ export function ProofPilotApp() {
   }, [loadCaseDetail, loadCases, loadCaseTypes]);
 
   async function authenticate(
-    path: "/api/auth/login" | "/api/auth/register",
+    path: "/api/auth/demo" | "/api/auth/login" | "/api/auth/register",
     payload: Record<string, string>
   ) {
     setIsSubmitting(true);
@@ -250,6 +250,8 @@ export function ProofPilotApp() {
       <AuthPanel
         error={message}
         isSubmitting={isSubmitting}
+        onClearError={() => setMessage(null)}
+        onDemoLogin={() => authenticate("/api/auth/demo", {})}
         onLogin={(input) => authenticate("/api/auth/login", input)}
         onRegister={(input) => authenticate("/api/auth/register", input)}
       />

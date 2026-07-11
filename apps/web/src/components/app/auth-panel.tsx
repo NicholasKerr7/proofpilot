@@ -1,137 +1,308 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { ArrowRight, LogIn, ShieldCheck, UserPlus } from "lucide-react";
+import { type FormEvent, useState } from "react";
+import {
+  ArrowRight,
+  AtSign,
+  LogIn,
+  ShieldCheck,
+  UserPlus,
+  UserRound,
+  UserRoundCheck
+} from "lucide-react";
+import { AuthBrand } from "@/components/app/auth/auth-brand";
+import { AuthPasswordField } from "@/components/app/auth/auth-password-field";
+import { AuthShowcase } from "@/components/app/auth/auth-showcase";
+import { ApiStatus } from "@/components/system/api-status";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { ApiStatus } from "@/components/system/api-status";
+import { cn } from "@/lib/utils";
 
 type AuthMode = "login" | "register";
 
 interface AuthPanelProps {
   error: string | null;
   isSubmitting: boolean;
+  onClearError: () => void;
+  onDemoLogin: () => Promise<void>;
   onLogin: (input: { email: string; password: string }) => Promise<void>;
   onRegister: (input: { email: string; name: string; password: string }) => Promise<void>;
 }
 
-export function AuthPanel({ error, isSubmitting, onLogin, onRegister }: AuthPanelProps) {
-  const [mode, setMode] = useState<AuthMode>("register");
+export function AuthPanel({
+  error,
+  isSubmitting,
+  onClearError,
+  onDemoLogin,
+  onLogin,
+  onRegister
+}: AuthPanelProps) {
+  const [mode, setMode] = useState<AuthMode>("login");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const [clientError, setClientError] = useState<string | null>(null);
+  const displayedError = clientError ?? error;
+  const isDemoAccessEnabled = process.env.NODE_ENV === "development";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const email = String(formData.get("email") ?? "");
-    const password = String(formData.get("password") ?? "");
+    setClientError(null);
+
+    const normalizedEmail = email.trim().toLowerCase();
 
     if (mode === "login") {
-      await onLogin({ email, password });
+      await onLogin({ email: normalizedEmail, password });
       return;
     }
 
-    await onRegister({
-      email,
-      name: String(formData.get("name") ?? ""),
-      password
-    });
+    const normalizedName = name.trim();
+
+    if (!normalizedName) {
+      setClientError("Enter your full name.");
+      return;
+    }
+
+    if (password !== passwordConfirmation) {
+      setClientError("Passwords do not match.");
+      return;
+    }
+
+    await onRegister({ email: normalizedEmail, name: normalizedName, password });
   }
 
+  function changeMode(nextMode: AuthMode) {
+    if (nextMode === mode) {
+      return;
+    }
+
+    setMode(nextMode);
+    setPassword("");
+    setPasswordConfirmation("");
+    setClientError(null);
+    onClearError();
+  }
+
+  async function handleDemoLogin() {
+    setClientError(null);
+    onClearError();
+    await onDemoLogin();
+  }
+
+  const isLogin = mode === "login";
+
   return (
-    <main className="grid min-h-screen place-items-center px-4 py-6 md:px-8 md:py-10">
-      <div className="grid w-full max-w-5xl gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,0.65fr)] lg:items-center">
-        <section className="rounded-lg border border-border bg-card/70 p-5 backdrop-blur sm:p-7 md:p-8">
-          <div className="mb-5 flex flex-wrap items-center gap-2">
-            <Badge>Account Ban / Appeal Builder</Badge>
+    <main className="grid min-h-[100svh] items-center bg-black/30 px-4 py-5 sm:px-6 md:px-8 md:py-8 lg:px-10 lg:py-10">
+      <div className="mx-auto grid w-full max-w-6xl gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(26rem,0.7fr)] lg:items-center">
+        <AuthShowcase />
+
+        <section aria-labelledby="auth-heading" className="mx-auto w-full max-w-xl">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 lg:hidden">
+            <AuthBrand />
             <ApiStatus />
           </div>
-          <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-md border border-primary/35 bg-primary/15 text-primary">
-            <ShieldCheck className="h-6 w-6" aria-hidden="true" />
-          </div>
-          <h1 className="max-w-2xl text-3xl font-semibold tracking-normal text-foreground sm:text-4xl md:text-[2.65rem] md:leading-tight">
-            Build a professional appeal packet from screenshots, emails, PDFs, and notes.
-          </h1>
-          <p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground">
-            Create a private case, capture evidence, track missing proof, draft the statement,
-            and prepare a packet export.
-          </p>
-        </section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{mode === "login" ? "Log in" : "Create account"}</CardTitle>
-            <CardDescription>
-              {mode === "login"
-                ? "Access your private cases."
-                : "Start the first Account Ban appeal case."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form className="grid gap-4" onSubmit={handleSubmit}>
-              {mode === "register" ? (
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Name</Label>
-                  <Input id="name" name="name" autoComplete="name" placeholder="Case owner" />
+          <Card className="overflow-hidden bg-card/95">
+            <CardHeader className="gap-5 p-5 sm:p-7 md:p-8 md:pb-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <Badge variant="secondary">Private workspace</Badge>
+                <div className="hidden lg:block">
+                  <ApiStatus />
                 </div>
-              ) : null}
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="owner@example.com"
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete={mode === "login" ? "current-password" : "new-password"}
-                  minLength={8}
-                  required
-                />
               </div>
 
-              {error ? (
-                <p
-                  className="rounded-md border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-sm text-amber-100"
-                  role="alert"
+              <div>
+                <h1
+                  className="text-2xl font-semibold tracking-normal text-foreground sm:text-3xl"
+                  id="auth-heading"
                 >
-                  {error}
+                  {isLogin ? "Welcome back" : "Create your account"}
+                </h1>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {isLogin
+                    ? "Sign in to continue building your appeal packet."
+                    : "Create a private workspace for your first appeal case."}
                 </p>
-              ) : null}
+              </div>
 
-              <Button type="submit" disabled={isSubmitting}>
-                {mode === "login" ? (
-                  <LogIn className="h-4 w-4" aria-hidden="true" />
-                ) : (
-                  <UserPlus className="h-4 w-4" aria-hidden="true" />
-                )}
-                {isSubmitting ? "Working..." : mode === "login" ? "Log in" : "Create account"}
-              </Button>
-            </form>
+              <div
+                aria-label="Authentication mode"
+                className="grid grid-cols-2 rounded-md border border-border bg-secondary/30 p-1"
+                role="tablist"
+              >
+                <button
+                  aria-controls="auth-mode-panel"
+                  aria-selected={isLogin}
+                  className={cn(
+                    "min-h-10 rounded-sm px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+                    isLogin
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  disabled={isSubmitting}
+                  id="auth-login-tab"
+                  onClick={() => changeMode("login")}
+                  role="tab"
+                  type="button"
+                >
+                  Sign in
+                </button>
+                <button
+                  aria-controls="auth-mode-panel"
+                  aria-selected={!isLogin}
+                  className={cn(
+                    "min-h-10 rounded-sm px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+                    !isLogin
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  disabled={isSubmitting}
+                  id="auth-register-tab"
+                  onClick={() => changeMode("register")}
+                  role="tab"
+                  type="button"
+                >
+                  Create account
+                </button>
+              </div>
+            </CardHeader>
 
-            <Separator className="my-5" />
+            <CardContent className="p-5 pt-0 sm:p-7 sm:pt-0 md:p-8 md:pt-0">
+              <div
+                aria-labelledby={isLogin ? "auth-login-tab" : "auth-register-tab"}
+                id="auth-mode-panel"
+                role="tabpanel"
+              >
+                <form aria-busy={isSubmitting} className="grid gap-4" onSubmit={handleSubmit}>
+                  {!isLogin ? (
+                    <div className="grid gap-2">
+                      <Label htmlFor="auth-name">Full name</Label>
+                      <div className="relative">
+                        <UserRound
+                          aria-hidden="true"
+                          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary"
+                        />
+                        <Input
+                          autoComplete="name"
+                          className="min-h-12 pl-10"
+                          id="auth-name"
+                          maxLength={120}
+                          name="name"
+                          onChange={(event) => setName(event.target.value)}
+                          placeholder="Nicholas Kerr"
+                          required
+                          value={name}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
 
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full"
-              onClick={() => setMode(mode === "login" ? "register" : "login")}
-            >
-              {mode === "login" ? "Create a new account" : "Use an existing account"}
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Button>
-          </CardContent>
-        </Card>
+                  <div className="grid gap-2">
+                    <Label htmlFor="auth-email">Email address</Label>
+                    <div className="relative">
+                      <AtSign
+                        aria-hidden="true"
+                        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary"
+                      />
+                      <Input
+                        autoCapitalize="none"
+                        autoComplete="email"
+                        className="min-h-12 pl-10"
+                        id="auth-email"
+                        maxLength={254}
+                        name="email"
+                        onChange={(event) => setEmail(event.target.value)}
+                        placeholder="you@example.com"
+                        required
+                        spellCheck={false}
+                        type="email"
+                        value={email}
+                      />
+                    </div>
+                  </div>
+
+                  <AuthPasswordField
+                    autoComplete={isLogin ? "current-password" : "new-password"}
+                    id="auth-password"
+                    key={mode}
+                    label="Password"
+                    name="password"
+                    onChange={(event) => setPassword(event.target.value)}
+                    value={password}
+                  />
+
+                  {!isLogin ? (
+                    <>
+                      <AuthPasswordField
+                        autoComplete="new-password"
+                        id="auth-password-confirmation"
+                        label="Confirm password"
+                        name="passwordConfirmation"
+                        onChange={(event) => setPasswordConfirmation(event.target.value)}
+                        value={passwordConfirmation}
+                      />
+                      <p className="text-xs leading-5 text-muted-foreground">
+                        Use at least 8 characters. Passwords can be up to 120 characters.
+                      </p>
+                    </>
+                  ) : null}
+
+                  {displayedError ? (
+                    <p
+                      className="rounded-md border border-red-400/30 bg-red-400/10 px-3 py-2 text-sm text-red-100"
+                      id="auth-form-error"
+                      role="alert"
+                    >
+                      {displayedError}
+                    </p>
+                  ) : null}
+
+                  <Button className="mt-1 w-full" disabled={isSubmitting} size="lg" type="submit">
+                    {isLogin ? (
+                      <LogIn aria-hidden="true" className="h-4 w-4" />
+                    ) : (
+                      <UserPlus aria-hidden="true" className="h-4 w-4" />
+                    )}
+                    {isSubmitting ? "Working..." : isLogin ? "Sign in" : "Create account"}
+                    {!isSubmitting ? <ArrowRight aria-hidden="true" className="ml-auto h-4 w-4" /> : null}
+                  </Button>
+                </form>
+
+                {isLogin && isDemoAccessEnabled ? (
+                  <>
+                    <div className="my-5 flex items-center gap-3">
+                      <Separator className="flex-1" />
+                      <span className="text-xs uppercase tracking-normal text-muted-foreground">
+                        Demo access
+                      </span>
+                      <Separator className="flex-1" />
+                    </div>
+                    <Button
+                      className="w-full"
+                      disabled={isSubmitting}
+                      onClick={handleDemoLogin}
+                      type="button"
+                      variant="outline"
+                    >
+                      <UserRoundCheck aria-hidden="true" className="h-4 w-4" />
+                      Sign in with demo account
+                    </Button>
+                  </>
+                ) : null}
+
+                <p className="mt-5 flex items-start gap-2 text-xs leading-5 text-muted-foreground">
+                  <ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  Authentication is stored in a secure HTTP-only session cookie.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
       </div>
     </main>
   );
