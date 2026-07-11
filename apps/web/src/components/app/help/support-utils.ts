@@ -37,7 +37,7 @@ export function getSupportCategoryLabel(category: SupportRequestCategory) {
 }
 
 export function formatSupportRequestReference(id: string) {
-  const suffix = id.replace(/[^a-z0-9]/gi, "").slice(-7).toUpperCase();
+  const suffix = id.replace(/[^a-z0-9]/gi, "").slice(-8).toUpperCase();
   return `SUP-${suffix || "REQUEST"}`;
 }
 

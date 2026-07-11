@@ -4,10 +4,15 @@ import {
   BriefcaseBusiness,
   FileArchive,
   FileWarning,
+  Headphones,
   TriangleAlert
 } from "lucide-react";
 
 export function NotificationTypeIcon({ type }: { type: string }) {
+  if (type.startsWith("support.")) {
+    return <Headphones className="h-5 w-5" aria-hidden="true" />;
+  }
+
   if (type === "packet_ready") {
     return <FileArchive className="h-5 w-5" aria-hidden="true" />;
   }
@@ -32,6 +37,10 @@ export function NotificationTypeIcon({ type }: { type: string }) {
 }
 
 export function getNotificationIconClassName(type: string) {
+  if (type.startsWith("support.")) {
+    return "flex h-11 w-11 items-center justify-center rounded-md border border-sky-400/25 bg-sky-400/10 text-sky-100";
+  }
+
   if (type === "packet_ready") {
     return "flex h-11 w-11 items-center justify-center rounded-md border border-teal-400/25 bg-teal-400/10 text-teal-100";
   }

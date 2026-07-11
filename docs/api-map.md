@@ -63,6 +63,8 @@
 
 - `GET /support/requests`
 - `POST /support/requests`
+- `GET /support/requests/:id`
+- `POST /support/requests/:id/messages`
 - `POST /support/article-feedback`
 
 ## Search

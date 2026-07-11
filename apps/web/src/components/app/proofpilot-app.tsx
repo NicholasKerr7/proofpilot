@@ -17,11 +17,18 @@ import { HomeDashboard } from "@/components/app/home-dashboard";
 import { HelpCenterPanel } from "@/components/app/help/help-center-panel";
 import { MoreMenu } from "@/components/app/more-menu";
 import { NotificationCenter } from "@/components/app/notification-center";
+import { getSupportRequestIdFromNotification } from "@/components/app/notifications/notification-utils";
 import { ReportsPanel } from "@/components/app/reports/reports-panel";
 import { SearchPanel } from "@/components/app/search/search-panel";
 import { Badge } from "@/components/ui/badge";
 import { apiRequest, ApiClientError } from "@/lib/client/api";
-import type { AuthUser, CaseRecord, CaseType, CreateCasePayload } from "@/lib/client/types";
+import type {
+  AppNotification,
+  AuthUser,
+  CaseRecord,
+  CaseType,
+  CreateCasePayload
+} from "@/lib/client/types";
 
 const fallbackCaseTypes: CaseType[] = [
   {
@@ -41,6 +48,7 @@ export function ProofPilotApp() {
   const [activeView, setActiveView] = useState<AppView>("home");
   const [accountSection, setAccountSection] = useState<AccountSection>("profile");
   const [helpInitialView, setHelpInitialView] = useState<"home" | "contact">("home");
+  const [helpInitialRequestId, setHelpInitialRequestId] = useState<string | null>(null);
   const [isBooting, setIsBooting] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCaseLoading, setIsCaseLoading] = useState(false);
@@ -245,6 +253,7 @@ export function ProofPilotApp() {
     }
     if (view === "help") {
       setHelpInitialView("home");
+      setHelpInitialRequestId(null);
     }
     setActiveView(view);
     scrollToPageTop();
@@ -260,6 +269,7 @@ export function ProofPilotApp() {
   function handleOpenSearchResult(result: GlobalSearchResult) {
     if (result.type === "SUPPORT") {
       setHelpInitialView("contact");
+      setHelpInitialRequestId(result.id);
       setActiveView("help");
       scrollToPageTop();
       return;
@@ -279,6 +289,14 @@ export function ProofPilotApp() {
     } as const;
     const destination = destinations[result.type];
     void handleOpenCase(result.caseId, destination);
+  }
+
+  function handleOpenSupport(notification: AppNotification) {
+    setMessage(null);
+    setHelpInitialView("contact");
+    setHelpInitialRequestId(getSupportRequestIdFromNotification(notification.type));
+    setActiveView("help");
+    scrollToPageTop();
   }
 
   if (isBooting) {
@@ -376,6 +394,7 @@ export function ProofPilotApp() {
       {activeView === "notifications" ? (
         <NotificationCenter
           onOpenCase={handleOpenCase}
+          onOpenSupport={handleOpenSupport}
           refreshKey={notificationRefreshKey}
         />
       ) : null}
@@ -407,6 +426,7 @@ export function ProofPilotApp() {
       {activeView === "help" ? (
         <HelpCenterPanel
           cases={cases}
+          initialRequestId={helpInitialRequestId}
           initialView={helpInitialView}
           onSupportRequestCreated={refreshNotifications}
           selectedCaseId={selectedCase?.id ?? null}

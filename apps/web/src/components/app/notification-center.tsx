@@ -5,6 +5,7 @@ import {
   BriefcaseBusiness,
   CheckCheck,
   FileArchive,
+  Headphones,
   Inbox,
   RefreshCcw,
   Search,
@@ -37,11 +38,13 @@ const notificationFilters: Array<{
   { icon: CheckCheck, label: "Unread", value: "unread" },
   { icon: BriefcaseBusiness, label: "Cases", value: "cases" },
   { icon: FileArchive, label: "Packets", value: "packets" },
+  { icon: Headphones, label: "Support", value: "support" },
   { icon: Settings2, label: "System", value: "system" }
 ];
 
 interface NotificationCenterProps {
   onOpenCase: (caseId: string, destinationId: CaseDestinationId) => Promise<void>;
+  onOpenSupport: (notification: AppNotification) => void;
   refreshKey: number;
 }
 
@@ -50,7 +53,11 @@ type Notice = {
   text: string;
 };
 
-export function NotificationCenter({ onOpenCase, refreshKey }: NotificationCenterProps) {
+export function NotificationCenter({
+  onOpenCase,
+  onOpenSupport,
+  refreshKey
+}: NotificationCenterProps) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [filter, setFilter] = useState<NotificationFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -199,7 +206,9 @@ export function NotificationCenter({ onOpenCase, refreshKey }: NotificationCente
               {unreadCount ? `${unreadCount} unread` : "All caught up"}
             </Badge>
           </div>
-          <CardDescription>Case updates, deadlines, packet results, and processing alerts.</CardDescription>
+          <CardDescription>
+            Support requests, case updates, deadlines, packet results, and processing alerts.
+          </CardDescription>
         </div>
         <Button
           disabled={!unreadCount || isMarkingAllRead}
@@ -271,7 +280,7 @@ export function NotificationCenter({ onOpenCase, refreshKey }: NotificationCente
 
         <div
           aria-label="Filter inbox"
-          className="flex gap-1 overflow-x-auto rounded-md border border-border bg-secondary/25 p-1 scroll-container md:grid md:grid-cols-5"
+          className="flex gap-1 overflow-x-auto rounded-md border border-border bg-secondary/25 p-1 scroll-container md:grid md:grid-cols-6"
           role="group"
         >
           {notificationFilters.map((item) => (
@@ -309,6 +318,7 @@ export function NotificationCenter({ onOpenCase, refreshKey }: NotificationCente
             notifications={filteredNotifications}
             onMarkRead={handleMarkRead}
             onOpenCase={handleOpenCase}
+            onOpenSupport={onOpenSupport}
             onToggleNotification={(notificationId) =>
               setExpandedNotificationId((currentId) =>
                 currentId === notificationId ? null : notificationId
@@ -323,6 +333,7 @@ export function NotificationCenter({ onOpenCase, refreshKey }: NotificationCente
               notification={selectedNotification}
               onMarkRead={handleMarkRead}
               onOpenCase={handleOpenCase}
+              onOpenSupport={onOpenSupport}
             />
           ) : null}
         </div>

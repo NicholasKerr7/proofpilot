@@ -15,6 +15,7 @@ type HelpView =
 
 interface HelpCenterPanelProps {
   cases: CaseRecord[];
+  initialRequestId?: string | null;
   initialView?: "home" | "contact";
   onSupportRequestCreated: () => void;
   selectedCaseId: string | null;
@@ -22,11 +23,13 @@ interface HelpCenterPanelProps {
 
 export function HelpCenterPanel({
   cases,
+  initialRequestId = null,
   initialView = "home",
   onSupportRequestCreated,
   selectedCaseId
 }: HelpCenterPanelProps) {
   const [view, setView] = useState<HelpView>({ id: initialView });
+  const [requestId, setRequestId] = useState<string | null>(initialRequestId);
 
   function openArticle(articleSlug: HelpArticleSlug) {
     setView({ id: "article", articleSlug });
@@ -35,11 +38,13 @@ export function HelpCenterPanel({
 
   function openHome() {
     setView({ id: "home" });
+    setRequestId(null);
     scrollToTop();
   }
 
   function openContact() {
     setView({ id: "contact" });
+    setRequestId(null);
     scrollToTop();
   }
 
@@ -64,6 +69,7 @@ export function HelpCenterPanel({
       <ContactSupportForm
         cases={cases}
         initialCaseId={selectedCaseId}
+        initialRequestId={requestId}
         onBack={openHome}
         onSupportRequestCreated={onSupportRequestCreated}
       />

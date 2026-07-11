@@ -32,6 +32,9 @@ export type SupportRequestPriority = (typeof supportRequestPriorities)[number];
 export const supportRequestStatuses = ["OPEN", "IN_PROGRESS", "RESOLVED"] as const;
 export type SupportRequestStatus = (typeof supportRequestStatuses)[number];
 
+export const supportMessageAuthors = ["USER", "SUPPORT", "SYSTEM"] as const;
+export type SupportMessageAuthor = (typeof supportMessageAuthors)[number];
+
 export interface SupportRequestRecord {
   id: string;
   caseId: string | null;
@@ -55,4 +58,20 @@ export interface CreateSupportRequestPayload {
   subject: string;
   message: string;
   priority: SupportRequestPriority;
+}
+
+export interface SupportRequestMessageRecord {
+  id: string;
+  requestId: string;
+  author: SupportMessageAuthor;
+  message: string;
+  createdAt: string;
+}
+
+export interface SupportRequestDetailRecord extends SupportRequestRecord {
+  messages: SupportRequestMessageRecord[];
+}
+
+export interface CreateSupportRequestMessagePayload {
+  message: string;
 }

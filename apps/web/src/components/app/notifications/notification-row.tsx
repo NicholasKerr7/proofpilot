@@ -1,4 +1,10 @@
-import { BriefcaseBusiness, Check, CheckCircle2, ChevronDown } from "lucide-react";
+import {
+  BriefcaseBusiness,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  Headphones
+} from "lucide-react";
 import {
   getNotificationIconClassName,
   NotificationTypeIcon
@@ -20,6 +26,7 @@ interface NotificationRowProps {
   notification: AppNotification;
   onMarkRead: (notificationId: string) => Promise<void>;
   onOpenCase: (notification: AppNotification) => Promise<void>;
+  onOpenSupport: (notification: AppNotification) => void;
   onToggle: () => void;
 }
 
@@ -29,9 +36,11 @@ export function NotificationRow({
   notification,
   onMarkRead,
   onOpenCase,
+  onOpenSupport,
   onToggle
 }: NotificationRowProps) {
   const isUnread = !notification.readAt;
+  const isSupportNotification = notification.type.startsWith("support.");
 
   return (
     <div
@@ -139,7 +148,17 @@ export function NotificationRow({
               </div>
             ) : null}
           </div>
-          {notification.case ? (
+          {isSupportNotification ? (
+            <Button
+              className="w-full md:w-auto"
+              onClick={() => onOpenSupport(notification)}
+              size="sm"
+              type="button"
+            >
+              <Headphones className="h-4 w-4" aria-hidden="true" />
+              {getNotificationActionLabel(notification.type)}
+            </Button>
+          ) : notification.case ? (
             <Button
               className="w-full md:w-auto"
               onClick={() => {

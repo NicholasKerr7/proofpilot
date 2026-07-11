@@ -1,7 +1,7 @@
 import type { AppNotification } from "@/lib/client/types";
 import type { CaseDestinationId } from "@/components/app/cases/case-utils";
 
-export type NotificationFilter = "all" | "unread" | "cases" | "packets" | "system";
+export type NotificationFilter = "all" | "unread" | "cases" | "packets" | "support" | "system";
 
 export type NotificationGroup = {
   key: "today" | "week" | "earlier";
@@ -25,15 +25,23 @@ export function matchesNotificationFilter(
     return notification.type.startsWith("packet_");
   }
 
+  if (filter === "support") {
+    return notification.type.startsWith("support.");
+  }
+
   if (filter === "system") {
     return (
       notification.type.startsWith("processing_") ||
       notification.type.startsWith("demo_") ||
-      !notification.case
+      (!notification.case && !notification.type.startsWith("support."))
     );
   }
 
-  return Boolean(notification.case) && !notification.type.startsWith("packet_");
+  return (
+    Boolean(notification.case) &&
+    !notification.type.startsWith("packet_") &&
+    !notification.type.startsWith("support.")
+  );
 }
 
 export function matchesNotificationSearch(notification: AppNotification, query: string) {
@@ -121,7 +129,8 @@ export function formatNotificationDateTime(value: string) {
 
 export function formatNotificationType(value: string) {
   return value
-    .split("_")
+    .split(":")[0]
+    .split(/[._]/)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 }
@@ -143,6 +152,10 @@ export function getNotificationDestination(type: string): CaseDestinationId {
 }
 
 export function getNotificationActionLabel(type: string) {
+  if (type.startsWith("support.")) {
+    return "View request";
+  }
+
   if (type.startsWith("packet_")) {
     return "Open packet";
   }
@@ -156,4 +169,13 @@ export function getNotificationActionLabel(type: string) {
   }
 
   return "Open case";
+}
+
+export function getSupportRequestIdFromNotification(type: string) {
+  if (!type.startsWith("support.")) {
+    return null;
+  }
+
+  const [, requestId] = type.split(":", 2);
+  return requestId || null;
 }

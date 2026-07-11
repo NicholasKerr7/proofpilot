@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, Check, Inbox } from "lucide-react";
+import { BriefcaseBusiness, Check, Headphones, Inbox } from "lucide-react";
 import {
   getNotificationIconClassName,
   NotificationTypeIcon
@@ -17,13 +17,15 @@ interface NotificationDetailProps {
   notification: AppNotification | null;
   onMarkRead: (notificationId: string) => Promise<void>;
   onOpenCase: (notification: AppNotification) => Promise<void>;
+  onOpenSupport: (notification: AppNotification) => void;
 }
 
 export function NotificationDetail({
   isUpdating,
   notification,
   onMarkRead,
-  onOpenCase
+  onOpenCase,
+  onOpenSupport
 }: NotificationDetailProps) {
   if (!notification) {
     return (
@@ -42,6 +44,7 @@ export function NotificationDetail({
   }
 
   const isUnread = !notification.readAt;
+  const isSupportNotification = notification.type.startsWith("support.");
 
   return (
     <aside
@@ -103,7 +106,12 @@ export function NotificationDetail({
             {isUpdating ? "Updating..." : "Mark read"}
           </Button>
         ) : null}
-        {notification.case ? (
+        {isSupportNotification ? (
+          <Button onClick={() => onOpenSupport(notification)} size="sm" type="button">
+            <Headphones aria-hidden="true" className="h-4 w-4" />
+            {getNotificationActionLabel(notification.type)}
+          </Button>
+        ) : notification.case ? (
           <Button
             onClick={() => {
               void onOpenCase(notification);

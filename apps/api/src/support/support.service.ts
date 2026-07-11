@@ -3,9 +3,12 @@ import { Prisma } from "@proofpilot/database";
 import {
   helpArticleSlugs,
   type HelpArticleSlug,
+  type SupportRequestDetailRecord,
+  type SupportRequestMessageRecord,
   type SupportRequestRecord
 } from "@proofpilot/types";
 import { PrismaService } from "../prisma/prisma.service.js";
+import type { CreateSupportRequestMessageDto } from "./dto/create-support-request-message.dto.js";
 import type { CreateSupportRequestDto } from "./dto/create-support-request.dto.js";
 import type { RecordArticleFeedbackDto } from "./dto/record-article-feedback.dto.js";
 
@@ -30,6 +33,29 @@ const supportRequestSelect = {
 
 type SupportRequestRow = Prisma.SupportRequestGetPayload<{ select: typeof supportRequestSelect }>;
 
+const supportRequestMessageSelect = {
+  id: true,
+  requestId: true,
+  author: true,
+  message: true,
+  createdAt: true
+} satisfies Prisma.SupportRequestMessageSelect;
+
+const supportRequestDetailSelect = {
+  ...supportRequestSelect,
+  messages: {
+    orderBy: { createdAt: "asc" },
+    select: supportRequestMessageSelect
+  }
+} satisfies Prisma.SupportRequestSelect;
+
+type SupportRequestDetailRow = Prisma.SupportRequestGetPayload<{
+  select: typeof supportRequestDetailSelect;
+}>;
+type SupportRequestMessageRow = Prisma.SupportRequestMessageGetPayload<{
+  select: typeof supportRequestMessageSelect;
+}>;
+
 const validArticleSlugs = new Set<HelpArticleSlug>(helpArticleSlugs);
 
 @Injectable()
@@ -39,7 +65,7 @@ export class SupportService {
   async listRequests(ownerId: string): Promise<SupportRequestRecord[]> {
     const requests = await this.prisma.supportRequest.findMany({
       where: { userId: ownerId },
-      orderBy: { createdAt: "desc" },
+      orderBy: { updatedAt: "desc" },
       select: supportRequestSelect,
       take: 20
     });
@@ -93,7 +119,7 @@ export class SupportService {
         data: {
           userId: ownerId,
           ...(selectedCase ? { caseId: selectedCase.id } : {}),
-          type: "support.request_received",
+          type: `support.request_received:${createdRequest.id}`,
           title: "Support request received",
           body: selectedCase
             ? `Your request about ${selectedCase.title} is in the support queue.`
@@ -121,6 +147,96 @@ export class SupportService {
     return toSupportRequestRecord(request);
   }
 
+  async getRequest(ownerId: string, requestId: string): Promise<SupportRequestDetailRecord> {
+    const request = await this.prisma.supportRequest.findFirst({
+      where: {
+        id: requestId,
+        userId: ownerId
+      },
+      select: supportRequestDetailSelect
+    });
+
+    if (!request) {
+      throw new NotFoundException("Support request not found.");
+    }
+
+    return toSupportRequestDetailRecord(request);
+  }
+
+  async addRequestMessage(
+    ownerId: string,
+    requestId: string,
+    input: CreateSupportRequestMessageDto
+  ): Promise<SupportRequestMessageRecord> {
+    const message = input.message.trim();
+
+    if (message.length < 2 || message.length > 5000) {
+      throw new BadRequestException("Support follow-up message must be 2 to 5000 characters.");
+    }
+
+    const request = await this.prisma.supportRequest.findFirst({
+      where: {
+        id: requestId,
+        userId: ownerId
+      },
+      select: {
+        id: true,
+        caseId: true,
+        status: true,
+        subject: true
+      }
+    });
+
+    if (!request) {
+      throw new NotFoundException("Support request not found.");
+    }
+
+    if (request.status === "RESOLVED") {
+      throw new BadRequestException("Resolved support requests cannot receive follow-ups.");
+    }
+
+    const createdMessage = await this.prisma.$transaction(async (tx) => {
+      const nextMessage = await tx.supportRequestMessage.create({
+        data: {
+          requestId: request.id,
+          author: "USER",
+          message
+        },
+        select: supportRequestMessageSelect
+      });
+
+      await tx.supportRequest.update({
+        where: { id: request.id },
+        data: { updatedAt: new Date() }
+      });
+
+      await tx.notification.create({
+        data: {
+          userId: ownerId,
+          ...(request.caseId ? { caseId: request.caseId } : {}),
+          type: `support.request_updated:${request.id}`,
+          title: "Support follow-up received",
+          body: `Your follow-up for ${request.subject} was added to the request.`
+        }
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: ownerId,
+          ...(request.caseId ? { caseId: request.caseId } : {}),
+          action: "support.request_message_added",
+          metadata: {
+            requestId: request.id
+          }
+        }
+      });
+
+      return nextMessage;
+    });
+
+    return toSupportRequestMessageRecord(createdMessage);
+  }
+
   async recordArticleFeedback(ownerId: string, input: RecordArticleFeedbackDto) {
     if (!validArticleSlugs.has(input.articleSlug)) {
       throw new BadRequestException("Help article not found.");
@@ -146,5 +262,23 @@ function toSupportRequestRecord(request: SupportRequestRow): SupportRequestRecor
     ...request,
     createdAt: request.createdAt.toISOString(),
     updatedAt: request.updatedAt.toISOString()
+  };
+}
+
+function toSupportRequestDetailRecord(
+  request: SupportRequestDetailRow
+): SupportRequestDetailRecord {
+  return {
+    ...toSupportRequestRecord(request),
+    messages: request.messages.map(toSupportRequestMessageRecord)
+  };
+}
+
+function toSupportRequestMessageRecord(
+  message: SupportRequestMessageRow
+): SupportRequestMessageRecord {
+  return {
+    ...message,
+    createdAt: message.createdAt.toISOString()
   };
 }

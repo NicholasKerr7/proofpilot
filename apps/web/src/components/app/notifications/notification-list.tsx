@@ -8,6 +8,7 @@ interface NotificationListProps {
   notifications: AppNotification[];
   onMarkRead: (notificationId: string) => Promise<void>;
   onOpenCase: (notification: AppNotification) => Promise<void>;
+  onOpenSupport: (notification: AppNotification) => void;
   onToggleNotification: (notificationId: string) => void;
   updatingNotificationId: string | null;
 }
@@ -18,6 +19,7 @@ export function NotificationList({
   notifications,
   onMarkRead,
   onOpenCase,
+  onOpenSupport,
   onToggleNotification,
   updatingNotificationId
 }: NotificationListProps) {
@@ -51,6 +53,7 @@ export function NotificationList({
                 notification={notification}
                 onMarkRead={onMarkRead}
                 onOpenCase={onOpenCase}
+                onOpenSupport={onOpenSupport}
                 onToggle={() => onToggleNotification(notification.id)}
               />
             ))}

@@ -6,13 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 interface SupportInformationAsideProps {
   historyError: string | null;
   isLoadingRequests: boolean;
+  onSelectRequest: (requestId: string) => void;
   requests: SupportRequestRecord[];
+  selectedRequestId: string | null;
 }
 
 export function SupportInformationAside({
   historyError,
   isLoadingRequests,
-  requests
+  onSelectRequest,
+  requests,
+  selectedRequestId
 }: SupportInformationAsideProps) {
   return (
     <aside className="grid gap-4" aria-label="Support request information">
@@ -53,7 +57,9 @@ export function SupportInformationAside({
       <SupportRequestHistory
         error={historyError}
         isLoading={isLoadingRequests}
+        onSelectRequest={onSelectRequest}
         requests={requests}
+        selectedRequestId={selectedRequestId}
       />
     </aside>
   );

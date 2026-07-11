@@ -63,15 +63,21 @@ enum SupportRequestStatus {
   RESOLVED
 }
 
+enum SupportMessageAuthor {
+  USER
+  SUPPORT
+  SYSTEM
+}
+
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  name         String?
-  passwordHash String
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  cases        Case[]
-  auditLogs    AuditLog[]
+  id              String           @id @default(cuid())
+  email           String           @unique
+  name            String?
+  passwordHash    String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  cases           Case[]
+  auditLogs       AuditLog[]
   supportRequests SupportRequest[]
 }
 
@@ -87,28 +93,28 @@ model CaseType {
 }
 
 model Case {
-  id            String              @id @default(cuid())
-  ownerId       String
-  owner         User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  caseTypeId    String
-  caseType      CaseType            @relation(fields: [caseTypeId], references: [id])
-  title         String
-  platform      String
-  summary       String?
-  status        CaseStatus          @default(DRAFT)
-  deadline      DateTime?
-  archivedAt    DateTime?
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  documents     Document[]
-  events        CaseEvent[]
-  checklist     CaseChecklistItem[]
-  statements    CaseStatement[]
-  summaries     CaseSummary[]
-  packets       CasePacket[]
-  reminders     Reminder[]
-  notifications Notification[]
-  auditLogs     AuditLog[]
+  id              String              @id @default(cuid())
+  ownerId         String
+  owner           User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  caseTypeId      String
+  caseType        CaseType            @relation(fields: [caseTypeId], references: [id])
+  title           String
+  platform        String
+  summary         String?
+  status          CaseStatus          @default(DRAFT)
+  deadline        DateTime?
+  archivedAt      DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  documents       Document[]
+  events          CaseEvent[]
+  checklist       CaseChecklistItem[]
+  statements      CaseStatement[]
+  summaries       CaseSummary[]
+  packets         CasePacket[]
+  reminders       Reminder[]
+  notifications   Notification[]
+  auditLogs       AuditLog[]
   supportRequests SupportRequest[]
 
   @@index([ownerId, status])
@@ -116,21 +122,21 @@ model Case {
 }
 
 model Document {
-  id              String                  @id @default(cuid())
-  caseId          String
-  case            Case                    @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  originalName    String
-  mimeType        String
-  byteSize        Int
-  storageKey      String
-  status          DocumentStatus          @default(UPLOADED)
-  extractedText   String?
-  createdAt       DateTime                @default(now())
-  updatedAt       DateTime                @updatedAt
-  versions        DocumentVersion[]
-  entities        DocumentEntity[]
-  processingLogs  DocumentProcessingLog[]
-  eventSources    EventSource[]
+  id                 String                  @id @default(cuid())
+  caseId             String
+  case               Case                    @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  originalName       String
+  mimeType           String
+  byteSize           Int
+  storageKey         String
+  status             DocumentStatus          @default(UPLOADED)
+  extractedText      String?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  versions           DocumentVersion[]
+  entities           DocumentEntity[]
+  processingLogs     DocumentProcessingLog[]
+  eventSources       EventSource[]
   requirementMatches CaseRequirementMatch[]
 
   @@index([caseId, status])
@@ -196,13 +202,13 @@ model EventSource {
 }
 
 model CaseTemplate {
-  id          String                @id @default(cuid())
-  caseTypeId  String
-  caseType    CaseType              @relation(fields: [caseTypeId], references: [id], onDelete: Cascade)
-  name        String
-  description String
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
+  id           String                @id @default(cuid())
+  caseTypeId   String
+  caseType     CaseType              @relation(fields: [caseTypeId], references: [id], onDelete: Cascade)
+  name         String
+  description  String
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
   requirements TemplateRequirement[]
 }
 
@@ -219,27 +225,27 @@ model TemplateRequirement {
 }
 
 model CaseChecklistItem {
-  id            String              @id @default(cuid())
+  id            String                 @id @default(cuid())
   caseId        String
-  case          Case                @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  case          Case                   @relation(fields: [caseId], references: [id], onDelete: Cascade)
   requirementId String?
-  requirement   TemplateRequirement? @relation(fields: [requirementId], references: [id])
+  requirement   TemplateRequirement?   @relation(fields: [requirementId], references: [id])
   label         String
   description   String
-  status        ChecklistStatus     @default(MISSING)
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+  status        ChecklistStatus        @default(MISSING)
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
   matches       CaseRequirementMatch[]
 
   @@index([caseId, status])
 }
 
 model CaseRequirementMatch {
-  id             String              @id @default(cuid())
-  requirementId  String
-  requirement    TemplateRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  id              String              @id @default(cuid())
+  requirementId   String
+  requirement     TemplateRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
   checklistItemId String?
-  checklistItem  CaseChecklistItem?  @relation(fields: [checklistItemId], references: [id])
+  checklistItem   CaseChecklistItem?  @relation(fields: [checklistItemId], references: [id])
   documentId      String
   document        Document            @relation(fields: [documentId], references: [id], onDelete: Cascade)
   confidence      Float
@@ -297,27 +303,27 @@ model PacketExport {
 }
 
 model Notification {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   caseId    String?
-  case      Case?    @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  case      Case?     @relation(fields: [caseId], references: [id], onDelete: Cascade)
   userId    String
   type      String
   title     String
   body      String
   readAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([userId, readAt])
 }
 
 model Reminder {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   caseId    String
-  case      Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  case      Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
   remindAt  DateTime
   message   String
   sentAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 }
 
 model Job {
@@ -345,20 +351,32 @@ model AuditLog {
 }
 
 model SupportRequest {
-  id        String                 @id @default(cuid())
+  id        String                  @id @default(cuid())
   userId    String
-  user      User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   caseId    String?
-  case      Case?                  @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  case      Case?                   @relation(fields: [caseId], references: [id], onDelete: SetNull)
   category  SupportRequestCategory
   subject   String
   message   String
-  priority  SupportRequestPriority @default(NORMAL)
-  status    SupportRequestStatus   @default(OPEN)
-  createdAt DateTime               @default(now())
-  updatedAt DateTime               @updatedAt
+  priority  SupportRequestPriority  @default(NORMAL)
+  status    SupportRequestStatus    @default(OPEN)
+  createdAt DateTime                @default(now())
+  updatedAt DateTime                @updatedAt
+  messages  SupportRequestMessage[]
 
-  @@index([userId, createdAt])
+  @@index([userId, updatedAt])
   @@index([caseId])
   @@index([status, createdAt])
+}
+
+model SupportRequestMessage {
+  id        String               @id @default(cuid())
+  requestId String
+  request   SupportRequest       @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  author    SupportMessageAuthor @default(USER)
+  message   String
+  createdAt DateTime             @default(now())
+
+  @@index([requestId, createdAt])
 }
