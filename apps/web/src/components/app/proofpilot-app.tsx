@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { GlobalSearchResult } from "@proofpilot/types";
 import {
   AccountPanel,
   type AccountSection
@@ -17,6 +18,7 @@ import { HelpCenterPanel } from "@/components/app/help/help-center-panel";
 import { MoreMenu } from "@/components/app/more-menu";
 import { NotificationCenter } from "@/components/app/notification-center";
 import { ReportsPanel } from "@/components/app/reports/reports-panel";
+import { SearchPanel } from "@/components/app/search/search-panel";
 import { Badge } from "@/components/ui/badge";
 import { apiRequest, ApiClientError } from "@/lib/client/api";
 import type { AuthUser, CaseRecord, CaseType, CreateCasePayload } from "@/lib/client/types";
@@ -38,6 +40,7 @@ export function ProofPilotApp() {
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<AppView>("home");
   const [accountSection, setAccountSection] = useState<AccountSection>("profile");
+  const [helpInitialView, setHelpInitialView] = useState<"home" | "contact">("home");
   const [isBooting, setIsBooting] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCaseLoading, setIsCaseLoading] = useState(false);
@@ -240,6 +243,9 @@ export function ProofPilotApp() {
     if (view === "account") {
       setAccountSection("profile");
     }
+    if (view === "help") {
+      setHelpInitialView("home");
+    }
     setActiveView(view);
     scrollToPageTop();
   }
@@ -249,6 +255,30 @@ export function ProofPilotApp() {
     setAccountSection(section);
     setActiveView("account");
     scrollToPageTop();
+  }
+
+  function handleOpenSearchResult(result: GlobalSearchResult) {
+    if (result.type === "SUPPORT") {
+      setHelpInitialView("contact");
+      setActiveView("help");
+      scrollToPageTop();
+      return;
+    }
+
+    if (!result.caseId) {
+      return;
+    }
+
+    const destinations = {
+      CASE: "case-overview",
+      DOCUMENT: "evidence-intake",
+      TIMELINE: "case-timeline",
+      CHECKLIST: "evidence-checklist",
+      STATEMENT: "statement-builder",
+      PACKET: "packet-export"
+    } as const;
+    const destination = destinations[result.type];
+    void handleOpenCase(result.caseId, destination);
   }
 
   if (isBooting) {
@@ -358,6 +388,7 @@ export function ProofPilotApp() {
           onOpenHelp={() => handleNavigate("help")}
           onOpenNotifications={() => handleNavigate("notifications")}
           onOpenReports={() => handleNavigate("reports")}
+          onOpenSearch={() => handleNavigate("search")}
           onViewCases={() => handleNavigate("cases")}
           selectedCase={selectedCase}
           user={user}
@@ -376,9 +407,14 @@ export function ProofPilotApp() {
       {activeView === "help" ? (
         <HelpCenterPanel
           cases={cases}
+          initialView={helpInitialView}
           onSupportRequestCreated={refreshNotifications}
           selectedCaseId={selectedCase?.id ?? null}
         />
+      ) : null}
+
+      {activeView === "search" ? (
+        <SearchPanel cases={cases} onOpenResult={handleOpenSearchResult} />
       ) : null}
 
       {activeView === "account" ? (

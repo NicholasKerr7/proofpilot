@@ -65,6 +65,10 @@
 - `POST /support/requests`
 - `POST /support/article-feedback`
 
+## Search
+
+- `GET /search`
+
 ## Next Sprints
 
 - Desktop visual reference integration when assets arrive

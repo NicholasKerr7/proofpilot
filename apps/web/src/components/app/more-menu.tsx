@@ -14,6 +14,7 @@ import {
   PenLine,
   Plus,
   ShieldCheck,
+  Search,
   UploadCloud,
   UserRound,
   type LucideIcon
@@ -50,6 +51,7 @@ interface MoreMenuProps {
   onOpenHelp: () => void;
   onOpenNotifications: () => void;
   onOpenReports: () => void;
+  onOpenSearch: () => void;
   onViewCases: () => void;
   selectedCase: CaseRecord | null;
   user: AuthUser;
@@ -62,6 +64,7 @@ export function MoreMenu({
   onOpenHelp,
   onOpenNotifications,
   onOpenReports,
+  onOpenSearch,
   onViewCases,
   selectedCase,
   user
@@ -146,6 +149,12 @@ export function MoreMenu({
               icon={Bell}
               label="Inbox"
               onClick={onOpenNotifications}
+            />
+            <MoreDestination
+              detail="Find cases, evidence, timelines, packets, and support requests."
+              icon={Search}
+              label="Search"
+              onClick={onOpenSearch}
             />
             <MoreDestination
               detail="Compare current readiness and export case data."

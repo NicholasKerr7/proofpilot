@@ -29,6 +29,7 @@ export type AppView =
   | "account"
   | "reports"
   | "help"
+  | "search"
   | "more";
 
 type PrimaryNavigationView = "home" | "cases" | "upload" | "notifications" | "more";
@@ -242,7 +243,8 @@ function isNavigationActive(activeView: AppView, navigationView: PrimaryNavigati
       activeView === "more" ||
       activeView === "account" ||
       activeView === "reports" ||
-      activeView === "help"
+      activeView === "help" ||
+      activeView === "search"
     );
   }
 

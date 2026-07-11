@@ -15,16 +15,18 @@ type HelpView =
 
 interface HelpCenterPanelProps {
   cases: CaseRecord[];
+  initialView?: "home" | "contact";
   onSupportRequestCreated: () => void;
   selectedCaseId: string | null;
 }
 
 export function HelpCenterPanel({
   cases,
+  initialView = "home",
   onSupportRequestCreated,
   selectedCaseId
 }: HelpCenterPanelProps) {
-  const [view, setView] = useState<HelpView>({ id: "home" });
+  const [view, setView] = useState<HelpView>({ id: initialView });
 
   function openArticle(articleSlug: HelpArticleSlug) {
     setView({ id: "article", articleSlug });
