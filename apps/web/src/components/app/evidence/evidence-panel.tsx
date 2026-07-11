@@ -432,7 +432,7 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
   const isSelectedDocumentProcessing = isActiveProcessingStatus(selectedDocument?.status);
 
   return (
-    <Card>
+    <Card id="evidence-intake" className="scroll-mt-28 lg:scroll-mt-8">
       <CardHeader>
         <CardTitle>Evidence intake</CardTitle>
         <CardDescription>Upload, review, and manage private support files.</CardDescription>

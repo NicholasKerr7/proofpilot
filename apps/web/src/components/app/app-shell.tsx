@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import type { AuthUser } from "@/lib/client/types";
 
 const navItems = [
-  { label: "Dashboard", icon: FolderOpen },
-  { label: "Evidence", icon: UploadCloud },
-  { label: "Timeline", icon: Clock3 },
-  { label: "Packet", icon: FileCheck2 }
+  { label: "Dashboard", href: "#case-dashboard", icon: FolderOpen },
+  { label: "Evidence", href: "#evidence-intake", icon: UploadCloud },
+  { label: "Timeline", href: "#case-timeline", icon: Clock3 },
+  { label: "Packet", href: "#packet-export", icon: FileCheck2 }
 ];
 
 interface AppShellProps {
@@ -42,13 +42,15 @@ export function AppShell({ children, user, onLogout }: AppShellProps) {
           {navItems.map((item, index) => (
             <Button
               key={item.label}
-              type="button"
+              asChild
               variant={index === 0 ? "secondary" : "ghost"}
               className="justify-start"
               aria-current={index === 0 ? "page" : undefined}
             >
-              <item.icon className="h-4 w-4" aria-hidden="true" />
-              {item.label}
+              <a href={item.href}>
+                <item.icon className="h-4 w-4" aria-hidden="true" />
+                {item.label}
+              </a>
             </Button>
           ))}
         </nav>
@@ -93,16 +95,16 @@ export function AppShell({ children, user, onLogout }: AppShellProps) {
         aria-label="Primary mobile"
       >
         {navItems.map((item, index) => (
-          <button
+          <a
             key={item.label}
-            type="button"
+            href={item.href}
             className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-md text-xs text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[active=true]:bg-secondary data-[active=true]:text-foreground"
             data-active={index === 0}
             aria-current={index === 0 ? "page" : undefined}
           >
             <item.icon className="h-5 w-5" aria-hidden="true" />
             <span>{item.label}</span>
-          </button>
+          </a>
         ))}
       </nav>
     </div>

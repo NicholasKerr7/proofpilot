@@ -30,7 +30,7 @@ export function CaseDashboard({
   const filteredCases = filterCases(cases, query, statusFilter);
 
   return (
-    <div className="grid grid-cols-1 gap-5">
+    <div id="case-dashboard" className="grid scroll-mt-28 grid-cols-1 gap-5 lg:scroll-mt-8">
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
         {metrics.map((metric) => (
           <Card key={metric.label}>

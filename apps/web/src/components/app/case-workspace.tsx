@@ -50,7 +50,7 @@ export function CaseWorkspace({
 
   return (
     <div className="grid grid-cols-1 gap-5">
-      <Card>
+      <Card id="case-overview" className="scroll-mt-28 lg:scroll-mt-8">
         <CardHeader className="md:grid-cols-[minmax(0,1fr)_auto] md:items-start md:gap-5">
           <div>
             <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -65,6 +65,21 @@ export function CaseWorkspace({
           </div>
         </CardHeader>
       </Card>
+
+      <nav
+        className="flex gap-2 overflow-x-auto rounded-lg border border-border bg-card/70 p-1 scroll-container"
+        aria-label="Case workspace sections"
+      >
+        {workspaceNavItems.map((item) => (
+          <a
+            key={item.href}
+            href={item.href}
+            className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-md px-3 text-sm font-semibold text-muted-foreground hover:bg-secondary/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {item.label}
+          </a>
+        ))}
+      </nav>
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <EvidencePanel
@@ -98,6 +113,15 @@ export function CaseWorkspace({
     </div>
   );
 }
+
+const workspaceNavItems = [
+  { label: "Overview", href: "#case-overview" },
+  { label: "Evidence", href: "#evidence-intake" },
+  { label: "Timeline", href: "#case-timeline" },
+  { label: "Checklist", href: "#evidence-checklist" },
+  { label: "Statement", href: "#statement-builder" },
+  { label: "Packet", href: "#packet-export" }
+];
 
 function isChecklistReady(status: string) {
   return status === "FOUND" || status === "COMPLETE";

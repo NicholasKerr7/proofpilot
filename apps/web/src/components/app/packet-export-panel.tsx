@@ -168,7 +168,7 @@ export function PacketExportPanel({
   const sections = getPacketSections(selectedCase);
 
   return (
-    <Card>
+    <Card id="packet-export" className="scroll-mt-28 lg:scroll-mt-8">
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>

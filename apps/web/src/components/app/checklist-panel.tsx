@@ -112,7 +112,7 @@ export function ChecklistPanel({ onCaseChanged, selectedCase }: ChecklistPanelPr
   const readyCount = checklistItems.filter((item) => isChecklistReady(item.status)).length;
 
   return (
-    <Card>
+    <Card id="evidence-checklist" className="scroll-mt-28 lg:scroll-mt-8">
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
