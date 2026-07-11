@@ -10,6 +10,8 @@
 - `POST /auth/register`
 - `POST /auth/login`
 - `GET /auth/me`
+- `PATCH /auth/me`
+- `POST /auth/change-password`
 
 ## Case Types
 

@@ -10,8 +10,10 @@ import {
   LogOut,
   Menu,
   UploadCloud,
+  UserRound,
   type LucideIcon
 } from "lucide-react";
+import { getUserInitials } from "@/components/app/account/account-utils";
 import { ApiStatus } from "@/components/system/api-status";
 import { Button } from "@/components/ui/button";
 import type { AuthUser } from "@/lib/client/types";
@@ -24,6 +26,7 @@ export type AppView =
   | "case"
   | "upload"
   | "notifications"
+  | "account"
   | "more";
 
 type PrimaryNavigationView = "home" | "cases" | "upload" | "notifications" | "more";
@@ -44,14 +47,14 @@ interface AppShellProps {
   activeView: AppView;
   children: React.ReactNode;
   onLogout: () => Promise<void>;
-  onNavigate: (view: PrimaryNavigationView) => void;
+  onNavigate: (view: AppView) => void;
   user: AuthUser;
 }
 
 export function AppShell({ activeView, children, onLogout, onNavigate, user }: AppShellProps) {
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
 
-  function handleNavigate(view: PrimaryNavigationView) {
+  function handleNavigate(view: AppView) {
     setIsAccountMenuOpen(false);
     onNavigate(view);
   }
@@ -95,6 +98,10 @@ export function AppShell({ activeView, children, onLogout, onNavigate, user }: A
             <p className="mt-1 truncate text-xs text-muted-foreground">{user.email}</p>
           </div>
           <ApiStatus />
+          <Button onClick={() => handleNavigate("account")} type="button" variant="outline">
+            <UserRound className="h-4 w-4" aria-hidden="true" />
+            Manage account
+          </Button>
           <Button
             onClick={() => {
               void handleLogout();
@@ -149,6 +156,10 @@ export function AppShell({ activeView, children, onLogout, onNavigate, user }: A
                   <p className="mt-1 truncate text-xs text-muted-foreground">{user.email}</p>
                 </div>
                 <ApiStatus />
+                <Button onClick={() => handleNavigate("account")} type="button" variant="outline">
+                  <UserRound className="h-4 w-4" aria-hidden="true" />
+                  Manage account
+                </Button>
                 <Button
                   onClick={() => {
                     void handleLogout();
@@ -224,17 +235,9 @@ function isNavigationActive(activeView: AppView, navigationView: PrimaryNavigati
     return activeView === "cases" || activeView === "create" || activeView === "case";
   }
 
+  if (navigationView === "more") {
+    return activeView === "more" || activeView === "account";
+  }
+
   return activeView === navigationView;
-}
-
-function getUserInitials(user: AuthUser) {
-  const source = user.name?.trim() || user.email.split("@")[0] || "PP";
-  const initials = source
-    .split(/[\s._-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join("");
-
-  return initials || "PP";
 }

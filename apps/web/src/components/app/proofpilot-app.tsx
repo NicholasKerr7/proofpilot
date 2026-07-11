@@ -1,6 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  AccountPanel,
+  type AccountSection
+} from "@/components/app/account/account-panel";
 import { AppShell, type AppView } from "@/components/app/app-shell";
 import { AuthPanel } from "@/components/app/auth-panel";
 import { CaseDashboard } from "@/components/app/case-dashboard";
@@ -31,6 +35,7 @@ export function ProofPilotApp() {
   const [caseTypes, setCaseTypes] = useState<CaseType[]>(fallbackCaseTypes);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<AppView>("home");
+  const [accountSection, setAccountSection] = useState<AccountSection>("profile");
   const [isBooting, setIsBooting] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCaseLoading, setIsCaseLoading] = useState(false);
@@ -230,7 +235,17 @@ export function ProofPilotApp() {
 
   function handleNavigate(view: AppView) {
     setMessage(null);
+    if (view === "account") {
+      setAccountSection("profile");
+    }
     setActiveView(view);
+    scrollToPageTop();
+  }
+
+  function handleOpenAccount(section: AccountSection) {
+    setMessage(null);
+    setAccountSection(section);
+    setActiveView("account");
     scrollToPageTop();
   }
 
@@ -336,10 +351,22 @@ export function ProofPilotApp() {
       {activeView === "more" ? (
         <MoreMenu
           onCreateCase={() => handleNavigate("create")}
+          onOpenAccount={handleOpenAccount}
           onOpenCase={handleOpenCase}
           onOpenNotifications={() => handleNavigate("notifications")}
           onViewCases={() => handleNavigate("cases")}
           selectedCase={selectedCase}
+          user={user}
+        />
+      ) : null}
+
+      {activeView === "account" ? (
+        <AccountPanel
+          cases={cases}
+          onSectionChange={setAccountSection}
+          onUserChanged={setUser}
+          section={accountSection}
+          user={user}
         />
       ) : null}
     </AppShell>

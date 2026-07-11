@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 
 interface AuthPasswordFieldProps {
   autoComplete: "current-password" | "new-password";
+  disabled?: boolean;
   id: string;
   label: string;
   name: string;
@@ -17,6 +18,7 @@ interface AuthPasswordFieldProps {
 
 export function AuthPasswordField({
   autoComplete,
+  disabled = false,
   id,
   label,
   name,
@@ -37,6 +39,7 @@ export function AuthPasswordField({
         <Input
           autoComplete={autoComplete}
           className="min-h-12 pl-10 pr-12"
+          disabled={disabled}
           id={id}
           maxLength={120}
           minLength={8}
@@ -49,6 +52,7 @@ export function AuthPasswordField({
         <Button
           aria-label={visibilityLabel}
           className="absolute right-0 top-1/2 -translate-y-1/2"
+          disabled={disabled}
           onClick={() => setIsVisible((currentValue) => !currentValue)}
           size="icon"
           title={visibilityLabel}

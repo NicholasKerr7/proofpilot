@@ -1,14 +1,31 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   UnauthorizedException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { compare, hash } from "bcryptjs";
-import type { AuthResponse } from "@proofpilot/types";
+import type { AuthResponse, AuthUser } from "@proofpilot/types";
 import { PrismaService } from "../prisma/prisma.service.js";
+import type { ChangePasswordDto } from "./dto/change-password.dto.js";
 import type { LoginDto } from "./dto/login.dto.js";
 import type { RegisterDto } from "./dto/register.dto.js";
+import type { UpdateProfileDto } from "./dto/update-profile.dto.js";
+
+const publicUserSelect = {
+  id: true,
+  email: true,
+  name: true,
+  createdAt: true
+} as const;
+
+interface PublicUserRecord {
+  id: string;
+  email: string;
+  name: string | null;
+  createdAt: Date;
+}
 
 @Injectable()
 export class AuthService {
@@ -65,19 +82,76 @@ export class AuthService {
     return this.createAuthResponse(user);
   }
 
-  async findCurrentUser(userId: string) {
-    return this.prisma.user.findUniqueOrThrow({
+  async findCurrentUser(userId: string): Promise<AuthUser> {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: publicUserSelect
+    });
+
+    return this.toAuthUser(user);
+  }
+
+  async updateProfile(userId: string, input: UpdateProfileDto): Promise<AuthUser> {
+    const name = input.name.trim();
+
+    if (!name) {
+      throw new BadRequestException("Name cannot be blank.");
+    }
+
+    const [updatedUser] = await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { name },
+        select: publicUserSelect
+      }),
+      this.prisma.auditLog.create({
+        data: {
+          userId,
+          action: "auth.profile_updated",
+          metadata: { fields: ["name"] }
+        }
+      })
+    ]);
+
+    return this.toAuthUser(updatedUser);
+  }
+
+  async changePassword(userId: string, input: ChangePasswordDto) {
+    const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
-        email: true,
-        name: true,
-        createdAt: true
+        passwordHash: true
       }
     });
+
+    if (!user || !(await compare(input.currentPassword, user.passwordHash))) {
+      throw new UnauthorizedException("Current password is incorrect.");
+    }
+
+    if (input.currentPassword === input.newPassword) {
+      throw new BadRequestException("New password must be different from the current password.");
+    }
+
+    const passwordHash = await hash(input.newPassword, 12);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash }
+      }),
+      this.prisma.auditLog.create({
+        data: {
+          userId,
+          action: "auth.password_changed"
+        }
+      })
+    ]);
+
+    return { ok: true };
   }
 
-  private async createAuthResponse(user: { id: string; email: string; name: string | null }) {
+  private async createAuthResponse(user: PublicUserRecord): Promise<AuthResponse> {
     const accessToken = await this.jwtService.signAsync({
       sub: user.id,
       email: user.email
@@ -85,11 +159,16 @@ export class AuthService {
 
     return {
       accessToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name
-      }
+      user: this.toAuthUser(user)
+    };
+  }
+
+  private toAuthUser(user: PublicUserRecord): AuthUser {
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      createdAt: user.createdAt.toISOString()
     };
   }
 }
