@@ -255,7 +255,10 @@ export function ProofPilotApp() {
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
         <div className="grid grid-cols-1 gap-5">
-          <NotificationCenter refreshKey={notificationRefreshKey} />
+          <NotificationCenter
+            onSelectCase={handleSelectCase}
+            refreshKey={notificationRefreshKey}
+          />
 
           <CaseDashboard
             cases={cases}
