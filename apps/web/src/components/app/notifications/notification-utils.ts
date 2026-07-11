@@ -1,4 +1,5 @@
 import type { AppNotification } from "@/lib/client/types";
+import type { CaseDestinationId } from "@/components/app/cases/case-utils";
 
 export type NotificationFilter = "all" | "unread" | "cases" | "packets" | "system";
 
@@ -109,7 +110,7 @@ export function formatNotificationType(value: string) {
     .join(" ");
 }
 
-export function getNotificationDestination(type: string) {
+export function getNotificationDestination(type: string): CaseDestinationId {
   if (type.startsWith("packet_")) {
     return "packet-export";
   }

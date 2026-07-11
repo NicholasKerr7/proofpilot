@@ -1,15 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ApiStatus } from "@/components/system/api-status";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { AppShell, type AppView } from "@/components/app/app-shell";
 import { AuthPanel } from "@/components/app/auth-panel";
-import { AppShell } from "@/components/app/app-shell";
 import { CaseDashboard } from "@/components/app/case-dashboard";
 import { CaseWorkspace } from "@/components/app/case-workspace";
+import type { CaseDestinationId } from "@/components/app/cases/case-utils";
 import { CreateCaseForm } from "@/components/app/create-case-form";
+import { EvidenceUploadView } from "@/components/app/evidence-upload-view";
+import { HomeDashboard } from "@/components/app/home-dashboard";
+import { MoreMenu } from "@/components/app/more-menu";
 import { NotificationCenter } from "@/components/app/notification-center";
+import { Badge } from "@/components/ui/badge";
 import { apiRequest, ApiClientError } from "@/lib/client/api";
 import type { AuthUser, CaseRecord, CaseType, CreateCasePayload } from "@/lib/client/types";
 
@@ -18,7 +20,8 @@ const fallbackCaseTypes: CaseType[] = [
     id: "account-ban-appeal",
     slug: "account-ban-appeal",
     name: "Account Ban / Appeal Builder",
-    description: "Build an organized appeal packet for account bans, holds, closures, and platform restrictions."
+    description:
+      "Build an organized appeal packet for account bans, holds, closures, and platform restrictions."
   }
 ];
 
@@ -27,6 +30,7 @@ export function ProofPilotApp() {
   const [cases, setCases] = useState<CaseRecord[]>([]);
   const [caseTypes, setCaseTypes] = useState<CaseType[]>(fallbackCaseTypes);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<AppView>("home");
   const [isBooting, setIsBooting] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCaseLoading, setIsCaseLoading] = useState(false);
@@ -131,6 +135,7 @@ export function ProofPilotApp() {
         method: "POST"
       });
       setUser(response.user);
+      setActiveView("home");
       refreshNotifications();
       const [nextCases] = await Promise.all([loadCases(), loadCaseTypes()]);
 
@@ -150,6 +155,7 @@ export function ProofPilotApp() {
     setUser(null);
     setCases([]);
     setSelectedCaseId(null);
+    setActiveView("home");
     refreshNotifications();
   }
 
@@ -165,19 +171,26 @@ export function ProofPilotApp() {
       await loadCases();
       await loadCaseDetail(createdCase.id);
       refreshNotifications();
+      return true;
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Case creation failed.");
+      return false;
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  async function handleSelectCase(caseId: string) {
+  async function handleOpenCase(
+    caseId: string,
+    destinationId: CaseDestinationId = "case-overview"
+  ) {
     setSelectedCaseId(caseId);
     setMessage(null);
 
     try {
       await loadCaseDetail(caseId);
+      setActiveView(destinationId === "evidence-intake" ? "upload" : "case");
+      scrollToDestination(destinationId);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Case detail could not be loaded.");
     }
@@ -192,11 +205,33 @@ export function ProofPilotApp() {
       setCases(nextCases);
 
       if (selectedCaseId === caseId) {
-        setSelectedCaseId(nextCases[0]?.id ?? null);
+        const nextCaseId = nextCases[0]?.id ?? null;
+        setSelectedCaseId(nextCaseId);
+
+        if (nextCaseId) {
+          try {
+            await loadCaseDetail(nextCaseId);
+          } catch (error) {
+            setMessage(
+              error instanceof Error
+                ? `Case archived. ${error.message}`
+                : "Case archived, but the next case could not be refreshed."
+            );
+          }
+        }
       }
+
+      return true;
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Archive failed.");
+      return false;
     }
+  }
+
+  function handleNavigate(view: AppView) {
+    setMessage(null);
+    setActiveView(view);
+    scrollToPageTop();
   }
 
   if (isBooting) {
@@ -222,63 +257,113 @@ export function ProofPilotApp() {
   }
 
   return (
-    <AppShell user={user} onLogout={handleLogout}>
-      <div className="grid gap-4 rounded-lg border border-border bg-card/70 p-4 backdrop-blur sm:p-5 md:grid-cols-[1fr_auto] md:items-center md:p-6">
-        <div>
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <Badge>Account Ban / Appeal Builder</Badge>
-            <div className="hidden lg:block">
-              <ApiStatus />
-            </div>
-          </div>
-          <h1 className="max-w-3xl text-2xl font-semibold tracking-normal text-foreground sm:text-3xl md:text-4xl">
-            Build and manage private appeal cases.
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Create a case, collect evidence, review gaps, draft the statement, and prepare a packet.
-          </p>
-        </div>
-        <Button
-          className="md:self-end"
-          onClick={() => setSelectedCaseId(cases[0]?.id ?? null)}
-          variant="outline"
-        >
-          Current cases: {cases.length}
-        </Button>
-      </div>
-
+    <AppShell
+      activeView={activeView}
+      onLogout={handleLogout}
+      onNavigate={handleNavigate}
+      user={user}
+    >
       {message ? (
-        <p className="rounded-md border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-sm text-amber-100">
+        <p
+          className="rounded-md border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-sm text-amber-100"
+          role="alert"
+        >
           {message}
         </p>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
-        <div className="grid grid-cols-1 gap-5">
-          <NotificationCenter
-            onSelectCase={handleSelectCase}
-            refreshKey={notificationRefreshKey}
-          />
+      {activeView === "home" ? (
+        <HomeDashboard
+          cases={cases}
+          onCreateCase={() => handleNavigate("create")}
+          onOpenCase={handleOpenCase}
+          onViewCases={() => handleNavigate("cases")}
+          primaryCase={selectedCase}
+        />
+      ) : null}
 
-          <CaseDashboard
-            cases={cases}
-            isLoading={isCaseLoading}
-            onArchiveCase={handleArchiveCase}
-            onSelectCase={handleSelectCase}
-            selectedCaseId={selectedCase?.id ?? null}
-          />
-          <CaseWorkspace
-            onCaseChanged={loadCaseDetail}
-            onNotificationsChanged={refreshNotifications}
-            selectedCase={selectedCase}
-          />
-        </div>
+      {activeView === "cases" ? (
+        <CaseDashboard
+          cases={cases}
+          isLoading={isCaseLoading}
+          onArchiveCase={handleArchiveCase}
+          onCreateCase={() => handleNavigate("create")}
+          onSelectCase={handleOpenCase}
+          selectedCaseId={selectedCase?.id ?? null}
+        />
+      ) : null}
+
+      {activeView === "create" ? (
         <CreateCaseForm
           caseTypes={caseTypes}
           isSubmitting={isSubmitting}
+          onCancel={() => handleNavigate("cases")}
+          onComplete={() => {
+            setActiveView("upload");
+            scrollToDestination("evidence-intake");
+          }}
           onCreateCase={handleCreateCase}
         />
-      </div>
+      ) : null}
+
+      {activeView === "case" ? (
+        <CaseWorkspace
+          onBackToCases={() => handleNavigate("cases")}
+          onCaseChanged={loadCaseDetail}
+          onNotificationsChanged={refreshNotifications}
+          selectedCase={selectedCase}
+        />
+      ) : null}
+
+      {activeView === "upload" ? (
+        <EvidenceUploadView
+          onCaseChanged={loadCaseDetail}
+          onCreateCase={() => handleNavigate("create")}
+          onViewCases={() => handleNavigate("cases")}
+          selectedCase={selectedCase}
+        />
+      ) : null}
+
+      {activeView === "notifications" ? (
+        <NotificationCenter
+          onOpenCase={handleOpenCase}
+          refreshKey={notificationRefreshKey}
+        />
+      ) : null}
+
+      {activeView === "more" ? (
+        <MoreMenu
+          onCreateCase={() => handleNavigate("create")}
+          onOpenCase={handleOpenCase}
+          onOpenNotifications={() => handleNavigate("notifications")}
+          onViewCases={() => handleNavigate("cases")}
+          selectedCase={selectedCase}
+        />
+      ) : null}
     </AppShell>
   );
+}
+
+function scrollToPageTop() {
+  window.requestAnimationFrame(() => {
+    window.scrollTo({ behavior: getScrollBehavior(), top: 0 });
+  });
+}
+
+function scrollToDestination(destinationId: string) {
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      const destination = document.getElementById(destinationId);
+
+      if (destination) {
+        destination.scrollIntoView({ behavior: getScrollBehavior(), block: "start" });
+      } else {
+        window.scrollTo({ behavior: getScrollBehavior(), top: 0 });
+      }
+    });
+  });
+}
+
+function getScrollBehavior(): ScrollBehavior {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
 }

@@ -16,6 +16,7 @@ import {
   matchesNotificationFilter,
   type NotificationFilter
 } from "@/components/app/notifications/notification-utils";
+import type { CaseDestinationId } from "@/components/app/cases/case-utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,7 +36,7 @@ const notificationFilters: Array<{
 ];
 
 interface NotificationCenterProps {
-  onSelectCase: (caseId: string) => Promise<unknown>;
+  onOpenCase: (caseId: string, destinationId: CaseDestinationId) => Promise<void>;
   refreshKey: number;
 }
 
@@ -44,7 +45,7 @@ type Notice = {
   text: string;
 };
 
-export function NotificationCenter({ onSelectCase, refreshKey }: NotificationCenterProps) {
+export function NotificationCenter({ onOpenCase, refreshKey }: NotificationCenterProps) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [filter, setFilter] = useState<NotificationFilter>("all");
   const [expandedNotificationId, setExpandedNotificationId] = useState<string | null>(null);
@@ -162,11 +163,8 @@ export function NotificationCenter({ onSelectCase, refreshKey }: NotificationCen
     setNotice(null);
 
     try {
-      await onSelectCase(notification.case.id);
       const destinationId = getNotificationDestination(notification.type);
-      window.setTimeout(() => {
-        document.getElementById(destinationId)?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 0);
+      await onOpenCase(notification.case.id, destinationId);
     } catch (error) {
       setNotice({
         tone: "error",

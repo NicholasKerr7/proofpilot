@@ -2,7 +2,9 @@
 
 import { useCallback } from "react";
 import {
+  ArrowLeft,
   ArrowRight,
+  CalendarDays,
   Clock3,
   FileArchive,
   ListChecks,
@@ -10,6 +12,16 @@ import {
   UploadCloud,
   type LucideIcon
 } from "lucide-react";
+import { CaseProgressRing } from "@/components/app/cases/case-progress-ring";
+import {
+  formatCaseDate,
+  formatCaseReference,
+  formatCaseStatus,
+  getCaseNextActions,
+  getCaseReadiness,
+  getCaseStatusVariant,
+  type CaseDestinationId
+} from "@/components/app/cases/case-utils";
 import { ChecklistPanel } from "@/components/app/checklist-panel";
 import { EvidencePanel } from "@/components/app/evidence/evidence-panel";
 import { PacketExportPanel } from "@/components/app/packet-export-panel";
@@ -17,18 +29,20 @@ import { ReminderPanel } from "@/components/app/reminder-panel";
 import { StatementBuilder } from "@/components/app/statement-builder";
 import { TimelinePanel } from "@/components/app/timeline-panel";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import type { CaseRecord } from "@/lib/client/types";
 import { cn } from "@/lib/utils";
 
 interface CaseWorkspaceProps {
+  onBackToCases: () => void;
   onCaseChanged: (caseId: string) => Promise<unknown>;
   onNotificationsChanged: () => void;
   selectedCase: CaseRecord | null;
 }
 
 export function CaseWorkspace({
+  onBackToCases,
   onCaseChanged,
   onNotificationsChanged,
   selectedCase
@@ -56,24 +70,58 @@ export function CaseWorkspace({
     );
   }
 
-  const readiness = getReadiness(selectedCase);
+  const readiness = getCaseReadiness(selectedCase);
 
   return (
     <div className="grid grid-cols-1 gap-5">
       <Card id="case-overview" className="scroll-mt-28 lg:scroll-mt-8">
-        <CardHeader className="md:grid-cols-[minmax(0,1fr)_auto] md:items-start md:gap-5">
-          <div>
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <Badge>{selectedCase.platform}</Badge>
-              <Badge variant="secondary">{selectedCase.caseType.name}</Badge>
+        <CardContent className="grid gap-5 p-5 md:grid-cols-[auto_minmax(0,1fr)] md:items-center md:gap-7 md:p-6">
+          <CaseProgressRing
+            className="order-2 justify-self-center md:order-1 md:justify-self-auto"
+            value={readiness}
+          />
+          <div className="order-1 min-w-0 md:order-2">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Button onClick={onBackToCases} size="sm" type="button" variant="ghost">
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                All cases
+              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge>Primary case</Badge>
+                <Badge variant={getCaseStatusVariant(selectedCase.status)}>
+                  {formatCaseStatus(selectedCase.status)}
+                </Badge>
+              </div>
             </div>
-            <CardTitle className="text-xl md:text-2xl">{selectedCase.title}</CardTitle>
-            <CardDescription>{selectedCase.summary ?? "No summary added yet."}</CardDescription>
+            <h1 className="mt-4 break-words text-2xl font-semibold leading-9 md:text-3xl">
+              {selectedCase.title}
+            </h1>
+            <p className="mt-1 font-mono text-xs text-muted-foreground">
+              {formatCaseReference(selectedCase)}
+            </p>
+            <p className="mt-4 text-sm leading-6 text-muted-foreground">
+              {selectedCase.summary ?? "No summary added yet."}
+            </p>
+            <dl className="mt-4 grid gap-3 border-t border-border pt-4 sm:grid-cols-3">
+              <div>
+                <dt className="text-xs text-muted-foreground">Platform</dt>
+                <dd className="mt-1 text-sm font-medium text-foreground">{selectedCase.platform}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Deadline</dt>
+                <dd className="mt-1 text-sm font-medium text-foreground">
+                  {selectedCase.deadline ? formatCaseDate(selectedCase.deadline) : "Not set"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Case type</dt>
+                <dd className="mt-1 break-words text-sm font-medium text-foreground">
+                  {selectedCase.caseType.name}
+                </dd>
+              </div>
+            </dl>
           </div>
-          <div className="min-w-52 rounded-md border border-border bg-secondary/35 p-3">
-            <Progress value={readiness} label="Packet readiness" />
-          </div>
-        </CardHeader>
+        </CardContent>
       </Card>
 
       <nav
@@ -141,7 +189,8 @@ const workspaceNavItems = [
   { label: "Timeline", href: "#case-timeline" },
   { label: "Checklist", href: "#evidence-checklist" },
   { label: "Statement", href: "#statement-builder" },
-  { label: "Packet", href: "#packet-export" }
+  { label: "Packet", href: "#packet-export" },
+  { label: "Reminders", href: "#case-reminders" }
 ];
 
 interface NextActionsPanelProps {
@@ -149,18 +198,18 @@ interface NextActionsPanelProps {
   selectedCase: CaseRecord;
 }
 
-type NextAction = {
-  detail: string;
-  href: string;
-  icon: LucideIcon;
-  label: string;
-  status: string;
-  variant: "secondary" | "success" | "warning";
-  wide?: boolean;
+const actionIcons: Record<CaseDestinationId, LucideIcon> = {
+  "case-overview": FileArchive,
+  "evidence-intake": UploadCloud,
+  "case-timeline": Clock3,
+  "evidence-checklist": ListChecks,
+  "statement-builder": PenLine,
+  "packet-export": FileArchive,
+  "case-reminders": CalendarDays
 };
 
 function NextActionsPanel({ readiness, selectedCase }: NextActionsPanelProps) {
-  const actions = getNextActions(selectedCase, readiness);
+  const actions = getCaseNextActions(selectedCase);
 
   return (
     <Card id="next-actions" className="scroll-mt-28 lg:scroll-mt-8">
@@ -174,104 +223,38 @@ function NextActionsPanel({ readiness, selectedCase }: NextActionsPanelProps) {
         <Badge variant={readiness >= 80 ? "success" : "warning"}>{readiness}% ready</Badge>
       </CardHeader>
       <CardContent className="grid gap-3 md:grid-cols-2">
-        {actions.map((action) => (
-          <a
-            key={action.href}
-            href={action.href}
-            className={cn(
-              "group grid min-h-28 grid-cols-[auto_1fr_auto] gap-3 rounded-md border border-border bg-secondary/35 p-3 text-left hover:bg-secondary/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              action.wide ? "md:col-span-2" : null
-            )}
-          >
-            <span className="flex h-10 w-10 items-center justify-center rounded-md border border-primary/25 bg-primary/10 text-primary">
-              <action.icon className="h-5 w-5" aria-hidden="true" />
-            </span>
-            <span className="min-w-0">
-              <span className="flex flex-wrap items-center gap-2">
-                <span className="font-semibold text-foreground">{action.label}</span>
-                <Badge variant={action.variant}>{action.status}</Badge>
+        {actions.map((action) => {
+          const ActionIcon = actionIcons[action.destinationId];
+
+          return (
+            <a
+              key={action.destinationId}
+              href={`#${action.destinationId}`}
+              className={cn(
+                "group grid min-h-28 grid-cols-[auto_1fr_auto] gap-3 rounded-md border border-border bg-secondary/35 p-3 text-left hover:bg-secondary/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                action.wide ? "md:col-span-2" : null
+              )}
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-md border border-primary/25 bg-primary/10 text-primary">
+                <ActionIcon className="h-5 w-5" aria-hidden="true" />
               </span>
-              <span className="mt-1 block text-sm leading-6 text-muted-foreground">
-                {action.detail}
+              <span className="min-w-0">
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold text-foreground">{action.label}</span>
+                  <Badge variant={action.variant}>{action.status}</Badge>
+                </span>
+                <span className="mt-1 block text-sm leading-6 text-muted-foreground">
+                  {action.detail}
+                </span>
               </span>
-            </span>
-            <ArrowRight
-              className="mt-1 h-4 w-4 text-muted-foreground group-hover:text-foreground"
-              aria-hidden="true"
-            />
-          </a>
-        ))}
+              <ArrowRight
+                className="mt-1 h-4 w-4 text-muted-foreground group-hover:text-foreground"
+                aria-hidden="true"
+              />
+            </a>
+          );
+        })}
       </CardContent>
     </Card>
   );
-}
-
-function isChecklistReady(status: string) {
-  return status === "FOUND" || status === "COMPLETE";
-}
-
-function getNextActions(caseRecord: CaseRecord, readiness: number): NextAction[] {
-  const documentCount = caseRecord._count?.documents ?? 0;
-  const eventCount = caseRecord.events?.length ?? caseRecord._count?.events ?? 0;
-  const checklistItems = caseRecord.checklist ?? [];
-  const completedChecklistItems = checklistItems.filter((item) => isChecklistReady(item.status));
-  const missingChecklistItems = Math.max(0, checklistItems.length - completedChecklistItems.length);
-  const hasStatement = Boolean(caseRecord.summary || caseRecord._count?.statements);
-
-  return [
-    {
-      detail: "Upload notices, support threads, statements, and account ownership proof.",
-      href: "#evidence-intake",
-      icon: UploadCloud,
-      label: "Add evidence",
-      status: documentCount ? `${documentCount} files` : "Start here",
-      variant: documentCount ? "success" : "warning"
-    },
-    {
-      detail: "Review missing requirements and matched evidence before generating a packet.",
-      href: "#evidence-checklist",
-      icon: ListChecks,
-      label: "Close checklist gaps",
-      status: missingChecklistItems ? `${missingChecklistItems} missing` : "Ready",
-      variant: missingChecklistItems ? "warning" : "success"
-    },
-    {
-      detail: "Confirm the sequence of notices, support contact, drafts, and platform responses.",
-      href: "#case-timeline",
-      icon: Clock3,
-      label: "Verify timeline",
-      status: eventCount ? `${eventCount} events` : "Draft",
-      variant: eventCount ? "secondary" : "warning"
-    },
-    {
-      detail: "Draft or refine the appeal statement using the evidence and timeline.",
-      href: "#statement-builder",
-      icon: PenLine,
-      label: "Prepare statement",
-      status: hasStatement ? "Draft ready" : "Needs draft",
-      variant: hasStatement ? "success" : "warning"
-    },
-    {
-      detail: "Generate the final case packet after evidence, checklist, and statement review.",
-      href: "#packet-export",
-      icon: FileArchive,
-      label: "Generate packet",
-      status: readiness >= 80 ? "Ready" : `${readiness}% ready`,
-      variant: readiness >= 80 ? "success" : "secondary",
-      wide: true
-    }
-  ];
-}
-
-function getReadiness(caseRecord: CaseRecord) {
-  const documentScore = Math.min(40, (caseRecord._count?.documents ?? 0) * 10);
-  const eventScore = Math.min(25, (caseRecord._count?.events ?? 0) * 8);
-  const checklistItems = caseRecord.checklist ?? [];
-  const completedChecklistItems = checklistItems.filter((item) => isChecklistReady(item.status));
-  const checklistScore = checklistItems.length
-    ? Math.round((completedChecklistItems.length / checklistItems.length) * 25)
-    : 0;
-  const statementScore = caseRecord.summary || caseRecord._count?.statements ? 10 : 0;
-
-  return documentScore + eventScore + checklistScore + statementScore;
 }
