@@ -99,14 +99,22 @@ export function CaseWorkspace({
           onDocumentsChanged={handleDocumentsChanged}
         />
 
-        <TimelinePanel selectedCase={selectedCase} onCaseChanged={onCaseChanged} />
+        <TimelinePanel
+          key={`timeline-${selectedCase.id}`}
+          selectedCase={selectedCase}
+          onCaseChanged={onCaseChanged}
+        />
       </div>
 
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-        <ChecklistPanel selectedCase={selectedCase} onCaseChanged={onCaseChanged} />
+      <div className="grid grid-cols-1 gap-5">
+        <ChecklistPanel
+          key={`checklist-${selectedCase.id}`}
+          selectedCase={selectedCase}
+          onCaseChanged={onCaseChanged}
+        />
 
         <ReminderPanel
-          key={selectedCase.id}
+          key={`reminder-${selectedCase.id}`}
           onNotificationsChanged={onNotificationsChanged}
           selectedCase={selectedCase}
         />
