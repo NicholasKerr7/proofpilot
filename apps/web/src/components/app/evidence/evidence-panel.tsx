@@ -1,26 +1,17 @@
 "use client";
 
 import { ChangeEvent, DragEvent, useEffect, useState } from "react";
-import {
-  Download,
-  ExternalLink,
-  FileText,
-  RefreshCcw,
-  Trash2,
-  UploadCloud,
-  X
-} from "lucide-react";
+import { UploadCloud } from "lucide-react";
 import {
   evidenceFileTypeListLabel,
   evidenceMaxUploadByteSize,
   evidenceMaxUploadSizeLabel,
-  evidenceMimeTypeLabels,
   evidenceUploadAccept,
   inferEvidenceMimeTypeFromName,
   isEvidenceMimeType
 } from "@proofpilot/types/evidence";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { EvidenceReviewWorkspace } from "@/components/app/evidence/evidence-review-workspace";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { apiRequest } from "@/lib/client/api";
 import type {
@@ -32,8 +23,6 @@ import type {
   ReprocessDocumentResponse
 } from "@/lib/client/types";
 import { cn } from "@/lib/utils";
-
-const previewMimeTypes = new Set(["application/pdf", "image/png", "image/jpeg", "text/plain"]);
 
 interface EvidencePanelProps {
   selectedCase: CaseRecord;
@@ -426,21 +415,28 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
     });
   }
 
-  const canPreviewSelectedDocument = selectedDocument
-    ? previewMimeTypes.has(selectedDocument.mimeType)
-    : false;
-  const isSelectedDocumentProcessing = isActiveProcessingStatus(selectedDocument?.status);
+  const attentionDocumentCount = documents.filter(
+    (document) => document.status === "FAILED" || document.status === "NEEDS_REVIEW"
+  ).length;
 
   return (
     <Card id="evidence-intake" className="scroll-mt-28 lg:scroll-mt-8">
-      <CardHeader>
-        <CardTitle>Evidence intake</CardTitle>
-        <CardDescription>Upload, review, and manage private support files.</CardDescription>
+      <CardHeader className="md:grid-cols-[minmax(0,1fr)_auto] md:items-start md:gap-4">
+        <div>
+          <CardTitle>Evidence intake</CardTitle>
+          <CardDescription>Upload, search, and review private support files.</CardDescription>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary">{documents.length} files</Badge>
+          {attentionDocumentCount ? (
+            <Badge variant="warning">{attentionDocumentCount} need review</Badge>
+          ) : null}
+        </div>
       </CardHeader>
       <CardContent className="grid gap-4">
         <label
           className={cn(
-            "grid min-h-44 cursor-pointer place-items-center rounded-lg border border-dashed border-primary/45 bg-primary/10 p-5 text-center focus-within:ring-2 focus-within:ring-ring",
+            "grid min-h-40 cursor-pointer place-items-center gap-3 rounded-lg border border-dashed border-primary/45 bg-primary/10 p-5 text-center focus-within:ring-2 focus-within:ring-ring md:min-h-28 md:grid-cols-[auto_minmax(0,1fr)_auto] md:place-items-stretch md:items-center md:text-left",
             isDragging ? "border-primary bg-primary/20" : null,
             isUploading ? "cursor-wait opacity-80" : null
           )}
@@ -455,16 +451,21 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
             onChange={handleFileChange}
             disabled={isUploading}
           />
-          <span>
-            <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-md bg-primary/20 text-primary">
-              <UploadCloud className="h-6 w-6" aria-hidden="true" />
-            </span>
+          <span className="flex h-12 w-12 items-center justify-center rounded-md bg-primary/20 text-primary">
+            <UploadCloud className="h-6 w-6" aria-hidden="true" />
+          </span>
+          <span className="min-w-0">
             <span className="block font-semibold">
               {isUploading ? "Uploading evidence..." : "Choose or drop an evidence file"}
             </span>
-            <span className="mt-2 block text-sm leading-6 text-muted-foreground">
+            <span className="mt-1 block text-sm leading-6 text-muted-foreground">
               {evidenceFileTypeListLabel} under 25 MB.
             </span>
+          </span>
+          <span className="hidden text-right text-xs leading-5 text-muted-foreground md:block">
+            Private signed upload
+            <br />
+            Processing starts automatically
           </span>
         </label>
 
@@ -501,279 +502,22 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
           </p>
         ) : null}
 
-        <div className="grid grid-cols-1 gap-4 2xl:grid-cols-[minmax(0,0.9fr)_minmax(360px,1.1fr)]">
-          <div className="grid grid-cols-1 gap-2 text-sm">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-medium uppercase text-muted-foreground">Evidence vault</p>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  void refreshDocuments();
-                }}
-              >
-                <RefreshCcw className="h-4 w-4" aria-hidden="true" />
-                Refresh
-              </Button>
-            </div>
-
-            {isLoading ? <p className="text-muted-foreground">Loading evidence...</p> : null}
-            {!isLoading && documents.length === 0 ? (
-              <p className="rounded-md border border-border bg-secondary/45 px-3 py-2 text-muted-foreground">
-                No evidence uploaded yet.
-              </p>
-            ) : null}
-            {documents.map((document) => {
-              const isSelected = document.id === selectedDocumentId;
-              const isPendingDelete = documentToDelete?.id === document.id;
-
-              return (
-                <div
-                  key={document.id}
-                  className={cn(
-                    "grid grid-cols-1 gap-2 rounded-md border border-border bg-secondary/45 px-3 py-2",
-                    isSelected ? "border-primary/55 bg-primary/10" : null
-                  )}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <button
-                      type="button"
-                      className="flex min-w-0 flex-1 items-center gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      onClick={() => setSelectedDocumentId(document.id)}
-                      aria-pressed={isSelected}
-                    >
-                      <FileText className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium">{document.originalName}</span>
-                        <span className="block text-xs text-muted-foreground">
-                          {formatMimeType(document.mimeType)} · {formatBytes(document.byteSize)}
-                        </span>
-                      </span>
-                    </button>
-                    <span className="flex shrink-0 items-center gap-2">
-                      <Badge variant={getStatusVariant(document.status)}>
-                        {formatStatus(document.status)}
-                      </Badge>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`Delete ${document.originalName}`}
-                        onClick={() => setDocumentToDelete(document)}
-                      >
-                        <Trash2 className="h-4 w-4" aria-hidden="true" />
-                      </Button>
-                    </span>
-                  </div>
-
-                  {isPendingDelete ? (
-                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-red-400/30 bg-red-400/10 px-3 py-2 text-xs text-red-100">
-                      <span>Delete this evidence file?</span>
-                      <span className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setDocumentToDelete(null)}
-                          disabled={isDeleting}
-                        >
-                          <X className="h-4 w-4" aria-hidden="true" />
-                          Cancel
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => {
-                            void confirmDelete();
-                          }}
-                          disabled={isDeleting}
-                        >
-                          <Trash2 className="h-4 w-4" aria-hidden="true" />
-                          {isDeleting ? "Deleting..." : "Delete"}
-                        </Button>
-                      </span>
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="rounded-md border border-border bg-secondary/35 p-3">
-            {isDetailLoading ? (
-              <p className="text-sm text-muted-foreground">Loading document detail...</p>
-            ) : null}
-
-            {!isDetailLoading && !selectedDocument ? (
-              <p className="text-sm text-muted-foreground">Select evidence to review details.</p>
-            ) : null}
-
-            {!isDetailLoading && selectedDocument ? (
-              <div className="grid grid-cols-1 gap-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold">{selectedDocument.originalName}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {formatMimeType(selectedDocument.mimeType)} ·{" "}
-                      {formatBytes(selectedDocument.byteSize)} ·{" "}
-                      {formatDateTime(selectedDocument.createdAt)}
-                    </p>
-                  </div>
-                  <Badge variant={getStatusVariant(selectedDocument.status)}>
-                    {formatStatus(selectedDocument.status)}
-                  </Badge>
-                </div>
-
-                {isSelectedDocumentProcessing ? (
-                  <p className="rounded-md border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-sm text-amber-100">
-                    Processing evidence. Results will appear here shortly.
-                  </p>
-                ) : null}
-
-                <div className="flex flex-wrap gap-2">
-                  <Button asChild variant="outline" size="sm">
-                    <a href={selectedDocument.downloadUrl} target="_blank" rel="noreferrer">
-                      <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                      Open file
-                    </a>
-                  </Button>
-                  <Button asChild variant="secondary" size="sm">
-                    <a href={selectedDocument.downloadUrl} download>
-                      <Download className="h-4 w-4" aria-hidden="true" />
-                      Download
-                    </a>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      void handleReprocess();
-                    }}
-                    disabled={isReprocessing || isSelectedDocumentProcessing}
-                  >
-                    <RefreshCcw className="h-4 w-4" aria-hidden="true" />
-                    {isReprocessing ? "Queueing..." : "Reprocess"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setDocumentToDelete(selectedDocument)}
-                  >
-                    <Trash2 className="h-4 w-4" aria-hidden="true" />
-                    Delete
-                  </Button>
-                </div>
-
-                {documentToDelete?.id === selectedDocument.id ? (
-                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-red-400/30 bg-red-400/10 px-3 py-2 text-xs text-red-100">
-                    <span>Delete this evidence file and its stored object?</span>
-                    <span className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setDocumentToDelete(null)}
-                        disabled={isDeleting}
-                      >
-                        <X className="h-4 w-4" aria-hidden="true" />
-                        Cancel
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => {
-                          void confirmDelete();
-                        }}
-                        disabled={isDeleting}
-                      >
-                        <Trash2 className="h-4 w-4" aria-hidden="true" />
-                        {isDeleting ? "Deleting..." : "Delete"}
-                      </Button>
-                    </span>
-                  </div>
-                ) : null}
-
-                <div className="overflow-hidden rounded-md border border-border bg-background/60">
-                  {canPreviewSelectedDocument ? (
-                    <iframe
-                      className="h-80 w-full bg-background"
-                      src={selectedDocument.downloadUrl}
-                      title={`Preview ${selectedDocument.originalName}`}
-                    />
-                  ) : (
-                    <div className="grid h-80 place-items-center px-4 text-center text-sm text-muted-foreground">
-                      Preview is not available for this file type.
-                    </div>
-                  )}
-                </div>
-
-                <section className="grid gap-2">
-                  <p className="text-xs font-medium uppercase text-muted-foreground">
-                    Extracted text
-                  </p>
-                  <div className="max-h-44 overflow-auto rounded-md border border-border bg-background/55 p-3 text-sm leading-6 text-muted-foreground scroll-container">
-                    {selectedDocument.extractedText ? (
-                      selectedDocument.extractedText
-                    ) : (
-                      <span>No extracted text yet.</span>
-                    )}
-                  </div>
-                </section>
-
-                <section className="grid gap-2">
-                  <p className="text-xs font-medium uppercase text-muted-foreground">
-                    Processing logs
-                  </p>
-                  <div className="grid grid-cols-1 gap-2">
-                    {selectedDocument.processingLogs.length === 0 ? (
-                      <p className="rounded-md border border-border bg-background/55 px-3 py-2 text-sm text-muted-foreground">
-                        No processing logs yet.
-                      </p>
-                    ) : null}
-                    {selectedDocument.processingLogs.map((log) => (
-                      <div
-                        key={log.id}
-                        className="rounded-md border border-border bg-background/55 px-3 py-2 text-sm"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="font-medium">{formatStatus(log.step)}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {formatDateTime(log.createdAt)}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {formatStatus(log.status)}
-                          {log.message ? ` · ${log.message}` : ""}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-
-                <section className="grid gap-2">
-                  <p className="text-xs font-medium uppercase text-muted-foreground">Entities</p>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedDocument.entities.length === 0 ? (
-                      <p className="rounded-md border border-border bg-background/55 px-3 py-2 text-sm text-muted-foreground">
-                        No entities detected yet.
-                      </p>
-                    ) : null}
-                    {selectedDocument.entities.map((entity) => (
-                      <Badge key={entity.id} variant="secondary">
-                        {entity.type}: {entity.value}
-                      </Badge>
-                    ))}
-                  </div>
-                </section>
-              </div>
-            ) : null}
-          </div>
-        </div>
+        <EvidenceReviewWorkspace
+          documents={documents}
+          documentToDelete={documentToDelete}
+          isDeleting={isDeleting}
+          isDetailLoading={isDetailLoading}
+          isLoading={isLoading}
+          isReprocessing={isReprocessing}
+          onCancelDelete={() => setDocumentToDelete(null)}
+          onConfirmDelete={confirmDelete}
+          onRefresh={refreshDocuments}
+          onReprocess={handleReprocess}
+          onRequestDelete={setDocumentToDelete}
+          onSelectDocument={setSelectedDocumentId}
+          selectedDocument={selectedDocument}
+          selectedDocumentId={selectedDocumentId}
+        />
       </CardContent>
     </Card>
   );
@@ -811,59 +555,12 @@ function uploadToSignedUrl(
   });
 }
 
-function formatBytes(byteSize: number) {
-  if (byteSize < 1024) {
-    return `${byteSize} B`;
-  }
-
-  if (byteSize < 1024 * 1024) {
-    return `${(byteSize / 1024).toFixed(1)} KB`;
-  }
-
-  return `${(byteSize / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatStatus(status: string) {
-  return status
-    .toLowerCase()
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function formatMimeType(mimeType: string) {
-  return isEvidenceMimeType(mimeType) ? evidenceMimeTypeLabels[mimeType] : mimeType;
-}
-
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short"
-  }).format(new Date(value));
-}
-
 function isActiveProcessingStatus(status: string | null | undefined) {
   return status === "UPLOADED" || status === "PROCESSING";
 }
 
 function shouldAnalyzeChecklistAfterProcessing(status: string) {
   return status === "PROCESSED" || status === "NEEDS_REVIEW";
-}
-
-function getStatusVariant(status: string) {
-  if (status === "PROCESSED") {
-    return "success";
-  }
-
-  if (status === "FAILED") {
-    return "danger";
-  }
-
-  if (status === "NEEDS_REVIEW") {
-    return "warning";
-  }
-
-  return "secondary";
 }
 
 function getUploadMimeType(file: File) {
