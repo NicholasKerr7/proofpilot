@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import type { ItemsPerPage } from "@proofpilot/types";
 import {
   Archive,
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
   Filter,
   FolderOpen,
   Plus,
@@ -28,7 +31,9 @@ import { cn } from "@/lib/utils";
 
 interface CaseDashboardProps {
   cases: CaseRecord[];
+  confirmBeforeDelete: boolean;
   isLoading: boolean;
+  itemsPerPage: ItemsPerPage;
   onArchiveCase: (caseId: string) => Promise<boolean>;
   onCreateCase: () => void;
   onSelectCase: (caseId: string) => Promise<void>;
@@ -48,7 +53,9 @@ type SortOrder = "newest" | "deadline" | "progress";
 
 export function CaseDashboard({
   cases,
+  confirmBeforeDelete,
   isLoading,
+  itemsPerPage,
   onArchiveCase,
   onCreateCase,
   onSelectCase,
@@ -57,9 +64,14 @@ export function CaseDashboard({
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
+  const [page, setPage] = useState(1);
   const [caseToArchiveId, setCaseToArchiveId] = useState<string | null>(null);
   const [archivingCaseId, setArchivingCaseId] = useState<string | null>(null);
   const filteredCases = sortCases(filterCases(cases, query, statusFilter), sortOrder);
+  const pageCount = Math.max(1, Math.ceil(filteredCases.length / itemsPerPage));
+  const currentPage = Math.min(page, pageCount);
+  const pageStart = (currentPage - 1) * itemsPerPage;
+  const visibleCases = filteredCases.slice(pageStart, pageStart + itemsPerPage);
 
   async function handleArchiveCase(caseId: string) {
     setArchivingCaseId(caseId);
@@ -96,7 +108,10 @@ export function CaseDashboard({
           <Input
             aria-label="Search cases"
             className="pl-9"
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setPage(1);
+            }}
             placeholder="Search cases"
             type="search"
             value={query}
@@ -106,7 +121,10 @@ export function CaseDashboard({
           <Filter className="h-4 w-4 text-primary" aria-hidden="true" />
           <Select
             aria-label="Sort cases"
-            onChange={(event) => setSortOrder(event.target.value as SortOrder)}
+            onChange={(event) => {
+              setSortOrder(event.target.value as SortOrder);
+              setPage(1);
+            }}
             value={sortOrder}
           >
             <option value="newest">Recently updated</option>
@@ -126,7 +144,10 @@ export function CaseDashboard({
             key={filter.value}
             aria-pressed={statusFilter === filter.value}
             className="shrink-0"
-            onClick={() => setStatusFilter(filter.value)}
+            onClick={() => {
+              setStatusFilter(filter.value);
+              setPage(1);
+            }}
             size="sm"
             type="button"
             variant={statusFilter === filter.value ? "default" : "outline"}
@@ -141,7 +162,10 @@ export function CaseDashboard({
 
       <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
         <span>
-          {filteredCases.length} {filteredCases.length === 1 ? "case" : "cases"}
+          {filteredCases.length
+            ? `${pageStart + 1}-${Math.min(pageStart + itemsPerPage, filteredCases.length)} of ${filteredCases.length}`
+            : "0"}{" "}
+          {filteredCases.length === 1 ? "case" : "cases"}
         </span>
         {query || statusFilter !== "all" ? <span>Filtered from {cases.length}</span> : null}
       </div>
@@ -180,7 +204,7 @@ export function CaseDashboard({
           </p>
         ) : null}
 
-        {filteredCases.map((caseRecord) => (
+        {visibleCases.map((caseRecord) => (
           <CaseListItem
             key={caseRecord.id}
             caseRecord={caseRecord}
@@ -190,10 +214,49 @@ export function CaseDashboard({
             onCancelArchive={() => setCaseToArchiveId(null)}
             onConfirmArchive={handleArchiveCase}
             onOpen={onSelectCase}
-            onRequestArchive={() => setCaseToArchiveId(caseRecord.id)}
+            onRequestArchive={() => {
+              if (confirmBeforeDelete) {
+                setCaseToArchiveId(caseRecord.id);
+              } else {
+                void handleArchiveCase(caseRecord.id);
+              }
+            }}
           />
         ))}
       </div>
+
+      {pageCount > 1 ? (
+        <nav
+          aria-label="Case list pages"
+          className="flex items-center justify-between gap-3 border-t border-border pt-3"
+        >
+          <Button
+            aria-label="Previous case page"
+            disabled={currentPage === 1}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            size="icon"
+            title="Previous case page"
+            type="button"
+            variant="outline"
+          >
+            <ChevronLeft aria-hidden="true" className="h-4 w-4" />
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            Page {currentPage} of {pageCount}
+          </span>
+          <Button
+            aria-label="Next case page"
+            disabled={currentPage === pageCount}
+            onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+            size="icon"
+            title="Next case page"
+            type="button"
+            variant="outline"
+          >
+            <ChevronRight aria-hidden="true" className="h-4 w-4" />
+          </Button>
+        </nav>
+      ) : null}
     </section>
   );
 }

@@ -41,13 +41,24 @@ export class CasesService {
   ) {}
 
   async create(ownerId: string, input: CreateCaseDto) {
-    const caseType = await this.prisma.caseType.findUnique({
-      where: { slug: input.caseTypeSlug ?? "account-ban-appeal" }
-    });
+    const [caseType, preference] = await Promise.all([
+      this.prisma.caseType.findUnique({
+        where: { slug: input.caseTypeSlug ?? "account-ban-appeal" }
+      }),
+      this.prisma.userPreference.findUnique({
+        where: { userId: ownerId },
+        select: { defaultCaseStatus: true }
+      })
+    ]);
 
     if (!caseType) {
       throw new NotFoundException("Case type not found.");
     }
+
+    const defaultCaseStatus =
+      preference?.defaultCaseStatus === CaseStatus.COLLECTING_EVIDENCE
+        ? CaseStatus.COLLECTING_EVIDENCE
+        : CaseStatus.DRAFT;
 
     return this.prisma.$transaction(async (tx) => {
       const createdCase = await tx.case.create({
@@ -56,7 +67,7 @@ export class CasesService {
           caseTypeId: caseType.id,
           title: input.title,
           platform: input.platform,
-          status: CaseStatus.COLLECTING_EVIDENCE,
+          status: defaultCaseStatus,
           ...(input.summary ? { summary: input.summary } : {}),
           ...(input.deadline ? { deadline: new Date(input.deadline) } : {})
         }
@@ -91,6 +102,7 @@ export class CasesService {
           metadata: {
             title: createdCase.title,
             platform: createdCase.platform,
+            status: createdCase.status,
             checklistItemsCreated: template?.requirements.length ?? 0
           }
         }

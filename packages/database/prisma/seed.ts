@@ -105,6 +105,32 @@ async function main() {
     create: demoUser
   });
 
+  await prisma.userPreference.upsert({
+    where: { userId: user.id },
+    update: {
+      accentColor: "COPPER",
+      autoSave: true,
+      cloudSync: true,
+      confirmBeforeDelete: true,
+      defaultCaseStatus: CaseStatus.DRAFT,
+      emailNotifications: true,
+      exportFormat: "PDF",
+      inAppNotifications: true,
+      itemsPerPage: 25,
+      notifyCaseUpdates: true,
+      notifyDeadlineReminders: true,
+      notifyEvidenceProcessing: true,
+      notifyPacketReady: true,
+      reduceMotion: false,
+      syncOverCellular: false,
+      theme: "DARK"
+    },
+    create: {
+      id: "demo-nicholas-preferences",
+      userId: user.id
+    }
+  });
+
   const deadline = addDays(new Date(), 14);
   const reminderDate = addDays(new Date(), 10);
 

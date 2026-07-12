@@ -29,6 +29,7 @@ import type {
 import { cn } from "@/lib/utils";
 
 interface EvidencePanelProps {
+  confirmBeforeDelete: boolean;
   selectedCase: CaseRecord;
   onDocumentsChanged: () => Promise<void>;
 }
@@ -62,7 +63,11 @@ function analyzeCaseTimeline(caseId: string) {
   });
 }
 
-export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePanelProps) {
+export function EvidencePanel({
+  confirmBeforeDelete,
+  selectedCase,
+  onDocumentsChanged
+}: EvidencePanelProps) {
   const [documents, setDocuments] = useState<EvidenceDocument[]>([]);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<EvidenceDocumentDetail | null>(null);
@@ -652,11 +657,15 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
       return;
     }
 
+    await deleteDocument(documentToDelete);
+  }
+
+  async function deleteDocument(document: EvidenceDocument) {
     setIsDeleting(true);
     setNotice(null);
 
     try {
-      await apiRequest(`/api/documents/${documentToDelete.id}`, {
+      await apiRequest(`/api/documents/${document.id}`, {
         method: "DELETE"
       });
       await refreshDocuments();
@@ -671,6 +680,15 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
     } finally {
       setIsDeleting(false);
     }
+  }
+
+  function handleRequestDelete(document: EvidenceDocument) {
+    if (confirmBeforeDelete) {
+      setDocumentToDelete(document);
+      return;
+    }
+
+    void deleteDocument(document);
   }
 
   const attentionDocumentCount = documents.filter(
@@ -752,7 +770,7 @@ export function EvidencePanel({ selectedCase, onDocumentsChanged }: EvidencePane
           onConfirmDelete={confirmDelete}
           onRefresh={refreshDocuments}
           onReprocess={handleReprocess}
-          onRequestDelete={setDocumentToDelete}
+          onRequestDelete={handleRequestDelete}
           onSelectDocument={setSelectedDocumentId}
           selectedDocument={selectedDocument}
           selectedDocumentId={selectedDocumentId}

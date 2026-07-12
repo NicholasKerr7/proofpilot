@@ -56,6 +56,11 @@
 - `PATCH /reminders/:reminderId`
 - `DELETE /reminders/:reminderId`
 
+## Settings
+
+- `GET /settings`
+- `PATCH /settings`
+
 ## Reports
 
 - `GET /reports/summary`

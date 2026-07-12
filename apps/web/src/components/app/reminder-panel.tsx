@@ -31,6 +31,7 @@ const reminderFilters = [
 ] as const;
 
 interface ReminderPanelProps {
+  confirmBeforeDelete: boolean;
   onNotificationsChanged: () => void;
   selectedCase: CaseRecord;
 }
@@ -40,7 +41,11 @@ type Notice = {
   text: string;
 };
 
-export function ReminderPanel({ onNotificationsChanged, selectedCase }: ReminderPanelProps) {
+export function ReminderPanel({
+  confirmBeforeDelete,
+  onNotificationsChanged,
+  selectedCase
+}: ReminderPanelProps) {
   const [reminders, setReminders] = useState<CaseReminder[]>([]);
   const [filter, setFilter] = useState<ReminderFilter>("upcoming");
   const [expandedReminderId, setExpandedReminderId] = useState<string | null>(null);
@@ -130,23 +135,23 @@ export function ReminderPanel({ onNotificationsChanged, selectedCase }: Reminder
     }
   }
 
-  async function handleDeleteReminder() {
-    if (!reminderToDeleteId) {
+  async function handleDeleteReminder(reminderId: string | null = reminderToDeleteId) {
+    if (!reminderId) {
       return;
     }
 
-    setDeletingReminderId(reminderToDeleteId);
+    setDeletingReminderId(reminderId);
     setNotice(null);
 
     try {
-      await apiRequest(`/api/reminders/${reminderToDeleteId}`, {
+      await apiRequest(`/api/reminders/${reminderId}`, {
         method: "DELETE"
       });
       setReminders((currentReminders) =>
-        currentReminders.filter((reminder) => reminder.id !== reminderToDeleteId)
+        currentReminders.filter((reminder) => reminder.id !== reminderId)
       );
       setExpandedReminderId((currentId) =>
-        currentId === reminderToDeleteId ? null : currentId
+        currentId === reminderId ? null : currentId
       );
       setReminderToDeleteId(null);
       setNotice({ tone: "success", text: "Reminder removed." });
@@ -159,6 +164,15 @@ export function ReminderPanel({ onNotificationsChanged, selectedCase }: Reminder
     } finally {
       setDeletingReminderId(null);
     }
+  }
+
+  function handleRequestDelete(reminderId: string) {
+    if (confirmBeforeDelete) {
+      setReminderToDeleteId(reminderId);
+      return;
+    }
+
+    void handleDeleteReminder(reminderId);
   }
 
   async function handleUpdateReminder(
@@ -308,7 +322,7 @@ export function ReminderPanel({ onNotificationsChanged, selectedCase }: Reminder
           isUpdatingReminderId={updatingReminderId}
           onCancelDelete={() => setReminderToDeleteId(null)}
           onConfirmDelete={handleDeleteReminder}
-          onRequestDelete={setReminderToDeleteId}
+          onRequestDelete={handleRequestDelete}
           onToggleReminder={(reminderId) =>
             setExpandedReminderId((currentId) =>
               currentId === reminderId ? null : reminderId

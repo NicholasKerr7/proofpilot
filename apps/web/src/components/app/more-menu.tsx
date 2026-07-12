@@ -16,6 +16,7 @@ import {
   Plus,
   ShieldCheck,
   Search,
+  Settings2,
   UploadCloud,
   UserRound,
   type LucideIcon
@@ -54,6 +55,7 @@ interface MoreMenuProps {
   onOpenNotifications: () => void;
   onOpenReports: () => void;
   onOpenSearch: () => void;
+  onOpenSettings: () => void;
   onViewCases: () => void;
   selectedCase: CaseRecord | null;
   user: AuthUser;
@@ -68,6 +70,7 @@ export function MoreMenu({
   onOpenNotifications,
   onOpenReports,
   onOpenSearch,
+  onOpenSettings,
   onViewCases,
   selectedCase,
   user
@@ -120,6 +123,12 @@ export function MoreMenu({
               icon={ShieldCheck}
               label="Security"
               onClick={() => onOpenAccount("security")}
+            />
+            <MoreDestination
+              detail="Manage app preferences, notifications, appearance, and sync."
+              icon={Settings2}
+              label="Settings"
+              onClick={onOpenSettings}
             />
             <MoreDestination
               detail="Search guides, read articles, and contact support."

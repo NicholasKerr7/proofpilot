@@ -76,9 +76,35 @@ model User {
   passwordHash    String
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+  preference      UserPreference?
   cases           Case[]
   auditLogs       AuditLog[]
   supportRequests SupportRequest[]
+}
+
+model UserPreference {
+  id                       String     @id @default(cuid())
+  userId                   String     @unique
+  user                     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  autoSave                 Boolean    @default(true)
+  confirmBeforeDelete      Boolean    @default(true)
+  defaultCaseStatus        CaseStatus @default(DRAFT)
+  itemsPerPage             Int        @default(25)
+  emailNotifications       Boolean    @default(true)
+  inAppNotifications       Boolean    @default(true)
+  notifyCaseUpdates        Boolean    @default(true)
+  notifyDeadlineReminders  Boolean    @default(true)
+  notifyEvidenceProcessing Boolean    @default(true)
+  notifyPacketReady        Boolean    @default(true)
+  theme                    String     @default("DARK")
+  accentColor              String     @default("COPPER")
+  reduceMotion             Boolean    @default(false)
+  cloudSync                Boolean    @default(true)
+  syncOverCellular         Boolean    @default(false)
+  exportFormat             String     @default("PDF")
+  lastSyncedAt             DateTime   @default(now())
+  createdAt                DateTime   @default(now())
+  updatedAt                DateTime   @updatedAt
 }
 
 model CaseType {

@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import type { CaseRecord } from "@/lib/client/types";
 
 interface EvidenceUploadViewProps {
+  confirmBeforeDelete: boolean;
   onCaseChanged: (caseId: string) => Promise<unknown>;
   onCreateCase: () => void;
   onViewCases: () => void;
@@ -16,6 +17,7 @@ interface EvidenceUploadViewProps {
 }
 
 export function EvidenceUploadView({
+  confirmBeforeDelete,
   onCaseChanged,
   onCreateCase,
   onViewCases,
@@ -91,6 +93,7 @@ export function EvidenceUploadView({
       </div>
 
       <EvidencePanel
+        confirmBeforeDelete={confirmBeforeDelete}
         key={selectedCase.id}
         onDocumentsChanged={handleDocumentsChanged}
         selectedCase={selectedCase}

@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { GlobalSearchResult } from "@proofpilot/types";
+import {
+  defaultUserSettingsValues,
+  type GlobalSearchResult,
+  type UpdateUserSettingsInput,
+  type UserSettings
+} from "@proofpilot/types";
 import {
   AccountPanel,
   type AccountSection
@@ -21,6 +26,7 @@ import { NotificationCenter } from "@/components/app/notification-center";
 import { getSupportRequestIdFromNotification } from "@/components/app/notifications/notification-utils";
 import { ReportsPanel } from "@/components/app/reports/reports-panel";
 import { SearchPanel } from "@/components/app/search/search-panel";
+import { SettingsPanel } from "@/components/app/settings/settings-panel";
 import { Badge } from "@/components/ui/badge";
 import { apiRequest, ApiClientError } from "@/lib/client/api";
 import type {
@@ -50,6 +56,7 @@ export function ProofPilotApp() {
   const [accountSection, setAccountSection] = useState<AccountSection>("profile");
   const [helpInitialView, setHelpInitialView] = useState<"home" | "contact">("home");
   const [helpInitialRequestId, setHelpInitialRequestId] = useState<string | null>(null);
+  const [settings, setSettings] = useState<UserSettings | null>(null);
   const [isBooting, setIsBooting] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCaseLoading, setIsCaseLoading] = useState(false);
@@ -87,6 +94,18 @@ export function ProofPilotApp() {
     }
   }, []);
 
+  const loadSettings = useCallback(async () => {
+    try {
+      const nextSettings = await apiRequest<UserSettings>("/api/settings");
+      setSettings(nextSettings);
+      return nextSettings;
+    } catch {
+      const fallbackSettings = createFallbackSettings();
+      setSettings(fallbackSettings);
+      return fallbackSettings;
+    }
+  }, []);
+
   const refreshNotifications = useCallback(() => {
     setNotificationRefreshKey((currentKey) => currentKey + 1);
   }, []);
@@ -109,6 +128,35 @@ export function ProofPilotApp() {
   }, []);
 
   useEffect(() => {
+    const root = document.documentElement;
+    const theme = settings?.theme ?? defaultUserSettingsValues.theme;
+    const colorScheme = window.matchMedia("(prefers-color-scheme: dark)");
+    const applyTheme = () => {
+      const resolvedTheme =
+        theme === "SYSTEM" ? (colorScheme.matches ? "dark" : "light") : theme.toLowerCase();
+      root.dataset.theme = resolvedTheme;
+      root.classList.toggle("dark", resolvedTheme === "dark");
+      root.classList.toggle("light", resolvedTheme === "light");
+    };
+
+    applyTheme();
+    const accent = (settings?.accentColor ?? defaultUserSettingsValues.accentColor).toLowerCase();
+    root.dataset.accent = accent;
+    root.classList.toggle("accent-champagne", accent === "champagne");
+    root.classList.toggle("accent-teal", accent === "teal");
+    const reduceMotion = settings?.reduceMotion ?? defaultUserSettingsValues.reduceMotion;
+    root.dataset.reduceMotion = String(reduceMotion);
+    root.classList.toggle("reduce-motion", reduceMotion);
+
+    if (theme === "SYSTEM") {
+      colorScheme.addEventListener("change", applyTheme);
+      return () => colorScheme.removeEventListener("change", applyTheme);
+    }
+
+    return undefined;
+  }, [settings]);
+
+  useEffect(() => {
     let isMounted = true;
 
     async function boot() {
@@ -118,7 +166,7 @@ export function ProofPilotApp() {
           return;
         }
         setUser(currentUser);
-        const [nextCases] = await Promise.all([loadCases(), loadCaseTypes()]);
+        const [nextCases] = await Promise.all([loadCases(), loadCaseTypes(), loadSettings()]);
 
         if (isMounted && nextCases[0]) {
           await loadCaseDetail(nextCases[0].id);
@@ -139,7 +187,7 @@ export function ProofPilotApp() {
     return () => {
       isMounted = false;
     };
-  }, [loadCaseDetail, loadCases, loadCaseTypes]);
+  }, [loadCaseDetail, loadCases, loadCaseTypes, loadSettings]);
 
   async function authenticate(
     path: "/api/auth/demo" | "/api/auth/login" | "/api/auth/register",
@@ -156,7 +204,7 @@ export function ProofPilotApp() {
       setUser(response.user);
       setActiveView("home");
       refreshNotifications();
-      const [nextCases] = await Promise.all([loadCases(), loadCaseTypes()]);
+      const [nextCases] = await Promise.all([loadCases(), loadCaseTypes(), loadSettings()]);
 
       if (nextCases[0]) {
         await loadCaseDetail(nextCases[0].id);
@@ -173,6 +221,7 @@ export function ProofPilotApp() {
     await apiRequest("/api/auth/logout", { method: "POST" });
     setUser(null);
     setCases([]);
+    setSettings(null);
     setSelectedCaseId(null);
     setActiveView("home");
     refreshNotifications();
@@ -197,6 +246,15 @@ export function ProofPilotApp() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  async function handleUpdateSettings(input: UpdateUserSettingsInput) {
+    const updatedSettings = await apiRequest<UserSettings>("/api/settings", {
+      body: JSON.stringify(input),
+      method: "PATCH"
+    });
+    setSettings(updatedSettings);
+    return updatedSettings;
   }
 
   async function handleOpenCase(
@@ -353,7 +411,11 @@ export function ProofPilotApp() {
       {activeView === "cases" ? (
         <CaseDashboard
           cases={cases}
+          confirmBeforeDelete={
+            settings?.confirmBeforeDelete ?? defaultUserSettingsValues.confirmBeforeDelete
+          }
           isLoading={isCaseLoading}
+          itemsPerPage={settings?.itemsPerPage ?? defaultUserSettingsValues.itemsPerPage}
           onArchiveCase={handleArchiveCase}
           onCreateCase={() => handleNavigate("create")}
           onSelectCase={handleOpenCase}
@@ -376,6 +438,9 @@ export function ProofPilotApp() {
 
       {activeView === "case" ? (
         <CaseWorkspace
+          confirmBeforeDelete={
+            settings?.confirmBeforeDelete ?? defaultUserSettingsValues.confirmBeforeDelete
+          }
           onBackToCases={() => handleNavigate("cases")}
           onCaseChanged={loadCaseDetail}
           onNotificationsChanged={refreshNotifications}
@@ -385,6 +450,9 @@ export function ProofPilotApp() {
 
       {activeView === "upload" ? (
         <EvidenceUploadView
+          confirmBeforeDelete={
+            settings?.confirmBeforeDelete ?? defaultUserSettingsValues.confirmBeforeDelete
+          }
           onCaseChanged={loadCaseDetail}
           onCreateCase={() => handleNavigate("create")}
           onViewCases={() => handleNavigate("cases")}
@@ -410,6 +478,7 @@ export function ProofPilotApp() {
           onOpenNotifications={() => handleNavigate("notifications")}
           onOpenReports={() => handleNavigate("reports")}
           onOpenSearch={() => handleNavigate("search")}
+          onOpenSettings={() => handleNavigate("settings")}
           onViewCases={() => handleNavigate("cases")}
           selectedCase={selectedCase}
           user={user}
@@ -447,6 +516,10 @@ export function ProofPilotApp() {
         <SearchPanel cases={cases} onOpenResult={handleOpenSearchResult} />
       ) : null}
 
+      {activeView === "settings" ? (
+        <SettingsPanel onUpdate={handleUpdateSettings} settings={settings} />
+      ) : null}
+
       {activeView === "account" ? (
         <AccountPanel
           cases={cases}
@@ -481,5 +554,25 @@ function scrollToDestination(destinationId: string) {
 }
 
 function getScrollBehavior(): ScrollBehavior {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+    document.documentElement.dataset.reduceMotion === "true"
+    ? "auto"
+    : "smooth";
+}
+
+function createFallbackSettings(): UserSettings {
+  const timestamp = new Date().toISOString();
+
+  return {
+    ...defaultUserSettingsValues,
+    lastSyncedAt: timestamp,
+    updatedAt: timestamp,
+    storage: {
+      documentBytes: 0,
+      documentCount: 0,
+      exportBytes: 0,
+      exportCount: 0,
+      usedBytes: 0
+    }
+  };
 }

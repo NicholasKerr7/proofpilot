@@ -37,6 +37,7 @@ import type { CaseRecord } from "@/lib/client/types";
 import { cn } from "@/lib/utils";
 
 interface CaseWorkspaceProps {
+  confirmBeforeDelete: boolean;
   onBackToCases: () => void;
   onCaseChanged: (caseId: string) => Promise<unknown>;
   onNotificationsChanged: () => void;
@@ -44,6 +45,7 @@ interface CaseWorkspaceProps {
 }
 
 export function CaseWorkspace({
+  confirmBeforeDelete,
   onBackToCases,
   onCaseChanged,
   onNotificationsChanged,
@@ -145,6 +147,7 @@ export function CaseWorkspace({
 
       <div className="grid grid-cols-1 gap-5">
         <EvidencePanel
+          confirmBeforeDelete={confirmBeforeDelete}
           selectedCase={selectedCase}
           onDocumentsChanged={handleDocumentsChanged}
         />
@@ -164,6 +167,7 @@ export function CaseWorkspace({
         />
 
         <ReminderPanel
+          confirmBeforeDelete={confirmBeforeDelete}
           key={`reminder-${selectedCase.id}`}
           onNotificationsChanged={onNotificationsChanged}
           selectedCase={selectedCase}
