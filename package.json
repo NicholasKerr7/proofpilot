@@ -7,7 +7,7 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "dev": "turbo dev",
+    "dev": "node --env-file=.env node_modules/turbo/bin/turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",
     "smoke:packet": "node scripts/smoke-packet-flow.mjs",

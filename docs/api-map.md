@@ -61,6 +61,14 @@
 - `GET /settings`
 - `PATCH /settings`
 
+## Connections
+
+- `GET /connections`
+- `POST /connections/:provider` (returns unavailable until that provider's OAuth flow is configured)
+- `DELETE /connections/:provider`
+
+Connection records are scoped to the authenticated user. The current demo seed stores presentation metadata only; it does not contain provider credentials or authorization tokens.
+
 ## Reports
 
 - `GET /reports/summary`

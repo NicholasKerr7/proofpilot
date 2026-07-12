@@ -30,6 +30,7 @@ export type AppView =
   | "reports"
   | "calendar"
   | "settings"
+  | "connections"
   | "help"
   | "search"
   | "more";
@@ -247,6 +248,7 @@ function isNavigationActive(activeView: AppView, navigationView: PrimaryNavigati
       activeView === "reports" ||
       activeView === "calendar" ||
       activeView === "settings" ||
+      activeView === "connections" ||
       activeView === "help" ||
       activeView === "search"
     );

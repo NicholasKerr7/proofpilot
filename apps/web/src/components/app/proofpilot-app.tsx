@@ -18,6 +18,7 @@ import { CaseWorkspace } from "@/components/app/case-workspace";
 import { CalendarDeadlinesPanel } from "@/components/app/calendar-deadlines-panel";
 import type { CaseDestinationId } from "@/components/app/cases/case-utils";
 import { CreateCaseForm } from "@/components/app/create-case-form";
+import { ConnectedAccountsPanel } from "@/components/app/connections/connected-accounts-panel";
 import { EvidenceUploadView } from "@/components/app/evidence-upload-view";
 import { HomeDashboard } from "@/components/app/home-dashboard";
 import { HelpCenterPanel } from "@/components/app/help/help-center-panel";
@@ -474,6 +475,7 @@ export function ProofPilotApp() {
           onOpenAccount={handleOpenAccount}
           onOpenCalendar={() => handleNavigate("calendar")}
           onOpenCase={handleOpenCase}
+          onOpenConnections={() => handleNavigate("connections")}
           onOpenHelp={() => handleNavigate("help")}
           onOpenNotifications={() => handleNavigate("notifications")}
           onOpenReports={() => handleNavigate("reports")}
@@ -519,6 +521,8 @@ export function ProofPilotApp() {
       {activeView === "settings" ? (
         <SettingsPanel onUpdate={handleUpdateSettings} settings={settings} />
       ) : null}
+
+      {activeView === "connections" ? <ConnectedAccountsPanel /> : null}
 
       {activeView === "account" ? (
         <AccountPanel

@@ -1,6 +1,29 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "globalDependencies": [".env", ".env.local"],
+  "globalEnv": [
+    "NODE_ENV",
+    "NEXT_PUBLIC_API_URL",
+    "PORT",
+    "WEB_ORIGIN",
+    "JWT_SECRET",
+    "DATABASE_URL",
+    "REDIS_URL",
+    "RATE_LIMIT_MAX",
+    "RATE_LIMIT_WINDOW_MS",
+    "TRUST_PROXY",
+    "ERROR_MONITORING_ENVIRONMENT",
+    "ERROR_MONITORING_WEBHOOK_URL",
+    "OCR_LANGUAGES",
+    "OCR_CACHE_PATH",
+    "TESSERACT_LANG_PATH",
+    "STORAGE_ENDPOINT",
+    "STORAGE_REGION",
+    "STORAGE_BUCKET",
+    "STORAGE_ACCESS_KEY_ID",
+    "STORAGE_SECRET_ACCESS_KEY",
+    "STORAGE_FORCE_PATH_STYLE"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

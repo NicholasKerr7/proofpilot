@@ -13,6 +13,7 @@ import {
   FolderOpen,
   ListChecks,
   PenLine,
+  PlugZap,
   Plus,
   ShieldCheck,
   Search,
@@ -51,6 +52,7 @@ interface MoreMenuProps {
   onOpenAccount: (section: AccountSection) => void;
   onOpenCalendar: () => void;
   onOpenCase: (caseId: string, destinationId: CaseDestinationId) => Promise<void>;
+  onOpenConnections: () => void;
   onOpenHelp: () => void;
   onOpenNotifications: () => void;
   onOpenReports: () => void;
@@ -66,6 +68,7 @@ export function MoreMenu({
   onOpenAccount,
   onOpenCalendar,
   onOpenCase,
+  onOpenConnections,
   onOpenHelp,
   onOpenNotifications,
   onOpenReports,
@@ -129,6 +132,12 @@ export function MoreMenu({
               icon={Settings2}
               label="Settings"
               onClick={onOpenSettings}
+            />
+            <MoreDestination
+              detail="Review linked services and revoke connection access."
+              icon={PlugZap}
+              label="Connected accounts"
+              onClick={onOpenConnections}
             />
             <MoreDestination
               detail="Search guides, read articles, and contact support."

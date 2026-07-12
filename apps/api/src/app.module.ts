@@ -3,6 +3,7 @@ import { ConfigModule } from "@nestjs/config";
 import { AuthModule } from "./auth/auth.module.js";
 import { CasesModule } from "./cases/cases.module.js";
 import { CaseTypesModule } from "./case-types/case-types.module.js";
+import { ConnectionsModule } from "./connections/connections.module.js";
 import { RateLimitMiddleware } from "./common/middleware/rate-limit.middleware.js";
 import { RequestLoggingMiddleware } from "./common/middleware/request-logging.middleware.js";
 import { DocumentsModule } from "./documents/documents.module.js";
@@ -24,6 +25,7 @@ import { SupportModule } from "./support/support.module.js";
     MonitoringModule,
     AuthModule,
     CaseTypesModule,
+    ConnectionsModule,
     CasesModule,
     DocumentsModule,
     NotificationsModule,

@@ -1,9 +1,14 @@
+import { config } from "dotenv";
 import {
   CaseStatus,
   ChecklistStatus,
+  ConnectionMode,
+  ConnectionProvider,
   closePrismaClient,
   getPrismaClient
 } from "../src/index.js";
+
+config({ path: new URL("../../../.env", import.meta.url) });
 
 const prisma = getPrismaClient();
 const demoUser = {
@@ -130,6 +135,55 @@ async function main() {
       userId: user.id
     }
   });
+
+  const connectionNow = new Date();
+  const demoConnections = [
+    {
+      id: "demo-nicholas-connection-gmail",
+      provider: ConnectionProvider.GMAIL,
+      accountLabel: "nicholas.kerr@gmail.com",
+      lastSyncedAt: addMinutes(connectionNow, -2)
+    },
+    {
+      id: "demo-nicholas-connection-google-drive",
+      provider: ConnectionProvider.GOOGLE_DRIVE,
+      accountLabel: "nicholas.kerr@gmail.com",
+      lastSyncedAt: addMinutes(connectionNow, -15)
+    },
+    {
+      id: "demo-nicholas-connection-dropbox",
+      provider: ConnectionProvider.DROPBOX,
+      accountLabel: demoUser.email,
+      lastSyncedAt: addMinutes(connectionNow, -60)
+    },
+    {
+      id: "demo-nicholas-connection-paypal",
+      provider: ConnectionProvider.PAYPAL,
+      accountLabel: demoUser.email,
+      lastSyncedAt: addMinutes(connectionNow, -30)
+    }
+  ];
+
+  for (const connection of demoConnections) {
+    await prisma.connectedAccount.upsert({
+      where: {
+        userId_provider: {
+          userId: user.id,
+          provider: connection.provider
+        }
+      },
+      update: {
+        accountLabel: connection.accountLabel,
+        lastSyncedAt: connection.lastSyncedAt,
+        mode: ConnectionMode.DEMO
+      },
+      create: {
+        ...connection,
+        mode: ConnectionMode.DEMO,
+        userId: user.id
+      }
+    });
+  }
 
   const deadline = addDays(new Date(), 14);
   const reminderDate = addDays(new Date(), 10);

@@ -10,19 +10,21 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 
 ## Packages
 
-- `packages/types`: Shared case, auth, and API schemas.
+- `packages/types`: Shared case, auth, connection, and API schemas.
 - `packages/database`: Prisma schema, client export, and seed data.
 - `packages/storage`: S3-compatible private evidence storage helpers.
 
 ## Local Services
 
-- PostgreSQL stores users, cases, audit logs, evidence metadata, timelines, checklist data, statements, packet exports, notifications, and jobs.
+- PostgreSQL stores users, cases, audit logs, connection metadata, evidence metadata, timelines, checklist data, statements, packet exports, notifications, and jobs.
 - Redis backs BullMQ queues.
 - MinIO provides a local S3-compatible private storage target.
 
 ## Security Baseline
 
 - API routes that read or mutate user-owned resources must check `ownerId`.
+- Connected-account reads and revocations use the authenticated user's compound ownership key.
+- Demo connection records never store OAuth credentials or third-party authorization tokens.
 - All request DTOs are validated with Nest validation pipes.
 - Passwords are hashed with bcryptjs.
 - API auth uses JWT bearer tokens for the MVP foundation.
