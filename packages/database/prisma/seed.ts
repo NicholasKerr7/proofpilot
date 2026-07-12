@@ -230,6 +230,7 @@ async function main() {
     where: { id: "demo-nicholas-reminder-review" },
     update: {
       caseId: demoCase.id,
+      completedAt: null,
       message: "Review missing evidence before the PayPal appeal deadline.",
       remindAt: reminderDate,
       sentAt: null
@@ -237,6 +238,7 @@ async function main() {
     create: {
       id: "demo-nicholas-reminder-review",
       caseId: demoCase.id,
+      completedAt: null,
       message: "Review missing evidence before the PayPal appeal deadline.",
       remindAt: reminderDate
     }

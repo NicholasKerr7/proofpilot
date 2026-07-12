@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service.js";
 import type { CreateReminderDto } from "./dto/create-reminder.dto.js";
+import type { UpdateReminderDto } from "./dto/update-reminder.dto.js";
 
 const maxDueRemindersPerRequest = 25;
 
@@ -94,14 +95,21 @@ export class NotificationsService {
       throw new NotFoundException("Case not found.");
     }
 
-    const message = input.message?.trim() || this.getDefaultReminderMessage(foundCase);
+    const remindAt = this.parseFutureReminderDate(input.remindAt);
+    const suppliedMessage = input.message?.trim();
+
+    if (input.message !== undefined && (!suppliedMessage || suppliedMessage.length > 500)) {
+      throw new BadRequestException("Reminder message must be 1 to 500 characters.");
+    }
+
+    const message = suppliedMessage ?? this.getDefaultReminderMessage(foundCase);
 
     return this.prisma.$transaction(async (tx) => {
       const reminder = await tx.reminder.create({
         data: {
           caseId: foundCase.id,
           message,
-          remindAt: new Date(input.remindAt)
+          remindAt
         },
         select: this.getReminderSelect()
       });
@@ -119,6 +127,77 @@ export class NotificationsService {
       });
 
       return reminder;
+    });
+  }
+
+  async updateReminder(ownerId: string, reminderId: string, input: UpdateReminderDto) {
+    const hasChanges =
+      input.remindAt !== undefined || input.message !== undefined || input.completed !== undefined;
+
+    if (!hasChanges) {
+      throw new BadRequestException("Provide a reminder change.");
+    }
+
+    const remindAt =
+      input.remindAt !== undefined ? this.parseFutureReminderDate(input.remindAt) : null;
+    const message = input.message?.trim();
+
+    if (input.message !== undefined && (!message || message.length > 500)) {
+      throw new BadRequestException("Reminder message must be 1 to 500 characters.");
+    }
+
+    const reminder = await this.prisma.reminder.findFirst({
+      where: {
+        id: reminderId,
+        case: {
+          ownerId,
+          archivedAt: null
+        }
+      },
+      select: {
+        id: true,
+        caseId: true
+      }
+    });
+
+    if (!reminder) {
+      throw new NotFoundException("Reminder not found.");
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const updatedReminder = await tx.reminder.update({
+        where: { id: reminder.id },
+        data: {
+          ...(remindAt
+            ? {
+                remindAt,
+                sentAt: null,
+                completedAt: null
+              }
+            : {}),
+          ...(message ? { message } : {}),
+          ...(input.completed !== undefined
+            ? { completedAt: input.completed ? new Date() : null }
+            : {})
+        },
+        select: this.getReminderSelect()
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: ownerId,
+          caseId: reminder.caseId,
+          action: "case.reminder_updated",
+          metadata: {
+            reminderId: reminder.id,
+            ...(remindAt ? { remindAt: remindAt.toISOString() } : {}),
+            ...(input.message !== undefined ? { messageUpdated: true } : {}),
+            ...(input.completed !== undefined ? { completed: input.completed } : {})
+          }
+        }
+      });
+
+      return updatedReminder;
     });
   }
 
@@ -181,6 +260,7 @@ export class NotificationsService {
     const dueReminders = await this.prisma.reminder.findMany({
       where: {
         sentAt: null,
+        completedAt: null,
         remindAt: {
           lte: new Date()
         },
@@ -210,7 +290,8 @@ export class NotificationsService {
         const updated = await tx.reminder.updateMany({
           where: {
             id: reminder.id,
-            sentAt: null
+            sentAt: null,
+            completedAt: null
           },
           data: { sentAt: new Date() }
         });
@@ -286,7 +367,18 @@ export class NotificationsService {
       remindAt: true,
       message: true,
       sentAt: true,
+      completedAt: true,
       createdAt: true
     };
+  }
+
+  private parseFutureReminderDate(value: string) {
+    const remindAt = new Date(value);
+
+    if (Number.isNaN(remindAt.getTime()) || remindAt.getTime() <= Date.now()) {
+      throw new BadRequestException("Reminder time must be a valid future date.");
+    }
+
+    return remindAt;
   }
 }

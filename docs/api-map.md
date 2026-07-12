@@ -53,6 +53,7 @@
 - `GET /reminders`
 - `GET /cases/:caseId/reminders`
 - `POST /cases/:caseId/reminders`
+- `PATCH /reminders/:reminderId`
 - `DELETE /reminders/:reminderId`
 
 ## Reports

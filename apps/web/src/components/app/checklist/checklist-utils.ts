@@ -1,4 +1,13 @@
 export type ChecklistGroupKey = "ready" | "missing" | "review" | "optional";
+export type ChecklistFilter = "all" | ChecklistGroupKey;
+
+export function matchesChecklistFilter(status: string, filter: ChecklistFilter) {
+  if (filter === "all") {
+    return true;
+  }
+
+  return getChecklistGroupKey(status) === filter;
+}
 
 export function getChecklistGroupKey(status: string): ChecklistGroupKey {
   if (isChecklistReady(status)) {

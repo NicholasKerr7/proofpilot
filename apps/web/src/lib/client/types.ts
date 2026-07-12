@@ -174,6 +174,7 @@ export interface CaseReminder {
   remindAt: string;
   message: string;
   sentAt: string | null;
+  completedAt: string | null;
   createdAt: string;
 }
 

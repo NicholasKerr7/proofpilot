@@ -1,13 +1,22 @@
 import type { CaseRecord, CaseReminder } from "@/lib/client/types";
 
-export type ReminderFilter = "upcoming" | "sent" | "all";
+export type ReminderFilter = "upcoming" | "sent" | "completed" | "all";
+export type ReminderStatus = "upcoming" | "overdue" | "sent" | "completed";
 
 export function matchesReminderFilter(reminder: CaseReminder, filter: ReminderFilter) {
   if (filter === "all") {
     return true;
   }
 
-  return filter === "sent" ? Boolean(reminder.sentAt) : !reminder.sentAt;
+  if (filter === "completed") {
+    return Boolean(reminder.completedAt);
+  }
+
+  if (filter === "sent") {
+    return Boolean(reminder.sentAt) && !reminder.completedAt;
+  }
+
+  return !reminder.sentAt && !reminder.completedAt;
 }
 
 export function sortReminders(reminders: CaseReminder[]) {
@@ -17,7 +26,11 @@ export function sortReminders(reminders: CaseReminder[]) {
   );
 }
 
-export function getReminderStatus(reminder: CaseReminder, now = new Date()) {
+export function getReminderStatus(reminder: CaseReminder, now = new Date()): ReminderStatus {
+  if (reminder.completedAt) {
+    return "completed" as const;
+  }
+
   if (reminder.sentAt) {
     return "sent" as const;
   }
@@ -27,6 +40,22 @@ export function getReminderStatus(reminder: CaseReminder, now = new Date()) {
   }
 
   return "upcoming" as const;
+}
+
+export function formatReminderStatus(status: ReminderStatus) {
+  if (status === "completed") {
+    return "Completed";
+  }
+
+  if (status === "sent") {
+    return "Sent";
+  }
+
+  if (status === "overdue") {
+    return "Overdue";
+  }
+
+  return "Upcoming";
 }
 
 export function formatReminderDate(value: string) {
@@ -100,7 +129,7 @@ export function getDefaultReminderValue(caseRecord: CaseRecord, now = new Date()
   return toDateTimeLocalValue(targetDate);
 }
 
-function toDateTimeLocalValue(value: Date) {
+export function toDateTimeLocalValue(value: Date) {
   const offsetMs = value.getTimezoneOffset() * 60_000;
   return new Date(value.getTime() - offsetMs).toISOString().slice(0, 16);
 }

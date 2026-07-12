@@ -4,6 +4,7 @@ import { CurrentUser } from "../common/decorators/current-user.decorator.js";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard.js";
 import type { RequestUser } from "../common/types/request-user.js";
 import { CreateReminderDto } from "./dto/create-reminder.dto.js";
+import { UpdateReminderDto } from "./dto/update-reminder.dto.js";
 import { NotificationsService } from "./notifications.service.js";
 
 @ApiTags("notifications")
@@ -40,6 +41,15 @@ export class NotificationsController {
     @Body() input: CreateReminderDto
   ) {
     return this.notificationsService.createCaseReminder(user.id, caseId, input);
+  }
+
+  @Patch("reminders/:reminderId")
+  updateReminder(
+    @CurrentUser() user: RequestUser,
+    @Param("reminderId") reminderId: string,
+    @Body() input: UpdateReminderDto
+  ) {
+    return this.notificationsService.updateReminder(user.id, reminderId, input);
   }
 
   @Delete("reminders/:reminderId")

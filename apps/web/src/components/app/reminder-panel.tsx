@@ -6,11 +6,13 @@ import {
   ReminderComposer,
   type CreateReminderInput
 } from "@/components/app/reminders/reminder-composer";
+import type { UpdateReminderInput } from "@/components/app/reminders/reminder-detail";
 import { ReminderList } from "@/components/app/reminders/reminder-list";
 import {
   formatReminderDateTime,
   formatReminderRelativeTime,
   getDefaultReminderValue,
+  getReminderStatus,
   matchesReminderFilter,
   sortReminders,
   type ReminderFilter
@@ -24,6 +26,7 @@ import type { CaseRecord, CaseReminder } from "@/lib/client/types";
 const reminderFilters = [
   { label: "Upcoming", value: "upcoming" },
   { label: "Sent", value: "sent" },
+  { label: "Completed", value: "completed" },
   { label: "All", value: "all" }
 ] as const;
 
@@ -43,6 +46,7 @@ export function ReminderPanel({ onNotificationsChanged, selectedCase }: Reminder
   const [expandedReminderId, setExpandedReminderId] = useState<string | null>(null);
   const [reminderToDeleteId, setReminderToDeleteId] = useState<string | null>(null);
   const [deletingReminderId, setDeletingReminderId] = useState<string | null>(null);
+  const [updatingReminderId, setUpdatingReminderId] = useState<string | null>(null);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -51,7 +55,9 @@ export function ReminderPanel({ onNotificationsChanged, selectedCase }: Reminder
   const filteredReminders = sortedReminders.filter((reminder) =>
     matchesReminderFilter(reminder, filter)
   );
-  const pendingReminders = sortedReminders.filter((reminder) => !reminder.sentAt);
+  const pendingReminders = sortedReminders.filter(
+    (reminder) => !reminder.sentAt && !reminder.completedAt
+  );
   const nextReminder = pendingReminders[0] ?? null;
 
   useEffect(() => {
@@ -155,6 +161,41 @@ export function ReminderPanel({ onNotificationsChanged, selectedCase }: Reminder
     }
   }
 
+  async function handleUpdateReminder(
+    reminderId: string,
+    input: UpdateReminderInput
+  ) {
+    setUpdatingReminderId(reminderId);
+    setNotice(null);
+
+    try {
+      const updatedReminder = await apiRequest<CaseReminder>(`/api/reminders/${reminderId}`, {
+        body: JSON.stringify(input),
+        method: "PATCH"
+      });
+      setReminders((currentReminders) =>
+        sortReminders(
+          currentReminders.map((reminder) =>
+            reminder.id === updatedReminder.id ? updatedReminder : reminder
+          )
+        )
+      );
+      setExpandedReminderId(updatedReminder.id);
+      setFilter(getFilterForReminder(updatedReminder));
+      setNotice({ tone: "success", text: getReminderUpdateMessage(input) });
+      onNotificationsChanged();
+      return true;
+    } catch (error) {
+      setNotice({
+        tone: "error",
+        text: error instanceof Error ? error.message : "Reminder could not be updated."
+      });
+      return false;
+    } finally {
+      setUpdatingReminderId(null);
+    }
+  }
+
   function handleToggleComposer() {
     setNotice(null);
     setIsComposerOpen((current) => !current);
@@ -235,7 +276,7 @@ export function ReminderPanel({ onNotificationsChanged, selectedCase }: Reminder
           </div>
           <div
             aria-label="Filter reminders"
-            className="grid grid-cols-3 gap-1 rounded-md border border-border bg-background/35 p-1"
+            className="grid grid-cols-2 gap-1 rounded-md border border-border bg-background/35 p-1 sm:grid-cols-4"
             role="group"
           >
             {reminderFilters.map((item) => (
@@ -261,10 +302,10 @@ export function ReminderPanel({ onNotificationsChanged, selectedCase }: Reminder
         ) : null}
 
         <ReminderList
-          caseDeadline={selectedCase.deadline}
           deletingReminderId={deletingReminderId}
           expandedReminderId={expandedReminderId}
           isLoading={isLoading}
+          isUpdatingReminderId={updatingReminderId}
           onCancelDelete={() => setReminderToDeleteId(null)}
           onConfirmDelete={handleDeleteReminder}
           onRequestDelete={setReminderToDeleteId}
@@ -273,8 +314,10 @@ export function ReminderPanel({ onNotificationsChanged, selectedCase }: Reminder
               currentId === reminderId ? null : reminderId
             )
           }
+          onUpdateReminder={handleUpdateReminder}
           reminderToDeleteId={reminderToDeleteId}
           reminders={filteredReminders}
+          selectedCase={selectedCase}
         />
       </CardContent>
     </Card>
@@ -309,4 +352,34 @@ function getNoticeClassName(tone: Notice["tone"]) {
   return tone === "success"
     ? "rounded-md border border-teal-400/30 bg-teal-400/10 px-3 py-2 text-sm text-teal-100"
     : "rounded-md border border-red-400/30 bg-red-400/10 px-3 py-2 text-sm text-red-100";
+}
+
+function getFilterForReminder(reminder: CaseReminder): ReminderFilter {
+  const status = getReminderStatus(reminder);
+
+  if (status === "completed") {
+    return "completed";
+  }
+
+  if (status === "sent") {
+    return "sent";
+  }
+
+  return "upcoming";
+}
+
+function getReminderUpdateMessage(input: UpdateReminderInput) {
+  if (input.completed === true) {
+    return "Reminder marked complete.";
+  }
+
+  if (input.completed === false) {
+    return "Reminder reopened.";
+  }
+
+  if (input.remindAt) {
+    return "Reminder rescheduled.";
+  }
+
+  return "Reminder updated.";
 }

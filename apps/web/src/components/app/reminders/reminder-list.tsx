@@ -1,30 +1,38 @@
 import { ReminderRow } from "@/components/app/reminders/reminder-row";
-import type { CaseReminder } from "@/lib/client/types";
+import type { UpdateReminderInput } from "@/components/app/reminders/reminder-detail";
+import type { CaseRecord, CaseReminder } from "@/lib/client/types";
 
 interface ReminderListProps {
-  caseDeadline: string | null;
   deletingReminderId: string | null;
   expandedReminderId: string | null;
   isLoading: boolean;
+  isUpdatingReminderId: string | null;
   onCancelDelete: () => void;
   onConfirmDelete: () => Promise<void>;
   onRequestDelete: (reminderId: string) => void;
   onToggleReminder: (reminderId: string) => void;
+  onUpdateReminder: (
+    reminderId: string,
+    input: UpdateReminderInput
+  ) => Promise<boolean>;
   reminderToDeleteId: string | null;
   reminders: CaseReminder[];
+  selectedCase: CaseRecord;
 }
 
 export function ReminderList({
-  caseDeadline,
   deletingReminderId,
   expandedReminderId,
   isLoading,
+  isUpdatingReminderId,
   onCancelDelete,
   onConfirmDelete,
   onRequestDelete,
   onToggleReminder,
+  onUpdateReminder,
   reminderToDeleteId,
-  reminders
+  reminders,
+  selectedCase
 }: ReminderListProps) {
   if (!isLoading && !reminders.length) {
     return (
@@ -39,15 +47,17 @@ export function ReminderList({
       {reminders.map((reminder) => (
         <ReminderRow
           key={reminder.id}
-          caseDeadline={caseDeadline}
           isDeleting={Boolean(deletingReminderId)}
           isExpanded={expandedReminderId === reminder.id}
           isPendingDelete={reminderToDeleteId === reminder.id}
+          isUpdating={isUpdatingReminderId === reminder.id}
           onCancelDelete={onCancelDelete}
           onConfirmDelete={onConfirmDelete}
           onRequestDelete={() => onRequestDelete(reminder.id)}
           onToggle={() => onToggleReminder(reminder.id)}
+          onUpdate={(input) => onUpdateReminder(reminder.id, input)}
           reminder={reminder}
+          selectedCase={selectedCase}
         />
       ))}
     </div>

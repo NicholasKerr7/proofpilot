@@ -1,45 +1,47 @@
+import { CheckCircle2, ChevronDown } from "lucide-react";
 import {
-  BellRing,
-  ChevronDown,
-  Clock3,
-  Trash2,
-  TriangleAlert
-} from "lucide-react";
-import { ReminderDeleteConfirmation } from "@/components/app/reminders/reminder-delete-confirmation";
+  ReminderDetail,
+  type UpdateReminderInput
+} from "@/components/app/reminders/reminder-detail";
 import {
   formatReminderDate,
   formatReminderDateTime,
   formatReminderRelativeTime,
+  formatReminderStatus,
   formatReminderTime,
-  getReminderStatus
+  getReminderStatus,
+  type ReminderStatus
 } from "@/components/app/reminders/reminder-utils";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import type { CaseReminder } from "@/lib/client/types";
+import type { CaseRecord, CaseReminder } from "@/lib/client/types";
 import { cn } from "@/lib/utils";
 
 interface ReminderRowProps {
-  caseDeadline: string | null;
   isDeleting: boolean;
   isExpanded: boolean;
   isPendingDelete: boolean;
+  isUpdating: boolean;
   onCancelDelete: () => void;
   onConfirmDelete: () => Promise<void>;
   onRequestDelete: () => void;
   onToggle: () => void;
+  onUpdate: (input: UpdateReminderInput) => Promise<boolean>;
   reminder: CaseReminder;
+  selectedCase: CaseRecord;
 }
 
 export function ReminderRow({
-  caseDeadline,
   isDeleting,
   isExpanded,
   isPendingDelete,
+  isUpdating,
   onCancelDelete,
   onConfirmDelete,
   onRequestDelete,
   onToggle,
-  reminder
+  onUpdate,
+  reminder,
+  selectedCase
 }: ReminderRowProps) {
   const status = getReminderStatus(reminder);
 
@@ -50,36 +52,45 @@ export function ReminderRow({
         isExpanded ? "border-primary/40 bg-primary/5" : null
       )}
     >
-      <div className="grid grid-cols-1 items-start gap-1 p-2 md:grid-cols-[minmax(0,1fr)_auto] md:gap-2 md:p-3">
+      <div className="p-2 md:p-3">
         <button
           aria-expanded={isExpanded}
-          className="grid min-h-20 min-w-0 grid-cols-[3rem_minmax(0,1fr)_auto] items-start gap-3 rounded-md p-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:grid-cols-[3.75rem_minmax(0,1fr)_auto] md:items-center"
+          className="grid min-h-20 w-full min-w-0 grid-cols-[3rem_minmax(0,1fr)_auto] items-start gap-3 rounded-md p-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-20 md:grid-cols-[3.75rem_minmax(0,1fr)_auto_auto] md:items-center"
           onClick={onToggle}
           type="button"
         >
           <span className={getDateTileClassName(status)}>
-            <span className="text-[10px] font-semibold uppercase tracking-normal">
-              {formatReminderMonth(reminder.remindAt)}
-            </span>
-            <span className="text-lg font-semibold leading-none">
-              {formatReminderDay(reminder.remindAt)}
-            </span>
+            {status === "completed" ? (
+              <CheckCircle2 aria-hidden="true" className="h-5 w-5" />
+            ) : (
+              <>
+                <span className="text-[10px] font-semibold uppercase tracking-normal">
+                  {formatReminderMonth(reminder.remindAt)}
+                </span>
+                <span className="text-lg font-semibold leading-none">
+                  {formatReminderDay(reminder.remindAt)}
+                </span>
+              </>
+            )}
           </span>
           <span className="min-w-0">
             <span className="flex flex-wrap items-center gap-2">
               <span className="break-words text-sm font-semibold leading-5 text-foreground md:text-base">
                 {reminder.message}
               </span>
-              <ReminderStatusBadge status={status} />
+              <span className="md:hidden">
+                <ReminderStatusBadge status={status} />
+              </span>
             </span>
             <span className="mt-1 block text-xs text-muted-foreground md:text-sm">
               {formatReminderDate(reminder.remindAt)} · {formatReminderTime(reminder.remindAt)}
             </span>
             <span className="mt-1 block text-xs text-muted-foreground">
-              {status === "sent" && reminder.sentAt
-                ? `Sent ${formatReminderDate(reminder.sentAt)}`
-                : formatReminderRelativeTime(reminder.remindAt)}
+              {getReminderStatusLine(reminder, status)}
             </span>
+          </span>
+          <span className="hidden md:block">
+            <ReminderStatusBadge status={status} />
           </span>
           <ChevronDown
             className={cn(
@@ -89,106 +100,55 @@ export function ReminderRow({
             aria-hidden="true"
           />
         </button>
-        <Button
-          aria-label={`Remove reminder ${reminder.message}`}
-          className="hidden md:inline-flex"
-          disabled={isDeleting}
-          onClick={onRequestDelete}
-          size="icon"
-          title={`Remove reminder ${reminder.message}`}
-          type="button"
-          variant="ghost"
-        >
-          <Trash2 className="h-4 w-4" aria-hidden="true" />
-        </Button>
       </div>
 
       {isExpanded ? (
-        <div className="grid gap-4 border-t border-border px-3 py-4 md:grid-cols-3 md:px-4">
-          <ReminderMetadata
-            icon="schedule"
-            label="Scheduled for"
-            value={formatReminderDateTime(reminder.remindAt)}
-          />
-          <ReminderMetadata
-            icon="created"
-            label="Created"
-            value={formatReminderDateTime(reminder.createdAt)}
-          />
-          <ReminderMetadata
-            icon="deadline"
-            label="Case deadline"
-            value={caseDeadline ? formatReminderDateTime(caseDeadline) : "No deadline set"}
-          />
-          {reminder.sentAt ? (
-            <p className="border-t border-border pt-3 text-xs text-muted-foreground md:col-span-3">
-              Sent {formatReminderDateTime(reminder.sentAt)}
-            </p>
-          ) : null}
-          <Button
-            className="w-full md:hidden"
-            disabled={isDeleting}
-            onClick={onRequestDelete}
-            size="sm"
-            type="button"
-            variant="ghost"
-          >
-            <Trash2 className="h-4 w-4" aria-hidden="true" />
-            Remove reminder
-          </Button>
-        </div>
-      ) : null}
-
-      {isPendingDelete ? (
-        <ReminderDeleteConfirmation
+        <ReminderDetail
           isDeleting={isDeleting}
-          onCancel={onCancelDelete}
-          onConfirm={onConfirmDelete}
+          isPendingDelete={isPendingDelete}
+          isUpdating={isUpdating}
+          onCancelDelete={onCancelDelete}
+          onConfirmDelete={onConfirmDelete}
+          onRequestDelete={onRequestDelete}
+          onUpdate={onUpdate}
+          reminder={reminder}
+          selectedCase={selectedCase}
         />
       ) : null}
     </div>
   );
 }
 
-function ReminderStatusBadge({ status }: { status: "sent" | "overdue" | "upcoming" }) {
-  if (status === "sent") {
-    return <Badge variant="success">Sent</Badge>;
-  }
+function ReminderStatusBadge({ status }: { status: ReminderStatus }) {
+  const variants = {
+    completed: "success",
+    sent: "secondary",
+    overdue: "danger",
+    upcoming: "warning"
+  } as const;
 
-  if (status === "overdue") {
-    return <Badge variant="danger">Overdue</Badge>;
-  }
-
-  return <Badge variant="warning">Upcoming</Badge>;
+  return <Badge variant={variants[status]}>{formatReminderStatus(status)}</Badge>;
 }
 
-function ReminderMetadata({
-  icon,
-  label,
-  value
-}: {
-  icon: "schedule" | "created" | "deadline";
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2 text-xs">
-      <span className="pt-0.5 text-primary">
-        {icon === "schedule" ? <BellRing className="h-4 w-4" aria-hidden="true" /> : null}
-        {icon === "created" ? <Clock3 className="h-4 w-4" aria-hidden="true" /> : null}
-        {icon === "deadline" ? <TriangleAlert className="h-4 w-4" aria-hidden="true" /> : null}
-      </span>
-      <span>
-        <span className="block text-muted-foreground">{label}</span>
-        <span className="mt-1 block font-medium leading-5 text-foreground">{value}</span>
-      </span>
-    </div>
-  );
+function getReminderStatusLine(reminder: CaseReminder, status: ReminderStatus) {
+  if (status === "completed" && reminder.completedAt) {
+    return `Completed ${formatReminderDateTime(reminder.completedAt)}`;
+  }
+
+  if (status === "sent" && reminder.sentAt) {
+    return `Sent ${formatReminderDateTime(reminder.sentAt)}`;
+  }
+
+  return formatReminderRelativeTime(reminder.remindAt);
 }
 
-function getDateTileClassName(status: "sent" | "overdue" | "upcoming") {
+function getDateTileClassName(status: ReminderStatus) {
+  if (status === "completed") {
+    return "flex h-14 w-12 items-center justify-center rounded-md border border-teal-400/25 bg-teal-400/10 text-teal-100 md:w-14";
+  }
+
   if (status === "sent") {
-    return "flex h-14 w-12 flex-col items-center justify-center gap-1 rounded-md border border-teal-400/25 bg-teal-400/10 text-teal-100 md:w-14";
+    return "flex h-14 w-12 flex-col items-center justify-center gap-1 rounded-md border border-sky-400/25 bg-sky-400/10 text-sky-100 md:w-14";
   }
 
   if (status === "overdue") {

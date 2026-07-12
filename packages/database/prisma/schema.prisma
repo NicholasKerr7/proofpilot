@@ -317,13 +317,16 @@ model Notification {
 }
 
 model Reminder {
-  id        String    @id @default(cuid())
-  caseId    String
-  case      Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  remindAt  DateTime
-  message   String
-  sentAt    DateTime?
-  createdAt DateTime  @default(now())
+  id          String    @id @default(cuid())
+  caseId      String
+  case        Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  remindAt    DateTime
+  message     String
+  sentAt      DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([caseId, remindAt])
 }
 
 model Job {
