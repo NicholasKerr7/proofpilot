@@ -10,6 +10,7 @@ import { AppShell, type AppView } from "@/components/app/app-shell";
 import { AuthPanel } from "@/components/app/auth-panel";
 import { CaseDashboard } from "@/components/app/case-dashboard";
 import { CaseWorkspace } from "@/components/app/case-workspace";
+import { CalendarDeadlinesPanel } from "@/components/app/calendar-deadlines-panel";
 import type { CaseDestinationId } from "@/components/app/cases/case-utils";
 import { CreateCaseForm } from "@/components/app/create-case-form";
 import { EvidenceUploadView } from "@/components/app/evidence-upload-view";
@@ -403,6 +404,7 @@ export function ProofPilotApp() {
         <MoreMenu
           onCreateCase={() => handleNavigate("create")}
           onOpenAccount={handleOpenAccount}
+          onOpenCalendar={() => handleNavigate("calendar")}
           onOpenCase={handleOpenCase}
           onOpenHelp={() => handleNavigate("help")}
           onOpenNotifications={() => handleNavigate("notifications")}
@@ -411,6 +413,14 @@ export function ProofPilotApp() {
           onViewCases={() => handleNavigate("cases")}
           selectedCase={selectedCase}
           user={user}
+        />
+      ) : null}
+
+      {activeView === "calendar" ? (
+        <CalendarDeadlinesPanel
+          cases={cases}
+          onOpenCase={handleOpenCase}
+          selectedCaseId={selectedCase?.id ?? null}
         />
       ) : null}
 

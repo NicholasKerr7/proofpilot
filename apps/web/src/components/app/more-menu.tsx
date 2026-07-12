@@ -4,6 +4,7 @@ import {
   Activity,
   BarChart3,
   Bell,
+  CalendarDays,
   CalendarClock,
   ChevronRight,
   CircleHelp,
@@ -47,6 +48,7 @@ const caseCommands: Array<{
 interface MoreMenuProps {
   onCreateCase: () => void;
   onOpenAccount: (section: AccountSection) => void;
+  onOpenCalendar: () => void;
   onOpenCase: (caseId: string, destinationId: CaseDestinationId) => Promise<void>;
   onOpenHelp: () => void;
   onOpenNotifications: () => void;
@@ -60,6 +62,7 @@ interface MoreMenuProps {
 export function MoreMenu({
   onCreateCase,
   onOpenAccount,
+  onOpenCalendar,
   onOpenCase,
   onOpenHelp,
   onOpenNotifications,
@@ -149,6 +152,12 @@ export function MoreMenu({
               icon={Bell}
               label="Inbox"
               onClick={onOpenNotifications}
+            />
+            <MoreDestination
+              detail="Review deadlines and scheduled reminders across active cases."
+              icon={CalendarDays}
+              label="Calendar & deadlines"
+              onClick={onOpenCalendar}
             />
             <MoreDestination
               detail="Find cases, evidence, timelines, packets, and support requests."

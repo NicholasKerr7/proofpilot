@@ -42,6 +42,29 @@ export class NotificationsService {
     });
   }
 
+  async listReminders(ownerId: string) {
+    return this.prisma.reminder.findMany({
+      where: {
+        case: {
+          ownerId,
+          archivedAt: null
+        }
+      },
+      orderBy: { remindAt: "asc" },
+      select: {
+        ...this.getReminderSelect(),
+        case: {
+          select: {
+            id: true,
+            platform: true,
+            title: true
+          }
+        }
+      },
+      take: 100
+    });
+  }
+
   async listCaseReminders(ownerId: string, caseId: string) {
     await this.assertCaseOwnership(ownerId, caseId);
 

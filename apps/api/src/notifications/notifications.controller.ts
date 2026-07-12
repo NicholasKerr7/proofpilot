@@ -23,6 +23,11 @@ export class NotificationsController {
     return this.notificationsService.markRead(user.id, notificationId);
   }
 
+  @Get("reminders")
+  listReminders(@CurrentUser() user: RequestUser) {
+    return this.notificationsService.listReminders(user.id);
+  }
+
   @Get("cases/:caseId/reminders")
   listCaseReminders(@CurrentUser() user: RequestUser, @Param("caseId") caseId: string) {
     return this.notificationsService.listCaseReminders(user.id, caseId);

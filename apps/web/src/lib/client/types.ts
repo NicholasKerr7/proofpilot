@@ -177,6 +177,14 @@ export interface CaseReminder {
   createdAt: string;
 }
 
+export interface WorkspaceReminder extends CaseReminder {
+  case: {
+    id: string;
+    platform: string;
+    title: string;
+  };
+}
+
 export interface ChecklistItem {
   id: string;
   label: string;
