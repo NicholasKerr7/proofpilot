@@ -9,6 +9,7 @@ import {
   ChevronRight,
   CircleHelp,
   Clock3,
+  CreditCard,
   FileArchive,
   FolderOpen,
   ListChecks,
@@ -51,6 +52,7 @@ interface MoreMenuProps {
   onCreateCase: () => void;
   onOpenAccount: (section: AccountSection) => void;
   onOpenCalendar: () => void;
+  onOpenBilling: () => void;
   onOpenCase: (caseId: string, destinationId: CaseDestinationId) => Promise<void>;
   onOpenConnections: () => void;
   onOpenHelp: () => void;
@@ -66,6 +68,7 @@ interface MoreMenuProps {
 export function MoreMenu({
   onCreateCase,
   onOpenAccount,
+  onOpenBilling,
   onOpenCalendar,
   onOpenCase,
   onOpenConnections,
@@ -132,6 +135,12 @@ export function MoreMenu({
               icon={Settings2}
               label="Settings"
               onClick={onOpenSettings}
+            />
+            <MoreDestination
+              detail="Review your plan, usage, payment method, and invoices."
+              icon={CreditCard}
+              label="Billing & subscription"
+              onClick={onOpenBilling}
             />
             <MoreDestination
               detail="Review linked services and revoke connection access."

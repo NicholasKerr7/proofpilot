@@ -69,6 +69,14 @@
 
 Connection records are scoped to the authenticated user. The current demo seed stores presentation metadata only; it does not contain provider credentials or authorization tokens.
 
+## Billing
+
+- `GET /billing`
+- `POST /billing/portal` (returns unavailable until a payment provider is configured)
+- `GET /billing/invoices/:invoiceId/download`
+
+Billing summaries and usage are scoped to the authenticated user. Invoice downloads resolve ownership through the user's subscription and return `404` for records outside that scope. Demo subscriptions store display metadata only, such as card brand, last four digits, and expiry; they do not store full card details or provider tokens.
+
 ## Reports
 
 - `GET /reports/summary`

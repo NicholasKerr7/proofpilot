@@ -83,18 +83,45 @@ enum ConnectionMode {
   OAUTH
 }
 
+enum BillingMode {
+  DEMO
+  STRIPE
+}
+
+enum BillingPlan {
+  PREMIUM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+enum BillingCycle {
+  MONTHLY
+  ANNUAL
+}
+
+enum InvoiceStatus {
+  PAID
+  OPEN
+  VOID
+}
+
 model User {
-  id                String             @id @default(cuid())
-  email             String             @unique
-  name              String?
-  passwordHash      String
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  preference        UserPreference?
-  connectedAccounts ConnectedAccount[]
-  cases             Case[]
-  auditLogs         AuditLog[]
-  supportRequests   SupportRequest[]
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  name                String?
+  passwordHash        String
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  preference          UserPreference?
+  billingSubscription BillingSubscription?
+  connectedAccounts   ConnectedAccount[]
+  cases               Case[]
+  auditLogs           AuditLog[]
+  supportRequests     SupportRequest[]
 }
 
 model UserPreference {
@@ -136,6 +163,48 @@ model ConnectedAccount {
 
   @@unique([userId, provider])
   @@index([userId, updatedAt])
+}
+
+model BillingSubscription {
+  id                 String             @id @default(cuid())
+  userId             String             @unique
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mode               BillingMode        @default(DEMO)
+  plan               BillingPlan        @default(PREMIUM)
+  status             SubscriptionStatus @default(ACTIVE)
+  priceCents         Int
+  currency           String             @default("USD")
+  billingCycle       BillingCycle       @default(MONTHLY)
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean            @default(false)
+  paymentBrand       String?
+  paymentLast4       String?
+  paymentExpMonth    Int?
+  paymentExpYear     Int?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  invoices           BillingInvoice[]
+
+  @@index([status, currentPeriodEnd])
+}
+
+model BillingInvoice {
+  id              String              @id @default(cuid())
+  subscriptionId  String
+  subscription    BillingSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  invoiceNumber   String
+  periodStart     DateTime
+  periodEnd       DateTime
+  issuedAt        DateTime
+  amountPaidCents Int
+  currency        String              @default("USD")
+  status          InvoiceStatus       @default(PAID)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@unique([subscriptionId, invoiceNumber])
+  @@index([subscriptionId, issuedAt])
 }
 
 model CaseType {

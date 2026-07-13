@@ -55,6 +55,10 @@ Set this for the web service:
 
 - `NEXT_PUBLIC_API_URL`
 
+## Billing Provider
+
+The current billing foundation runs in demo mode and does not process payments. Plan and payment-method management return an explicit unavailable response until a payment provider is integrated. Do not switch persisted subscriptions to provider-backed mode until server-side checkout, customer portal sessions, signed webhooks, and environment-specific secrets are configured and tested.
+
 ## Storage Setup
 
 Create or verify the private evidence bucket before first API or worker traffic:

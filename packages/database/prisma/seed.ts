@@ -1,9 +1,14 @@
 import { config } from "dotenv";
 import {
+  BillingCycle,
+  BillingMode,
+  BillingPlan,
   CaseStatus,
   ChecklistStatus,
   ConnectionMode,
   ConnectionProvider,
+  InvoiceStatus,
+  SubscriptionStatus,
   closePrismaClient,
   getPrismaClient
 } from "../src/index.js";
@@ -181,6 +186,73 @@ async function main() {
         ...connection,
         mode: ConnectionMode.DEMO,
         userId: user.id
+      }
+    });
+  }
+
+  const billingPeriodStart = getBillingPeriodStart(new Date(), 6);
+  const billingPeriodEnd = addMonths(billingPeriodStart, 1);
+  const subscription = await prisma.billingSubscription.upsert({
+    where: { userId: user.id },
+    update: {
+      billingCycle: BillingCycle.MONTHLY,
+      cancelAtPeriodEnd: false,
+      currency: "USD",
+      currentPeriodEnd: billingPeriodEnd,
+      currentPeriodStart: billingPeriodStart,
+      mode: BillingMode.DEMO,
+      paymentBrand: "VISA",
+      paymentExpMonth: 4,
+      paymentExpYear: 2028,
+      paymentLast4: "4242",
+      plan: BillingPlan.PREMIUM,
+      priceCents: 2900,
+      status: SubscriptionStatus.ACTIVE
+    },
+    create: {
+      id: "demo-nicholas-subscription",
+      billingCycle: BillingCycle.MONTHLY,
+      currency: "USD",
+      currentPeriodEnd: billingPeriodEnd,
+      currentPeriodStart: billingPeriodStart,
+      mode: BillingMode.DEMO,
+      paymentBrand: "VISA",
+      paymentExpMonth: 4,
+      paymentExpYear: 2028,
+      paymentLast4: "4242",
+      plan: BillingPlan.PREMIUM,
+      priceCents: 2900,
+      status: SubscriptionStatus.ACTIVE,
+      userId: user.id
+    }
+  });
+
+  for (let invoiceIndex = 0; invoiceIndex < 3; invoiceIndex += 1) {
+    const issuedAt = addMonths(billingPeriodStart, -invoiceIndex);
+    const invoicePeriodEnd = addMonths(issuedAt, 1);
+
+    await prisma.billingInvoice.upsert({
+      where: { id: `demo-nicholas-invoice-${invoiceIndex + 1}` },
+      update: {
+        amountPaidCents: 2900,
+        currency: "USD",
+        invoiceNumber: createInvoiceNumber(issuedAt),
+        issuedAt,
+        periodEnd: invoicePeriodEnd,
+        periodStart: issuedAt,
+        status: InvoiceStatus.PAID,
+        subscriptionId: subscription.id
+      },
+      create: {
+        id: `demo-nicholas-invoice-${invoiceIndex + 1}`,
+        amountPaidCents: 2900,
+        currency: "USD",
+        invoiceNumber: createInvoiceNumber(issuedAt),
+        issuedAt,
+        periodEnd: invoicePeriodEnd,
+        periodStart: issuedAt,
+        status: InvoiceStatus.PAID,
+        subscriptionId: subscription.id
       }
     });
   }
@@ -430,6 +502,29 @@ function addMinutes(value: Date, minutes: number) {
   const nextDate = new Date(value);
   nextDate.setMinutes(nextDate.getMinutes() + minutes);
   return nextDate;
+}
+
+function addMonths(value: Date, months: number) {
+  const nextDate = new Date(value);
+  nextDate.setUTCMonth(nextDate.getUTCMonth() + months);
+  return nextDate;
+}
+
+function createInvoiceNumber(value: Date) {
+  const month = String(value.getUTCMonth() + 1).padStart(2, "0");
+  return `PP-${value.getUTCFullYear()}${month}-001`;
+}
+
+function getBillingPeriodStart(value: Date, billingDay: number) {
+  const periodStart = new Date(
+    Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), billingDay, 12)
+  );
+
+  if (value.getUTCDate() < billingDay) {
+    periodStart.setUTCMonth(periodStart.getUTCMonth() - 1);
+  }
+
+  return periodStart;
 }
 
 function getDemoChecklistStatus(sortOrder: number) {

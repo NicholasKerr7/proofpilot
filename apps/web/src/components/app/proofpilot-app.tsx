@@ -13,6 +13,7 @@ import {
 } from "@/components/app/account/account-panel";
 import { AppShell, type AppView } from "@/components/app/app-shell";
 import { AuthPanel } from "@/components/app/auth-panel";
+import { BillingPanel } from "@/components/app/billing/billing-panel";
 import { CaseDashboard } from "@/components/app/case-dashboard";
 import { CaseWorkspace } from "@/components/app/case-workspace";
 import { CalendarDeadlinesPanel } from "@/components/app/calendar-deadlines-panel";
@@ -473,6 +474,7 @@ export function ProofPilotApp() {
         <MoreMenu
           onCreateCase={() => handleNavigate("create")}
           onOpenAccount={handleOpenAccount}
+          onOpenBilling={() => handleNavigate("billing")}
           onOpenCalendar={() => handleNavigate("calendar")}
           onOpenCase={handleOpenCase}
           onOpenConnections={() => handleNavigate("connections")}
@@ -523,6 +525,13 @@ export function ProofPilotApp() {
       ) : null}
 
       {activeView === "connections" ? <ConnectedAccountsPanel /> : null}
+
+      {activeView === "billing" ? (
+        <BillingPanel
+          onBack={() => handleNavigate("more")}
+          onOpenHelp={() => handleNavigate("help")}
+        />
+      ) : null}
 
       {activeView === "account" ? (
         <AccountPanel
