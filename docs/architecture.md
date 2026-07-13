@@ -10,7 +10,7 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 
 ## Packages
 
-- `packages/types`: Shared case, auth, connection, billing, and API schemas.
+- `packages/types`: Shared case, auth, settings, security, connection, billing, and API schemas.
 - `packages/database`: Prisma schema, client export, and seed data.
 - `packages/storage`: S3-compatible private evidence storage helpers.
 
@@ -31,7 +31,15 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 - All request DTOs are validated with Nest validation pipes.
 - Passwords are hashed with bcryptjs.
 - API auth uses JWT bearer tokens for the MVP foundation.
+- Password changes update a dedicated `passwordChangedAt` timestamp.
+- Successful registration and login events store sanitized client context in owner-linked audit logs. User-agent and IP metadata are display context only and never authorization inputs.
 - Storage helpers generate signed upload/download URLs instead of exposing private object URLs.
+
+## Security And Privacy Foundation
+
+The Security & Privacy workspace reads password history and recent successful authentication activity through `GET /security`. Both the user lookup and audit-log query are restricted to the authenticated user ID. Privacy consent flags are persisted through the existing settings boundary.
+
+The MVP intentionally reports two-factor enrollment, WebAuthn biometric enrollment, and session revocation as unavailable. It does not infer active sessions from audit history, geolocate IP addresses, or claim team visibility and automatic-retention behavior that has not been implemented.
 
 ## Billing Foundation
 

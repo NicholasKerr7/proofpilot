@@ -9,6 +9,17 @@ function getApiBaseUrl() {
   return process.env.NEXT_PUBLIC_API_URL ?? fallbackApiUrl;
 }
 
+export function createAuthRequestHeaders(request: NextRequest) {
+  const headers = new Headers({ "Content-Type": "application/json" });
+  const userAgent = request.headers.get("user-agent")?.replace(/[\r\n]/g, " ").trim();
+
+  if (userAgent) {
+    headers.set("X-ProofPilot-Client-User-Agent", userAgent.slice(0, 512));
+  }
+
+  return headers;
+}
+
 function parseBody(text: string) {
   if (!text) {
     return null;

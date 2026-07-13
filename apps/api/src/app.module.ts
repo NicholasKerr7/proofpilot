@@ -15,6 +15,7 @@ import { PrismaModule } from "./prisma/prisma.module.js";
 import { QueueModule } from "./queue/queue.module.js";
 import { ReportsModule } from "./reports/reports.module.js";
 import { SearchModule } from "./search/search.module.js";
+import { SecurityModule } from "./security/security.module.js";
 import { SettingsModule } from "./settings/settings.module.js";
 import { SupportModule } from "./support/support.module.js";
 
@@ -33,6 +34,7 @@ import { SupportModule } from "./support/support.module.js";
     NotificationsModule,
     ReportsModule,
     SearchModule,
+    SecurityModule,
     SettingsModule,
     SupportModule
   ],

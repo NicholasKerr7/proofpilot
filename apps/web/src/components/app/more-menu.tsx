@@ -59,6 +59,7 @@ interface MoreMenuProps {
   onOpenNotifications: () => void;
   onOpenReports: () => void;
   onOpenSearch: () => void;
+  onOpenSecurity: () => void;
   onOpenSettings: () => void;
   onViewCases: () => void;
   selectedCase: CaseRecord | null;
@@ -76,6 +77,7 @@ export function MoreMenu({
   onOpenNotifications,
   onOpenReports,
   onOpenSearch,
+  onOpenSecurity,
   onOpenSettings,
   onViewCases,
   selectedCase,
@@ -125,10 +127,10 @@ export function MoreMenu({
               onClick={() => onOpenAccount("profile")}
             />
             <MoreDestination
-              detail="Change the password for your account."
+              detail="Manage account protection, login activity, and privacy preferences."
               icon={ShieldCheck}
-              label="Security"
-              onClick={() => onOpenAccount("security")}
+              label="Security & privacy"
+              onClick={onOpenSecurity}
             />
             <MoreDestination
               detail="Manage app preferences, notifications, appearance, and sync."

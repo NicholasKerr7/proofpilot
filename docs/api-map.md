@@ -61,6 +61,14 @@
 - `GET /settings`
 - `PATCH /settings`
 
+Settings include persisted analytics-usage and marketing-communication consent flags. Both default to disabled.
+
+## Security
+
+- `GET /security`
+
+The security overview returns the authenticated user's password-change timestamp and up to five owner-scoped successful authentication events. It also returns explicit capability flags; two-factor enrollment, biometric enrollment, and session revocation remain unavailable until real providers are configured.
+
 ## Connections
 
 - `GET /connections`

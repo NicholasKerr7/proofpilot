@@ -25,3 +25,8 @@ export interface AuthResponse {
   accessToken: string;
   user: AuthUser;
 }
+
+export interface ChangePasswordResponse {
+  ok: true;
+  passwordChangedAt: string;
+}

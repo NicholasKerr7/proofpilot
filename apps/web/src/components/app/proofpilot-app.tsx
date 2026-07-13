@@ -28,6 +28,7 @@ import { NotificationCenter } from "@/components/app/notification-center";
 import { getSupportRequestIdFromNotification } from "@/components/app/notifications/notification-utils";
 import { ReportsPanel } from "@/components/app/reports/reports-panel";
 import { SearchPanel } from "@/components/app/search/search-panel";
+import { SecurityPrivacyPanel } from "@/components/app/security/security-privacy-panel";
 import { SettingsPanel } from "@/components/app/settings/settings-panel";
 import { Badge } from "@/components/ui/badge";
 import { apiRequest, ApiClientError } from "@/lib/client/api";
@@ -482,6 +483,7 @@ export function ProofPilotApp() {
           onOpenNotifications={() => handleNavigate("notifications")}
           onOpenReports={() => handleNavigate("reports")}
           onOpenSearch={() => handleNavigate("search")}
+          onOpenSecurity={() => handleNavigate("security")}
           onOpenSettings={() => handleNavigate("settings")}
           onViewCases={() => handleNavigate("cases")}
           selectedCase={selectedCase}
@@ -522,6 +524,16 @@ export function ProofPilotApp() {
 
       {activeView === "settings" ? (
         <SettingsPanel onUpdate={handleUpdateSettings} settings={settings} />
+      ) : null}
+
+      {activeView === "security" ? (
+        <SecurityPrivacyPanel
+          onBack={() => handleNavigate("more")}
+          onOpenHelp={() => handleNavigate("help")}
+          onOpenReports={() => handleNavigate("reports")}
+          onUpdateSettings={handleUpdateSettings}
+          settings={settings}
+        />
       ) : null}
 
       {activeView === "connections" ? <ConnectedAccountsPanel /> : null}

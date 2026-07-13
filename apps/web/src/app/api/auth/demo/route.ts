@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
-import { setAuthToken } from "@/lib/server/proofpilot-api";
+import type { NextRequest } from "next/server";
+import {
+  createAuthRequestHeaders,
+  setAuthToken
+} from "@/lib/server/proofpilot-api";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   if (process.env.NODE_ENV === "production") {
     return NextResponse.json({ message: "Not found." }, { status: 404 });
   }
@@ -15,9 +19,7 @@ export async function POST() {
         password: process.env.PROOFPILOT_DEMO_PASSWORD ?? "Password123!"
       }),
       cache: "no-store",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: createAuthRequestHeaders(request),
       method: "POST"
     });
     const payload = (await response.json()) as {

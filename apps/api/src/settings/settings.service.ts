@@ -28,7 +28,9 @@ const settingsFields = [
   "reduceMotion",
   "cloudSync",
   "syncOverCellular",
-  "exportFormat"
+  "exportFormat",
+  "analyticsUsageData",
+  "marketingCommunications"
 ] as const;
 
 const booleanSettingsFields = [
@@ -42,7 +44,9 @@ const booleanSettingsFields = [
   "notifyPacketReady",
   "reduceMotion",
   "cloudSync",
-  "syncOverCellular"
+  "syncOverCellular",
+  "analyticsUsageData",
+  "marketingCommunications"
 ] as const;
 
 const preferenceSelect = {
@@ -62,6 +66,8 @@ const preferenceSelect = {
   cloudSync: true,
   syncOverCellular: true,
   exportFormat: true,
+  analyticsUsageData: true,
+  marketingCommunications: true,
   lastSyncedAt: true,
   updatedAt: true
 } as const;
@@ -83,6 +89,8 @@ type PreferenceRecord = {
   cloudSync: boolean;
   syncOverCellular: boolean;
   exportFormat: string;
+  analyticsUsageData: boolean;
+  marketingCommunications: boolean;
   lastSyncedAt: Date;
   updatedAt: Date;
 };
@@ -246,6 +254,8 @@ export class SettingsService {
         preference.exportFormat,
         defaultUserSettingsValues.exportFormat
       ),
+      analyticsUsageData: preference.analyticsUsageData,
+      marketingCommunications: preference.marketingCommunications,
       lastSyncedAt: preference.lastSyncedAt.toISOString(),
       updatedAt: preference.updatedAt.toISOString(),
       storage

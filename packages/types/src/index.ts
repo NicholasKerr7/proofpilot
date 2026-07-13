@@ -5,6 +5,7 @@ export * from "./cases.js";
 export * from "./connections.js";
 export * from "./evidence.js";
 export * from "./reports.js";
+export * from "./security.js";
 export * from "./settings.js";
 export * from "./support.js";
 export * from "./search.js";

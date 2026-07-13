@@ -59,6 +59,12 @@ Set this for the web service:
 
 The current billing foundation runs in demo mode and does not process payments. Plan and payment-method management return an explicit unavailable response until a payment provider is integrated. Do not switch persisted subscriptions to provider-backed mode until server-side checkout, customer portal sessions, signed webhooks, and environment-specific secrets are configured and tested.
 
+## Account Security Providers
+
+The current security workspace supports password changes, owner-scoped login history, and persisted privacy consent. Two-factor enrollment, WebAuthn biometric enrollment, and session revocation are intentionally unavailable. Do not enable their UI capability flags until enrollment, recovery, credential storage, verification, and revocation flows have been implemented and tested end to end.
+
+The web auth proxy forwards a sanitized browser user-agent for login-history display. API request context and forwarded headers must remain informational only; authorization continues to rely on the verified JWT and explicit resource ownership checks. IP geolocation is not performed.
+
 ## Storage Setup
 
 Create or verify the private evidence bucket before first API or worker traffic:

@@ -25,6 +25,8 @@ function createPreference(overrides: Record<string, unknown> = {}) {
     cloudSync: true,
     syncOverCellular: false,
     exportFormat: "PDF",
+    analyticsUsageData: false,
+    marketingCommunications: false,
     lastSyncedAt,
     updatedAt,
     ...overrides
@@ -140,6 +142,37 @@ describe("SettingsService", () => {
     });
     expect(result.accentColor).toBe("TEAL");
     expect(result.reduceMotion).toBe(true);
+  });
+
+  it("persists privacy consent fields through the owned preference record", async () => {
+    prisma.transactionClient.userPreference.upsert.mockResolvedValue(
+      createPreference({ analyticsUsageData: true, marketingCommunications: true })
+    );
+
+    const result = await service.update(userId, {
+      analyticsUsageData: true,
+      marketingCommunications: true
+    });
+
+    expect(prisma.transactionClient.userPreference.upsert).toHaveBeenCalledWith({
+      where: { userId },
+      update: {
+        analyticsUsageData: true,
+        marketingCommunications: true,
+        lastSyncedAt: expect.any(Date)
+      },
+      create: {
+        userId,
+        analyticsUsageData: true,
+        marketingCommunications: true,
+        lastSyncedAt: expect.any(Date)
+      },
+      select: expect.any(Object)
+    });
+    expect(result).toMatchObject({
+      analyticsUsageData: true,
+      marketingCommunications: true
+    });
   });
 
   it("rejects empty or unsupported updates at the service boundary", async () => {

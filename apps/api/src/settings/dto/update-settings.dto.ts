@@ -89,4 +89,14 @@ export class UpdateSettingsDto {
   @IsOptional()
   @IsIn(exportFormatOptions)
   exportFormat?: (typeof exportFormatOptions)[number];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  analyticsUsageData?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  marketingCommunications?: boolean;
 }

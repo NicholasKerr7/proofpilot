@@ -114,6 +114,7 @@ model User {
   email               String               @unique
   name                String?
   passwordHash        String
+  passwordChangedAt   DateTime             @default(now())
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   preference          UserPreference?
@@ -144,6 +145,8 @@ model UserPreference {
   cloudSync                Boolean    @default(true)
   syncOverCellular         Boolean    @default(false)
   exportFormat             String     @default("PDF")
+  analyticsUsageData       Boolean    @default(false)
+  marketingCommunications  Boolean    @default(false)
   lastSyncedAt             DateTime   @default(now())
   createdAt                DateTime   @default(now())
   updatedAt                DateTime   @updatedAt
@@ -476,6 +479,7 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
+  @@index([userId, action, createdAt])
   @@index([caseId])
 }
 

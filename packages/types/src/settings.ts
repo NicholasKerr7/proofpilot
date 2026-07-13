@@ -32,6 +32,8 @@ export interface UserSettingsValues {
   cloudSync: boolean;
   syncOverCellular: boolean;
   exportFormat: ExportFormat;
+  analyticsUsageData: boolean;
+  marketingCommunications: boolean;
 }
 
 export interface UserSettingsStorage {
@@ -66,5 +68,7 @@ export const defaultUserSettingsValues: UserSettingsValues = {
   reduceMotion: false,
   cloudSync: true,
   syncOverCellular: false,
-  exportFormat: "PDF"
+  exportFormat: "PDF",
+  analyticsUsageData: false,
+  marketingCommunications: false
 };

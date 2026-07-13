@@ -96,6 +96,45 @@ describe("AuthService account management", () => {
     expect(prisma.auditLog.create).not.toHaveBeenCalled();
   });
 
+  it("records sanitized client context for owner-visible login activity", async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: userId,
+      email: "nicholas.kerr@proofpilot.test",
+      name: "Nicholas Kerr",
+      passwordHash: "current-hash",
+      createdAt
+    });
+    bcryptMocks.compare.mockResolvedValue(true);
+
+    await service.login(
+      {
+        email: "nicholas.kerr@proofpilot.test",
+        password: "current-password"
+      },
+      {
+        ipAddress: " 127.0.0.1 ",
+        userAgent: "ProofPilot\nBrowser"
+      }
+    );
+
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: {
+        userId,
+        action: "auth.logged_in",
+        metadata: {
+          email: "nicholas.kerr@proofpilot.test",
+          ipAddress: "127.0.0.1",
+          securityActivity: true,
+          userAgent: "ProofPilot Browser"
+        }
+      }
+    });
+    expect(jwtService.signAsync).toHaveBeenCalledWith({
+      sub: userId,
+      email: "nicholas.kerr@proofpilot.test"
+    });
+  });
+
   it("rejects an incorrect current password", async () => {
     prisma.user.findUnique.mockResolvedValue({ id: userId, passwordHash: "current-hash" });
     bcryptMocks.compare.mockResolvedValue(false);
@@ -140,7 +179,10 @@ describe("AuthService account management", () => {
     expect(bcryptMocks.hash).toHaveBeenCalledWith("new-secure-password", 12);
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: userId },
-      data: { passwordHash: "new-password-hash" }
+      data: {
+        passwordChangedAt: expect.any(Date),
+        passwordHash: "new-password-hash"
+      }
     });
     expect(prisma.auditLog.create).toHaveBeenCalledWith({
       data: {
@@ -148,6 +190,9 @@ describe("AuthService account management", () => {
         action: "auth.password_changed"
       }
     });
-    expect(result).toEqual({ ok: true });
+    expect(result).toEqual({
+      ok: true,
+      passwordChangedAt: expect.any(String)
+    });
   });
 });

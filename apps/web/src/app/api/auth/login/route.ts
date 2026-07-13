@@ -1,5 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { readJsonBody, setAuthToken } from "@/lib/server/proofpilot-api";
+import {
+  createAuthRequestHeaders,
+  readJsonBody,
+  setAuthToken
+} from "@/lib/server/proofpilot-api";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -8,9 +12,7 @@ export async function POST(request: NextRequest) {
     const response = await fetch(`${apiUrl}/auth/login`, {
       body: await readJsonBody(request),
       cache: "no-store",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: createAuthRequestHeaders(request),
       method: "POST"
     });
     const payload = (await response.json()) as {

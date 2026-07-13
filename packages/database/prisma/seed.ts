@@ -19,7 +19,8 @@ const prisma = getPrismaClient();
 const demoUser = {
   email: "nicholas.kerr@proofpilot.test",
   name: "Nicholas Kerr",
-  passwordHash: "$2b$12$X2xny4j4VEX.7qkHfRntBeF3JgkZ9BT3ydepVYXyAoAsnBi2D4vNO"
+  passwordHash: "$2b$12$X2xny4j4VEX.7qkHfRntBeF3JgkZ9BT3ydepVYXyAoAsnBi2D4vNO",
+  passwordChangedAt: new Date("2026-04-10T12:00:00.000Z")
 };
 
 const requirements = [
@@ -110,7 +111,8 @@ async function main() {
     where: { email: demoUser.email },
     update: {
       name: demoUser.name,
-      passwordHash: demoUser.passwordHash
+      passwordHash: demoUser.passwordHash,
+      passwordChangedAt: demoUser.passwordChangedAt
     },
     create: demoUser
   });
@@ -119,6 +121,7 @@ async function main() {
     where: { userId: user.id },
     update: {
       accentColor: "COPPER",
+      analyticsUsageData: false,
       autoSave: true,
       cloudSync: true,
       confirmBeforeDelete: true,
@@ -127,6 +130,7 @@ async function main() {
       exportFormat: "PDF",
       inAppNotifications: true,
       itemsPerPage: 25,
+      marketingCommunications: false,
       notifyCaseUpdates: true,
       notifyDeadlineReminders: true,
       notifyEvidenceProcessing: true,
@@ -486,6 +490,68 @@ async function main() {
       create: {
         ...activityLog,
         caseId: demoCase.id,
+        userId: user.id
+      }
+    });
+  }
+
+  const loginActivityNow = new Date();
+  const demoLoginActivity = [
+    {
+      id: "demo-nicholas-login-ipad",
+      createdAt: addDays(loginActivityNow, -1),
+      deviceLabel: "iPad Pro",
+      locationLabel: "San Francisco, CA"
+    },
+    {
+      id: "demo-nicholas-login-iphone",
+      createdAt: addDays(loginActivityNow, -2),
+      deviceLabel: "iPhone 15 Pro",
+      locationLabel: "San Francisco, CA"
+    },
+    {
+      id: "demo-nicholas-login-macbook",
+      createdAt: addDays(loginActivityNow, -3),
+      deviceLabel: "MacBook Pro",
+      locationLabel: "San Francisco, CA"
+    },
+    {
+      id: "demo-nicholas-login-windows",
+      createdAt: addDays(loginActivityNow, -5),
+      deviceLabel: "Chrome on Windows",
+      locationLabel: "New York, NY"
+    },
+    {
+      id: "demo-nicholas-login-safari",
+      createdAt: addDays(loginActivityNow, -7),
+      deviceLabel: "Safari on iPhone",
+      locationLabel: "Los Angeles, CA"
+    }
+  ];
+
+  for (const loginActivity of demoLoginActivity) {
+    await prisma.auditLog.upsert({
+      where: { id: loginActivity.id },
+      update: {
+        action: "auth.logged_in",
+        caseId: null,
+        createdAt: loginActivity.createdAt,
+        metadata: {
+          deviceLabel: loginActivity.deviceLabel,
+          locationLabel: loginActivity.locationLabel,
+          securityActivity: true
+        },
+        userId: user.id
+      },
+      create: {
+        id: loginActivity.id,
+        action: "auth.logged_in",
+        createdAt: loginActivity.createdAt,
+        metadata: {
+          deviceLabel: loginActivity.deviceLabel,
+          locationLabel: loginActivity.locationLabel,
+          securityActivity: true
+        },
         userId: user.id
       }
     });

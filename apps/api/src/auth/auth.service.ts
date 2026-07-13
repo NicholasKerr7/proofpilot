@@ -6,7 +6,11 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { compare, hash } from "bcryptjs";
-import type { AuthResponse, AuthUser } from "@proofpilot/types";
+import type {
+  AuthResponse,
+  AuthUser,
+  ChangePasswordResponse
+} from "@proofpilot/types";
 import { PrismaService } from "../prisma/prisma.service.js";
 import type { ChangePasswordDto } from "./dto/change-password.dto.js";
 import type { LoginDto } from "./dto/login.dto.js";
@@ -27,6 +31,11 @@ interface PublicUserRecord {
   createdAt: Date;
 }
 
+export interface AuthClientContext {
+  ipAddress?: string;
+  userAgent?: string;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -34,7 +43,7 @@ export class AuthService {
     private readonly jwtService: JwtService
   ) {}
 
-  async register(input: RegisterDto): Promise<AuthResponse> {
+  async register(input: RegisterDto, context: AuthClientContext = {}): Promise<AuthResponse> {
     const existingUser = await this.prisma.user.findUnique({
       where: { email: input.email.toLowerCase() }
     });
@@ -55,14 +64,14 @@ export class AuthService {
       data: {
         userId: user.id,
         action: "auth.registered",
-        metadata: { email: user.email }
+        metadata: createSecurityActivityMetadata(user.email, context)
       }
     });
 
     return this.createAuthResponse(user);
   }
 
-  async login(input: LoginDto): Promise<AuthResponse> {
+  async login(input: LoginDto, context: AuthClientContext = {}): Promise<AuthResponse> {
     const user = await this.prisma.user.findUnique({
       where: { email: input.email.toLowerCase() }
     });
@@ -75,7 +84,7 @@ export class AuthService {
       data: {
         userId: user.id,
         action: "auth.logged_in",
-        metadata: { email: user.email }
+        metadata: createSecurityActivityMetadata(user.email, context)
       }
     });
 
@@ -116,7 +125,10 @@ export class AuthService {
     return this.toAuthUser(updatedUser);
   }
 
-  async changePassword(userId: string, input: ChangePasswordDto) {
+  async changePassword(
+    userId: string,
+    input: ChangePasswordDto
+  ): Promise<ChangePasswordResponse> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -134,11 +146,12 @@ export class AuthService {
     }
 
     const passwordHash = await hash(input.newPassword, 12);
+    const passwordChangedAt = new Date();
 
     await this.prisma.$transaction([
       this.prisma.user.update({
         where: { id: userId },
-        data: { passwordHash }
+        data: { passwordChangedAt, passwordHash }
       }),
       this.prisma.auditLog.create({
         data: {
@@ -148,7 +161,7 @@ export class AuthService {
       })
     ]);
 
-    return { ok: true };
+    return { ok: true, passwordChangedAt: passwordChangedAt.toISOString() };
   }
 
   private async createAuthResponse(user: PublicUserRecord): Promise<AuthResponse> {
@@ -171,4 +184,21 @@ export class AuthService {
       createdAt: user.createdAt.toISOString()
     };
   }
+}
+
+function createSecurityActivityMetadata(email: string, context: AuthClientContext) {
+  const ipAddress = sanitizeContextValue(context.ipAddress, 64);
+  const userAgent = sanitizeContextValue(context.userAgent, 512);
+
+  return {
+    email,
+    securityActivity: true,
+    ...(ipAddress ? { ipAddress } : {}),
+    ...(userAgent ? { userAgent } : {})
+  };
+}
+
+function sanitizeContextValue(value: string | undefined, maxLength: number) {
+  const normalized = value?.replace(/[\r\n]/g, " ").trim();
+  return normalized ? normalized.slice(0, maxLength) : null;
 }
