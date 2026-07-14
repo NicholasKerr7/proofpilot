@@ -56,6 +56,13 @@
 - `PATCH /reminders/:reminderId`
 - `DELETE /reminders/:reminderId`
 
+## Assistant
+
+- `GET /assistant/cases/:caseId`
+- `POST /assistant/cases/:caseId/messages`
+
+Both endpoints require an authenticated owner match before reading or writing a thread. The current capability is `GUIDED`: responses are derived deterministically from saved case, evidence, checklist, timeline, and statement records. No external model provider is configured.
+
 ## Settings
 
 - `GET /settings`

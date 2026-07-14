@@ -9,6 +9,7 @@ import {
   Inbox,
   LogOut,
   Menu,
+  Sparkles,
   UploadCloud,
   UserRound,
   type LucideIcon
@@ -24,6 +25,7 @@ export type AppView =
   | "cases"
   | "create"
   | "case"
+  | "assistant"
   | "upload"
   | "notifications"
   | "account"
@@ -37,19 +39,30 @@ export type AppView =
   | "search"
   | "more";
 
-type PrimaryNavigationView = "home" | "cases" | "upload" | "notifications" | "more";
+type PrimaryNavigationView =
+  | "home"
+  | "cases"
+  | "assistant"
+  | "upload"
+  | "notifications"
+  | "more";
 
-const navItems: Array<{
+interface NavigationItem {
   icon: LucideIcon;
   label: string;
   view: PrimaryNavigationView;
-}> = [
+}
+
+const navItems: NavigationItem[] = [
   { label: "Home", view: "home", icon: Home },
   { label: "Cases", view: "cases", icon: FolderOpen },
+  { label: "Assistant", view: "assistant", icon: Sparkles },
   { label: "Upload", view: "upload", icon: UploadCloud },
   { label: "Inbox", view: "notifications", icon: Inbox },
   { label: "More", view: "more", icon: Menu }
 ];
+
+const phoneNavItems = navItems.filter((item) => item.view !== "assistant");
 
 interface AppShellProps {
   activeView: AppView;
@@ -88,11 +101,11 @@ export function AppShell({ activeView, children, onLogout, onNavigate, user }: A
           {navItems.map((item) => (
             <Button
               key={item.view}
-              aria-current={isNavigationActive(activeView, item.view) ? "page" : undefined}
+              aria-current={isNavigationActive(activeView, item.view, false) ? "page" : undefined}
               className="justify-start"
               onClick={() => handleNavigate(item.view)}
               type="button"
-              variant={isNavigationActive(activeView, item.view) ? "secondary" : "ghost"}
+              variant={isNavigationActive(activeView, item.view, false) ? "secondary" : "ghost"}
             >
               <item.icon className="h-4 w-4" aria-hidden="true" />
               {item.label}
@@ -192,30 +205,20 @@ export function AppShell({ activeView, children, onLogout, onNavigate, user }: A
         {children}
       </main>
 
-      <nav
-        className="fixed inset-x-0 bottom-0 z-50 mx-auto grid max-w-3xl grid-cols-5 border-t border-border bg-background/95 px-1 pb-4 pt-2 backdrop-blur md:border-x md:px-3 lg:hidden"
-        aria-label="Primary mobile"
-      >
-        {navItems.map((item) => {
-          const isActive = isNavigationActive(activeView, item.view);
-
-          return (
-            <button
-              key={item.view}
-              aria-current={isActive ? "page" : undefined}
-              className={cn(
-                "flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-md px-1 text-[11px] text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-xs",
-                isActive ? "bg-secondary text-primary" : null
-              )}
-              onClick={() => handleNavigate(item.view)}
-              type="button"
-            >
-              <item.icon className="h-5 w-5" aria-hidden="true" />
-              <span className="max-w-full truncate">{item.label}</span>
-            </button>
-          );
-        })}
-      </nav>
+      <BottomNavigation
+        activeView={activeView}
+        className="grid grid-cols-5 sm:hidden"
+        includeAssistantInMore
+        items={phoneNavItems}
+        onNavigate={handleNavigate}
+      />
+      <BottomNavigation
+        activeView={activeView}
+        className="hidden grid-cols-6 sm:grid"
+        includeAssistantInMore={false}
+        items={navItems}
+        onNavigate={handleNavigate}
+      />
     </div>
   );
 }
@@ -238,7 +241,57 @@ function ProofPilotWordmark() {
   );
 }
 
-function isNavigationActive(activeView: AppView, navigationView: PrimaryNavigationView) {
+interface BottomNavigationProps {
+  activeView: AppView;
+  className: string;
+  includeAssistantInMore: boolean;
+  items: NavigationItem[];
+  onNavigate: (view: AppView) => void;
+}
+
+function BottomNavigation({
+  activeView,
+  className,
+  includeAssistantInMore,
+  items,
+  onNavigate
+}: BottomNavigationProps) {
+  return (
+    <nav
+      className={cn(
+        "fixed inset-x-0 bottom-0 z-50 mx-auto max-w-3xl border-t border-border bg-background/95 px-1 pb-4 pt-2 backdrop-blur md:border-x md:px-3 lg:hidden",
+        className
+      )}
+      aria-label="Primary mobile"
+    >
+      {items.map((item) => {
+        const isActive = isNavigationActive(activeView, item.view, includeAssistantInMore);
+
+        return (
+          <button
+            key={item.view}
+            aria-current={isActive ? "page" : undefined}
+            className={cn(
+              "flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-md px-1 text-[11px] text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-xs",
+              isActive ? "bg-secondary text-primary" : null
+            )}
+            onClick={() => onNavigate(item.view)}
+            type="button"
+          >
+            <item.icon className="h-5 w-5" aria-hidden="true" />
+            <span className="max-w-full truncate">{item.label}</span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+function isNavigationActive(
+  activeView: AppView,
+  navigationView: PrimaryNavigationView,
+  includeAssistantInMore: boolean
+) {
   if (navigationView === "cases") {
     return activeView === "cases" || activeView === "create" || activeView === "case";
   }
@@ -246,6 +299,7 @@ function isNavigationActive(activeView: AppView, navigationView: PrimaryNavigati
   if (navigationView === "more") {
     return (
       activeView === "more" ||
+      (includeAssistantInMore && activeView === "assistant") ||
       activeView === "account" ||
       activeView === "reports" ||
       activeView === "calendar" ||

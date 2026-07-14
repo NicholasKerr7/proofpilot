@@ -109,6 +109,16 @@ enum InvoiceStatus {
   VOID
 }
 
+enum AssistantMessageRole {
+  USER
+  ASSISTANT
+}
+
+enum AssistantResponseMode {
+  GUIDED
+  MODEL
+}
+
 model User {
   id                  String               @id @default(cuid())
   email               String               @unique
@@ -123,6 +133,7 @@ model User {
   cases               Case[]
   auditLogs           AuditLog[]
   supportRequests     SupportRequest[]
+  assistantThreads    AssistantThread[]
 }
 
 model UserPreference {
@@ -222,29 +233,30 @@ model CaseType {
 }
 
 model Case {
-  id              String              @id @default(cuid())
-  ownerId         String
-  owner           User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  caseTypeId      String
-  caseType        CaseType            @relation(fields: [caseTypeId], references: [id])
-  title           String
-  platform        String
-  summary         String?
-  status          CaseStatus          @default(DRAFT)
-  deadline        DateTime?
-  archivedAt      DateTime?
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-  documents       Document[]
-  events          CaseEvent[]
-  checklist       CaseChecklistItem[]
-  statements      CaseStatement[]
-  summaries       CaseSummary[]
-  packets         CasePacket[]
-  reminders       Reminder[]
-  notifications   Notification[]
-  auditLogs       AuditLog[]
-  supportRequests SupportRequest[]
+  id               String              @id @default(cuid())
+  ownerId          String
+  owner            User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  caseTypeId       String
+  caseType         CaseType            @relation(fields: [caseTypeId], references: [id])
+  title            String
+  platform         String
+  summary          String?
+  status           CaseStatus          @default(DRAFT)
+  deadline         DateTime?
+  archivedAt       DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  documents        Document[]
+  events           CaseEvent[]
+  checklist        CaseChecklistItem[]
+  statements       CaseStatement[]
+  summaries        CaseSummary[]
+  packets          CasePacket[]
+  reminders        Reminder[]
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+  supportRequests  SupportRequest[]
+  assistantThreads AssistantThread[]
 
   @@index([ownerId, status])
   @@index([caseTypeId])
@@ -410,6 +422,37 @@ model CaseSummary {
   content   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model AssistantThread {
+  id        String             @id @default(cuid())
+  userId    String
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  caseId    String
+  case      Case               @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  title     String?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  messages  AssistantMessage[]
+
+  @@unique([userId, caseId])
+  @@index([caseId, updatedAt])
+}
+
+model AssistantMessage {
+  id                 String                 @id @default(cuid())
+  threadId           String
+  thread             AssistantThread        @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  role               AssistantMessageRole
+  content            String
+  responseMode       AssistantResponseMode?
+  model              String?
+  promptTokens       Int?
+  completionTokens   Int?
+  estimatedCostCents Int?
+  createdAt          DateTime               @default(now())
+
+  @@index([threadId, createdAt])
 }
 
 model CasePacket {

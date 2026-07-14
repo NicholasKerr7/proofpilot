@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   Search,
   Settings2,
+  Sparkles,
   UploadCloud,
   UserRound,
   type LucideIcon
@@ -51,6 +52,7 @@ const caseCommands: Array<{
 interface MoreMenuProps {
   onCreateCase: () => void;
   onOpenAccount: (section: AccountSection) => void;
+  onOpenAssistant: () => void;
   onOpenCalendar: () => void;
   onOpenBilling: () => void;
   onOpenCase: (caseId: string, destinationId: CaseDestinationId) => Promise<void>;
@@ -69,6 +71,7 @@ interface MoreMenuProps {
 export function MoreMenu({
   onCreateCase,
   onOpenAccount,
+  onOpenAssistant,
   onOpenBilling,
   onOpenCalendar,
   onOpenCase,
@@ -164,6 +167,12 @@ export function MoreMenu({
             <CardTitle>Workspace</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-2">
+            <MoreDestination
+              detail="Review saved case facts, evidence gaps, and suggested next steps."
+              icon={Sparkles}
+              label="AI Assistant"
+              onClick={onOpenAssistant}
+            />
             <MoreDestination
               detail="Review and manage every appeal case."
               icon={FolderOpen}

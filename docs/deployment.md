@@ -65,6 +65,12 @@ The current security workspace supports password changes, owner-scoped login his
 
 The web auth proxy forwards a sanitized browser user-agent for login-history display. API request context and forwarded headers must remain informational only; authorization continues to rely on the verified JWT and explicit resource ownership checks. IP geolocation is not performed.
 
+## Assistant Model Provider
+
+The current assistant runs in guided mode and does not require or call an external AI provider. Case records and assistant messages remain in PostgreSQL, and the UI explicitly reports that model generation is unavailable.
+
+Before enabling model-backed responses, add a server-only provider integration, explicit environment-specific secrets, user-facing data-transfer disclosure, retention controls, request redaction, model and token attribution, cost accounting, and provider-failure behavior. Never expose provider credentials to `apps/web`, and never change the capability flag until the complete flow has been tested with owner-scoped case data.
+
 ## Storage Setup
 
 Create or verify the private evidence bucket before first API or worker traffic:
@@ -106,7 +112,7 @@ pnpm db:generate
 pnpm db:deploy
 ```
 
-Run `pnpm db:seed` only for local demo or controlled staging data. The seed creates the demo Nicholas Kerr account and sample case records.
+Run `pnpm db:seed` only for local demo or controlled staging data. The seed creates the demo Nicholas Kerr account, sample case records, and a guided assistant conversation.
 
 If an existing non-empty database was created before migrations with `pnpm db:push`, baseline it only after confirming the schema matches the initial migration:
 

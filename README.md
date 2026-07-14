@@ -57,7 +57,8 @@ The first product slice is Account Ban / Appeal Builder:
 3. Upload evidence.
 4. Process documents in the background.
 5. Build a timeline and missing evidence checklist.
-6. Draft a professional statement.
-7. Generate a downloadable PDF packet.
+6. Get persisted, case-aware guidance without sending records to an external model provider.
+7. Draft a professional statement.
+8. Generate a downloadable PDF packet.
 
 This first commit establishes Sprint 0 infrastructure and starts Sprint 1 with auth and case APIs.

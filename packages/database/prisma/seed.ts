@@ -1,5 +1,7 @@
 import { config } from "dotenv";
 import {
+  AssistantMessageRole,
+  AssistantResponseMode,
   BillingCycle,
   BillingMode,
   BillingPlan,
@@ -379,6 +381,63 @@ async function main() {
       content: statementContent,
       statementId: demoStatementId,
       version: 1
+    }
+  });
+
+  const assistantNow = new Date();
+  const assistantThread = await prisma.assistantThread.upsert({
+    where: {
+      userId_caseId: {
+        userId: user.id,
+        caseId: demoCase.id
+      }
+    },
+    update: {
+      title: "PayPal appeal guidance"
+    },
+    create: {
+      id: "demo-nicholas-assistant-thread",
+      userId: user.id,
+      caseId: demoCase.id,
+      title: "PayPal appeal guidance"
+    }
+  });
+
+  await prisma.assistantMessage.upsert({
+    where: { id: "demo-nicholas-assistant-user-message" },
+    update: {
+      content: "Can you review my statement and suggest ways to make it more compelling?",
+      createdAt: addMinutes(assistantNow, -2),
+      role: AssistantMessageRole.USER,
+      threadId: assistantThread.id
+    },
+    create: {
+      id: "demo-nicholas-assistant-user-message",
+      content: "Can you review my statement and suggest ways to make it more compelling?",
+      createdAt: addMinutes(assistantNow, -2),
+      role: AssistantMessageRole.USER,
+      threadId: assistantThread.id
+    }
+  });
+
+  await prisma.assistantMessage.upsert({
+    where: { id: "demo-nicholas-assistant-guided-message" },
+    update: {
+      content:
+        "Your saved statement has a clear request and identifies the records you are collecting. To make it stronger:\n\n- Add the exact limitation date and support ticket date.\n- Explain the legitimate payment activity with one or two specific examples.\n- Describe the account-security steps you completed after the limitation.\n- End with the precise outcome you want from PayPal.\n\nGuided mode reviewed your saved case fields and did not change the statement.",
+      createdAt: addMinutes(assistantNow, -1),
+      responseMode: AssistantResponseMode.GUIDED,
+      role: AssistantMessageRole.ASSISTANT,
+      threadId: assistantThread.id
+    },
+    create: {
+      id: "demo-nicholas-assistant-guided-message",
+      content:
+        "Your saved statement has a clear request and identifies the records you are collecting. To make it stronger:\n\n- Add the exact limitation date and support ticket date.\n- Explain the legitimate payment activity with one or two specific examples.\n- Describe the account-security steps you completed after the limitation.\n- End with the precise outcome you want from PayPal.\n\nGuided mode reviewed your saved case fields and did not change the statement.",
+      createdAt: addMinutes(assistantNow, -1),
+      responseMode: AssistantResponseMode.GUIDED,
+      role: AssistantMessageRole.ASSISTANT,
+      threadId: assistantThread.id
     }
   });
 

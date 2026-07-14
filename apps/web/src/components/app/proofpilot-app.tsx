@@ -12,6 +12,7 @@ import {
   type AccountSection
 } from "@/components/app/account/account-panel";
 import { AppShell, type AppView } from "@/components/app/app-shell";
+import { AssistantPanel } from "@/components/app/assistant/assistant-panel";
 import { AuthPanel } from "@/components/app/auth-panel";
 import { BillingPanel } from "@/components/app/billing/billing-panel";
 import { CaseDashboard } from "@/components/app/case-dashboard";
@@ -276,6 +277,21 @@ export function ProofPilotApp() {
     }
   }
 
+  async function handleSelectAssistantCase(caseId: string) {
+    setSelectedCaseId(caseId);
+    setMessage(null);
+
+    try {
+      await loadCaseDetail(caseId);
+      scrollToPageTop();
+    } catch (error) {
+      const selectionError =
+        error instanceof Error ? error : new Error("Case detail could not be loaded.");
+      setMessage(selectionError.message);
+      throw selectionError;
+    }
+  }
+
   async function handleArchiveCase(caseId: string) {
     setMessage(null);
 
@@ -463,6 +479,17 @@ export function ProofPilotApp() {
         />
       ) : null}
 
+      {activeView === "assistant" ? (
+        <AssistantPanel
+          cases={cases}
+          onCreateCase={() => handleNavigate("create")}
+          onOpenCase={handleOpenCase}
+          onSelectCase={handleSelectAssistantCase}
+          selectedCase={selectedCase}
+          user={user}
+        />
+      ) : null}
+
       {activeView === "notifications" ? (
         <NotificationCenter
           onOpenCase={handleOpenCase}
@@ -475,6 +502,7 @@ export function ProofPilotApp() {
         <MoreMenu
           onCreateCase={() => handleNavigate("create")}
           onOpenAccount={handleOpenAccount}
+          onOpenAssistant={() => handleNavigate("assistant")}
           onOpenBilling={() => handleNavigate("billing")}
           onOpenCalendar={() => handleNavigate("calendar")}
           onOpenCase={handleOpenCase}

@@ -1,5 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { AssistantModule } from "./assistant/assistant.module.js";
 import { AuthModule } from "./auth/auth.module.js";
 import { BillingModule } from "./billing/billing.module.js";
 import { CasesModule } from "./cases/cases.module.js";
@@ -25,6 +26,7 @@ import { SupportModule } from "./support/support.module.js";
     PrismaModule,
     QueueModule,
     MonitoringModule,
+    AssistantModule,
     AuthModule,
     BillingModule,
     CaseTypesModule,
