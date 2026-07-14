@@ -308,7 +308,13 @@ export const helpArticles: HelpArticle[] = [
       }
     ],
     tip: "Keep the downloaded packet and the platform submission confirmation together for your records.",
-    related: ["generate-case-packet", "review-process"]
+    related: [
+      "generate-case-packet",
+      "review-process",
+      "supported-file-types",
+      "timeline-basics",
+      "build-appeal-statement"
+    ]
   },
   {
     slug: "review-process",

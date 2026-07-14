@@ -3,11 +3,13 @@
 import { useState } from "react";
 import {
   ArrowLeft,
+  BookOpen,
   CalendarDays,
   CheckCircle2,
   ChevronRight,
   CircleHelp,
   Clock3,
+  FileCheck2,
   Lightbulb,
   ThumbsDown,
   ThumbsUp
@@ -30,6 +32,21 @@ interface HelpArticleDetailProps {
   onContactSupport: () => void;
   onOpenArticle: (articleSlug: HelpArticleSlug) => void;
 }
+
+const successTips = [
+  {
+    detail: "Confirm every required section and supporting record is present.",
+    title: "Be complete"
+  },
+  {
+    detail: "Keep names, dates, and explanations grounded in the source files.",
+    title: "Be clear and factual"
+  },
+  {
+    detail: "Review the finished work before exporting or submitting it.",
+    title: "Review before acting"
+  }
+] as const;
 
 export function HelpArticleDetail({
   article,
@@ -72,12 +89,26 @@ export function HelpArticleDetail({
       </Button>
 
       <Card className="border-primary/45">
-        <CardContent className="grid gap-5 p-5 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center md:p-7">
-          <span className="flex h-16 w-16 items-center justify-center rounded-md border border-primary/45 bg-primary/10 text-primary">
+        <CardContent className="grid gap-5 p-5 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center md:grid-cols-[minmax(0,1fr)_10rem] md:p-7">
+          <span className="flex h-16 w-16 items-center justify-center rounded-md border border-primary/45 bg-primary/10 text-primary md:hidden">
             <Icon aria-hidden="true" className="h-7 w-7" />
           </span>
           <div className="min-w-0">
-            <Badge variant="secondary">{category?.title ?? "Help Center"}</Badge>
+            <Badge className="md:hidden" variant="secondary">
+              {category?.title ?? "Help Center"}
+            </Badge>
+            <div className="hidden items-center gap-2 text-sm font-semibold uppercase text-primary md:flex">
+              <BookOpen aria-hidden="true" className="h-5 w-5" />
+              <span>Help Center</span>
+              {category ? (
+                <>
+                  <span aria-hidden="true" className="text-border">
+                    /
+                  </span>
+                  <span className="normal-case text-muted-foreground">{category.title}</span>
+                </>
+              ) : null}
+            </div>
             <h1
               className="mt-3 break-words text-2xl font-semibold sm:text-3xl"
               id="help-article-heading"
@@ -98,6 +129,9 @@ export function HelpArticleDetail({
               </span>
             </div>
           </div>
+          <span className="hidden min-h-36 place-items-center border-l border-border text-primary md:grid">
+            <FileCheck2 aria-hidden="true" className="h-24 w-24" strokeWidth={1.25} />
+          </span>
         </CardContent>
       </Card>
 
@@ -115,17 +149,20 @@ export function HelpArticleDetail({
                   </p>
                 ))}
                 {section.steps ? (
-                  <ol className="grid gap-5">
+                  <ol className="grid gap-5 md:gap-0">
                     {section.steps.map((step, index) => (
                       <li
-                        className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3"
+                        className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 md:block md:border-b md:border-border md:py-5 md:first:pt-0 md:last:border-b-0 md:last:pb-0"
                         key={step.title}
                       >
-                        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/45 bg-primary/10 text-sm font-semibold text-primary">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/45 bg-primary/10 text-sm font-semibold text-primary md:hidden">
                           {index + 1}
                         </span>
                         <div>
-                          <h3 className="text-sm font-semibold text-foreground">{step.title}</h3>
+                          <h3 className="text-sm font-semibold text-foreground md:text-base">
+                            <span className="hidden md:inline">{index + 1}. </span>
+                            {step.title}
+                          </h3>
                           <p className="mt-1 text-sm leading-6 text-muted-foreground">{step.detail}</p>
                         </div>
                       </li>
@@ -188,17 +225,25 @@ export function HelpArticleDetail({
         <aside className="grid gap-4" aria-label="Related help">
           <Card>
             <CardHeader>
-              <CardTitle>Tips for success</CardTitle>
+              <CardTitle className="md:text-sm md:uppercase md:text-primary">
+                Tips for success
+              </CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-3">
-              {[
-                "Verify names and dates against the source files.",
-                "Keep the original records after uploading copies.",
-                "Review generated content before exporting a packet."
-              ].map((tip) => (
-                <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2 text-sm" key={tip}>
-                  <CheckCircle2 aria-hidden="true" className="mt-0.5 h-4 w-4 text-primary" />
-                  <span className="leading-6 text-muted-foreground">{tip}</span>
+            <CardContent className="divide-y divide-border p-0">
+              {successTips.map((tip) => (
+                <div
+                  className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 p-4 text-sm"
+                  key={tip.title}
+                >
+                  <span className="flex h-9 w-9 items-center justify-center rounded-md border border-primary/35 bg-primary/10 text-primary">
+                    <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
+                  </span>
+                  <span>
+                    <span className="block font-semibold text-foreground">{tip.title}</span>
+                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                      {tip.detail}
+                    </span>
+                  </span>
                 </div>
               ))}
             </CardContent>
@@ -227,15 +272,23 @@ export function HelpArticleDetail({
           </Card>
 
           <Card className="border-primary/45">
-            <CardContent className="grid gap-3 p-4">
-              <CircleHelp aria-hidden="true" className="h-5 w-5 text-primary" />
+            <CardContent className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 p-4">
+              <span className="flex h-9 w-9 items-center justify-center rounded-md border border-primary/35 bg-primary/10 text-primary">
+                <CircleHelp aria-hidden="true" className="h-4 w-4" />
+              </span>
               <div>
                 <p className="text-sm font-semibold">Still need help?</p>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
                   Send a secure request with the relevant case selected.
                 </p>
               </div>
-              <Button onClick={onContactSupport} size="sm" type="button" variant="outline">
+              <Button
+                className="col-span-2 md:col-span-1 md:col-start-2 md:w-fit"
+                onClick={onContactSupport}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
                 Contact support
               </Button>
             </CardContent>
