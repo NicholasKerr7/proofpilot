@@ -1,24 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Activity, RefreshCcw, Search, X } from "lucide-react";
+import { Activity } from "lucide-react";
 import type {
   CaseActivityCategory,
   CaseActivityItem,
   CaseActivityResponse
 } from "@proofpilot/types";
 import { ActivityRow } from "@/components/app/activity/activity-row";
+import { ActivityToolbar } from "@/components/app/activity/activity-toolbar";
 import {
-  activityFilters,
   groupActivityItems,
   matchesActivitySearch
 } from "@/components/app/activity/activity-utils";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
 import { apiRequest } from "@/lib/client/api";
 import type { CaseRecord } from "@/lib/client/types";
 
@@ -98,79 +94,19 @@ export function ActivityPanel({ selectedCase }: { selectedCase: CaseRecord }) {
 
   return (
     <Card id="case-activity" className="scroll-mt-28 lg:scroll-mt-8">
-      <CardHeader className="grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <CardTitle>Activity log</CardTitle>
-            <Badge variant="secondary">{total} events</Badge>
-          </div>
-          <CardDescription>Recorded changes and processing events for this case.</CardDescription>
-        </div>
-        <Button
-          aria-label="Refresh activity"
-          disabled={isLoading}
-          onClick={() => setRefreshKey((currentKey) => currentKey + 1)}
-          size="icon"
-          title="Refresh activity"
-          type="button"
-          variant="outline"
-        >
-          <RefreshCcw className="h-4 w-4" aria-hidden="true" />
-        </Button>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_15rem]">
-          <div className="relative">
-            <Label className="sr-only" htmlFor="activity-search">
-              Search loaded activity
-            </Label>
-            <Search
-              aria-hidden="true"
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            />
-            <Input
-              className="min-h-12 pl-10 pr-12"
-              id="activity-search"
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search activity"
-              type="search"
-              value={searchQuery}
-            />
-            {searchQuery ? (
-              <Button
-                aria-label="Clear activity search"
-                className="absolute right-0 top-1/2 -translate-y-1/2"
-                onClick={() => setSearchQuery("")}
-                size="icon"
-                title="Clear activity search"
-                type="button"
-                variant="ghost"
-              >
-                <X className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            ) : null}
-          </div>
-          <div>
-            <Label className="sr-only" htmlFor="activity-category">
-              Filter activity category
-            </Label>
-            <Select
-              className="min-h-12"
-              id="activity-category"
-              onChange={(event) => {
-                setCategory(event.target.value as CaseActivityCategory);
-                setSearchQuery("");
-              }}
-              value={category}
-            >
-              {activityFilters.map((filter) => (
-                <option key={filter.value} value={filter.value}>
-                  {filter.label}
-                </option>
-              ))}
-            </Select>
-          </div>
-        </div>
+      <ActivityToolbar
+        category={category}
+        isLoading={isLoading}
+        onCategoryChange={(nextCategory) => {
+          setCategory(nextCategory);
+          setSearchQuery("");
+        }}
+        onRefresh={() => setRefreshKey((currentKey) => currentKey + 1)}
+        onSearchQueryChange={setSearchQuery}
+        searchQuery={searchQuery}
+        total={total}
+      />
+      <CardContent className="grid gap-4 pt-4 md:px-6 md:pb-6">
 
         {error ? (
           <p
@@ -195,11 +131,21 @@ export function ActivityPanel({ selectedCase }: { selectedCase: CaseRecord }) {
                       className="text-sm font-semibold text-foreground"
                       id={`activity-date-${group.key}`}
                     >
-                      {group.relativeLabel}
+                      <span className="md:hidden">{group.relativeLabel}</span>
+                      <span className="hidden md:inline">
+                        {group.relativeLabel === "Today" || group.relativeLabel === "Yesterday"
+                          ? group.relativeLabel
+                          : group.dateLabel}
+                      </span>
+                      <span className="hidden font-normal text-muted-foreground md:inline">
+                        {group.relativeLabel === "Today" || group.relativeLabel === "Yesterday"
+                          ? ` - ${group.dateLabel}`
+                          : null}
+                      </span>
                     </h4>
-                    <p className="text-xs text-muted-foreground">{group.dateLabel}</p>
+                    <p className="text-xs text-muted-foreground md:hidden">{group.dateLabel}</p>
                   </div>
-                  <div className="mt-2 divide-y divide-border rounded-md border border-border bg-secondary/20">
+                  <div className="mt-2 divide-y divide-border overflow-hidden rounded-md border border-border bg-secondary/20">
                     {group.items.map((item) => (
                       <ActivityRow item={item} key={item.id} />
                     ))}
