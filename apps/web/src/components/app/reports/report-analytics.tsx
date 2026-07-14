@@ -7,20 +7,18 @@ import {
   FileArchive,
   FileText,
   FolderOpen,
-  ImageIcon,
   ListChecks,
-  Mail,
-  TableProperties,
   TriangleAlert,
   UploadCloud,
   type LucideIcon
 } from "lucide-react";
 import type {
-  ReportEvidenceCategory,
   ReportEvidenceBreakdownItem,
   ReportSummary
 } from "@proofpilot/types";
 import { CaseProgressRing } from "@/components/app/cases/case-progress-ring";
+import { ReportCaseAnalytics } from "@/components/app/reports/report-case-analytics";
+import { reportEvidenceIcons } from "@/components/app/reports/report-evidence-icons";
 import {
   evidenceCategoryLabels,
   formatReportBytes,
@@ -33,14 +31,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 
-const evidenceIcons: Record<ReportEvidenceCategory, LucideIcon> = {
-  images: ImageIcon,
-  documents: FileText,
-  emails: Mail,
-  data: TableProperties,
-  other: UploadCloud
-};
-
 interface ReportAnalyticsProps {
   onExport: () => void;
   onOpenCase: (caseId: string) => void;
@@ -50,10 +40,26 @@ interface ReportAnalyticsProps {
 export function ReportAnalytics({ onExport, onOpenCase, summary }: ReportAnalyticsProps) {
   const checklistCompletion = getChecklistCompletion(summary);
   const insights = getReportInsights(summary);
+  const focusedCase = summary.cases.length === 1 ? summary.cases[0] : null;
 
   return (
-    <div className="grid gap-5">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div
+      className={
+        focusedCase
+          ? "grid gap-5 md:[&>.aggregate-report-section]:hidden"
+          : "grid gap-5"
+      }
+    >
+      {focusedCase ? (
+        <ReportCaseAnalytics
+          caseRecord={focusedCase}
+          onExport={onExport}
+          onOpenCase={onOpenCase}
+          summary={summary}
+        />
+      ) : null}
+
+      <div className="aggregate-report-section grid grid-cols-2 gap-3 md:grid-cols-4">
         <ReportMetric
           icon={FolderOpen}
           label="Cases"
@@ -76,7 +82,7 @@ export function ReportAnalytics({ onExport, onOpenCase, summary }: ReportAnalyti
         />
       </div>
 
-      <div className="grid gap-5 md:grid-cols-2">
+      <div className="aggregate-report-section grid gap-5 md:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Completion overview</CardTitle>
@@ -120,7 +126,7 @@ export function ReportAnalytics({ onExport, onOpenCase, summary }: ReportAnalyti
         </Card>
       </div>
 
-      <div className="grid gap-5 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+      <div className="aggregate-report-section grid gap-5 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
         <Card>
           <CardHeader>
             <CardTitle>Status summary</CardTitle>
@@ -165,7 +171,7 @@ export function ReportAnalytics({ onExport, onOpenCase, summary }: ReportAnalyti
         </Card>
       </div>
 
-      <Card>
+      <Card className="aggregate-report-section">
         <CardHeader className="grid-cols-[minmax(0,1fr)_auto] items-center">
           <CardTitle>Case performance</CardTitle>
           <Button onClick={onExport} size="sm" type="button" variant="outline">
@@ -235,7 +241,7 @@ function ReportMetric({ icon: Icon, label, value }: { icon: LucideIcon; label: s
 }
 
 function EvidenceCoverage({ item, total }: { item: ReportEvidenceBreakdownItem; total: number }) {
-  const Icon = evidenceIcons[item.category];
+  const Icon = reportEvidenceIcons[item.category];
   const percent = total ? Math.round((item.count / total) * 100) : 0;
 
   return (
