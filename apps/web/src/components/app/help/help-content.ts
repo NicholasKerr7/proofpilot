@@ -67,7 +67,7 @@ export const helpCategories: HelpCategory[] = [
   },
   {
     id: "account-security",
-    title: "Account & security",
+    title: "Security & privacy",
     description: "Protect access and private case data."
   }
 ];
@@ -352,7 +352,8 @@ export const helpArticles: HelpArticle[] = [
         ]
       }
     ],
-    related: ["getting-started", "supported-file-types"]
+    related: ["getting-started", "supported-file-types"],
+    popular: true
   }
 ];
 
