@@ -97,7 +97,10 @@ export function SearchPanel({ cases, onOpenResult }: SearchPanelProps) {
     setRefreshKey((current) => current + 1);
   }
 
-  function applyFilters(nextFilters: SearchFiltersState) {
+  function applyFilters(nextFilters: SearchFiltersState, nextQuery: string) {
+    const normalizedQuery = nextQuery.trim();
+    setDraftQuery(normalizedQuery);
+    setSubmittedQuery(normalizedQuery);
     setFilters(nextFilters);
     setResultLimit(initialResultLimit);
     setActiveTab("ALL");
@@ -116,6 +119,7 @@ export function SearchPanel({ cases, onOpenResult }: SearchPanelProps) {
           setView("results");
           scrollToTop();
         }}
+        query={draftQuery}
       />
     );
   }
