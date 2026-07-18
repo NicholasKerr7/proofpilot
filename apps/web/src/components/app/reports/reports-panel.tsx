@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { BarChart3, Download, RefreshCcw } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowLeft, BarChart3, Download, RefreshCcw } from "lucide-react";
 import type { ReportSummary } from "@proofpilot/types";
 import { ReportAnalytics } from "@/components/app/reports/report-analytics";
 import { ReportExportForm } from "@/components/app/reports/report-export-form";
@@ -21,15 +21,34 @@ interface ReportsPanelProps {
 }
 
 export function ReportsPanel({ cases, onOpenCase }: ReportsPanelProps) {
+  const panelRef = useRef<HTMLElement>(null);
   const [mode, setMode] = useState<ReportsMode>("analytics");
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [summary, setSummary] = useState<ReportSummary | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const selectedCase = selectedCaseId
+    ? cases.find((caseRecord) => caseRecord.id === selectedCaseId) ?? null
+    : null;
   const scopeLabel = selectedCaseId
-    ? cases.find((caseRecord) => caseRecord.id === selectedCaseId)?.title ?? "Selected case"
+    ? selectedCase?.title ?? "Selected case"
     : "All cases";
+
+  function openExport(caseId?: string) {
+    if (caseId) {
+      setSelectedCaseId(caseId);
+    }
+
+    changeMode("export");
+  }
+
+  function changeMode(nextMode: ReportsMode) {
+    setMode(nextMode);
+    window.requestAnimationFrame(() => {
+      panelRef.current?.scrollIntoView({ block: "start" });
+    });
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -71,25 +90,51 @@ export function ReportsPanel({ cases, onOpenCase }: ReportsPanelProps) {
   }, [refreshKey, selectedCaseId]);
 
   return (
-    <section aria-labelledby="reports-heading" className="grid gap-5">
+    <section
+      aria-labelledby="reports-heading"
+      className="grid scroll-mt-24 gap-5"
+      ref={panelRef}
+    >
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold text-primary">Workspace reporting</p>
-          <h1 id="reports-heading" className="mt-1 text-2xl font-semibold sm:text-3xl">
-            Reports &amp; analytics
-          </h1>
+        <div className="flex min-w-0 items-start gap-3">
+          {mode === "export" ? (
+            <Button
+              aria-label="Back to report analytics"
+              className="mt-1 shrink-0"
+              onClick={() => changeMode("analytics")}
+              size="icon"
+              title="Back to report analytics"
+              type="button"
+              variant="ghost"
+            >
+              <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+            </Button>
+          ) : null}
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-primary">Workspace reporting</p>
+            <h1 id="reports-heading" className="mt-1 text-2xl font-semibold sm:text-3xl">
+              {mode === "export" ? "Export report" : "Reports & analytics"}
+            </h1>
+            {mode === "export" ? (
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                Configure and download an owner-scoped case report.
+              </p>
+            ) : null}
+          </div>
         </div>
-        <Button
-          aria-label="Refresh reports"
-          disabled={isLoading}
-          onClick={() => setRefreshKey((currentKey) => currentKey + 1)}
-          size="icon"
-          title="Refresh reports"
-          type="button"
-          variant="outline"
-        >
-          <RefreshCcw className="h-4 w-4" aria-hidden="true" />
-        </Button>
+        {mode === "analytics" ? (
+          <Button
+            aria-label="Refresh reports"
+            disabled={isLoading}
+            onClick={() => setRefreshKey((currentKey) => currentKey + 1)}
+            size="icon"
+            title="Refresh reports"
+            type="button"
+            variant="outline"
+          >
+            <RefreshCcw className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        ) : null}
       </div>
 
       <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
@@ -122,13 +167,13 @@ export function ReportsPanel({ cases, onOpenCase }: ReportsPanelProps) {
             active={mode === "analytics"}
             icon={BarChart3}
             label="Analytics"
-            onClick={() => setMode("analytics")}
+            onClick={() => changeMode("analytics")}
           />
           <ReportModeButton
             active={mode === "export"}
             icon={Download}
             label="Export"
-            onClick={() => setMode("export")}
+            onClick={() => changeMode("export")}
           />
         </div>
       </div>
@@ -150,12 +195,16 @@ export function ReportsPanel({ cases, onOpenCase }: ReportsPanelProps) {
         </Card>
       ) : mode === "analytics" && summary ? (
         <ReportAnalytics
-          onExport={() => setMode("export")}
+          onExport={openExport}
           onOpenCase={onOpenCase}
           summary={summary}
         />
       ) : mode === "export" ? (
-        <ReportExportForm caseId={selectedCaseId} scopeLabel={scopeLabel} />
+        <ReportExportForm
+          caseId={selectedCaseId}
+          scopeLabel={scopeLabel}
+          selectedCase={selectedCase}
+        />
       ) : null}
     </section>
   );

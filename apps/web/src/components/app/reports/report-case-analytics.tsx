@@ -35,7 +35,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface ReportCaseAnalyticsProps {
   caseRecord: ReportCaseSummary;
-  onExport: () => void;
+  onExport: (caseId: string) => void;
   onOpenCase: (caseId: string) => void;
   summary: ReportSummary;
 }
@@ -233,7 +233,7 @@ export function ReportCaseAnalytics({
               Open case
               <ArrowRight aria-hidden="true" className="h-4 w-4" />
             </Button>
-            <Button onClick={onExport} type="button">
+            <Button onClick={() => onExport(caseRecord.id)} type="button">
               <FileArchive aria-hidden="true" className="h-4 w-4" />
               Export report
             </Button>

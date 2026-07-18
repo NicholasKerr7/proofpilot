@@ -32,7 +32,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 
 interface ReportAnalyticsProps {
-  onExport: () => void;
+  onExport: (caseId?: string) => void;
   onOpenCase: (caseId: string) => void;
   summary: ReportSummary;
 }
@@ -174,7 +174,7 @@ export function ReportAnalytics({ onExport, onOpenCase, summary }: ReportAnalyti
       <Card className="aggregate-report-section">
         <CardHeader className="grid-cols-[minmax(0,1fr)_auto] items-center">
           <CardTitle>Case performance</CardTitle>
-          <Button onClick={onExport} size="sm" type="button" variant="outline">
+          <Button onClick={() => onExport()} size="sm" type="button" variant="outline">
             <FileArchive className="h-4 w-4" aria-hidden="true" />
             Export
           </Button>

@@ -1,28 +1,48 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
-import { CalendarDays, CheckCircle2, Download, FileSpreadsheet } from "lucide-react";
+import { Download } from "lucide-react";
 import { reportExportSections, type ReportExportSection } from "@proofpilot/types";
 import {
+  ReportExportDateRange,
+  type ReportDatePreset
+} from "@/components/app/reports/report-export-date-range";
+import { ReportExportOutput } from "@/components/app/reports/report-export-output";
+import { ReportExportScope } from "@/components/app/reports/report-export-scope";
+import { ReportExportSections } from "@/components/app/reports/report-export-sections";
+import {
   getReportDateValue,
-  getReportFilename,
-  reportSectionOptions
+  getReportFilename
 } from "@/components/app/reports/report-utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import type { CaseRecord } from "@/lib/client/types";
 
-export function ReportExportForm({ caseId, scopeLabel }: { caseId: string | null; scopeLabel: string }) {
+interface ReportExportFormProps {
+  caseId: string | null;
+  scopeLabel: string;
+  selectedCase: CaseRecord | null;
+}
+
+export function ReportExportForm({
+  caseId,
+  scopeLabel,
+  selectedCase
+}: ReportExportFormProps) {
   const [from, setFrom] = useState(() => getRelativeDateValue(30));
   const [to, setTo] = useState(() => getReportDateValue(new Date()));
+  const [datePreset, setDatePreset] = useState<ReportDatePreset>(30);
   const [sections, setSections] = useState<ReportExportSection[]>([...reportExportSections]);
   const [isDownloading, setIsDownloading] = useState(false);
   const [notice, setNotice] = useState<{ tone: "error" | "success"; text: string } | null>(null);
 
-  function setPreset(days: number) {
-    setFrom(getRelativeDateValue(days));
-    setTo(getReportDateValue(new Date()));
+  function setPreset(preset: ReportDatePreset) {
+    setDatePreset(preset);
+
+    if (preset !== "custom") {
+      setFrom(getRelativeDateValue(preset));
+      setTo(getReportDateValue(new Date()));
+    }
+
     setNotice(null);
   }
 
@@ -78,7 +98,7 @@ export function ReportExportForm({ caseId, scopeLabel }: { caseId: string | null
       anchor.click();
       anchor.remove();
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
-      setNotice({ tone: "success", text: "CSV report downloaded." });
+      setNotice({ tone: "success", text: `${scopeLabel} CSV report downloaded.` });
     } catch (error) {
       setNotice({
         tone: "error",
@@ -90,111 +110,27 @@ export function ReportExportForm({ caseId, scopeLabel }: { caseId: string | null
   }
 
   return (
-    <form className="grid gap-5" onSubmit={handleSubmit}>
-      <Card className="border-primary/45">
-        <CardContent className="grid gap-3 p-5 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
-          <span className="flex h-12 w-12 items-center justify-center rounded-md border border-primary/30 bg-primary/10 text-primary">
-            <FileSpreadsheet className="h-5 w-5" aria-hidden="true" />
-          </span>
-          <div>
-            <p className="text-sm font-semibold text-primary">Report scope</p>
-            <p className="mt-1 break-words text-lg font-semibold">{scopeLabel}</p>
-          </div>
-        </CardContent>
-      </Card>
+    <form aria-busy={isDownloading} className="grid gap-5" onSubmit={handleSubmit}>
+      <ReportExportScope scopeLabel={scopeLabel} selectedCase={selectedCase} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Date range</CardTitle>
-          <CardDescription>Filters cases with recorded activity in the selected range.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <div className="grid grid-cols-3 gap-2">
-            {[30, 60, 90].map((days) => (
-              <Button key={days} onClick={() => setPreset(days)} size="sm" type="button" variant="outline">
-                {days} days
-              </Button>
-            ))}
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="report-from">Start date</Label>
-              <div className="relative">
-                <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" aria-hidden="true" />
-                <Input
-                  className="min-h-12 pl-10"
-                  id="report-from"
-                  max={to}
-                  onChange={(event) => {
-                    setFrom(event.target.value);
-                    setNotice(null);
-                  }}
-                  required
-                  type="date"
-                  value={from}
-                />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="report-to">End date</Label>
-              <div className="relative">
-                <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" aria-hidden="true" />
-                <Input
-                  className="min-h-12 pl-10"
-                  id="report-to"
-                  min={from}
-                  onChange={(event) => {
-                    setTo(event.target.value);
-                    setNotice(null);
-                  }}
-                  required
-                  type="date"
-                  value={to}
-                />
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <ReportExportDateRange
+        from={from}
+        onFromChange={(value) => {
+          setFrom(value);
+          setNotice(null);
+        }}
+        onPresetChange={setPreset}
+        onToChange={(value) => {
+          setTo(value);
+          setNotice(null);
+        }}
+        preset={datePreset}
+        to={to}
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Included sections</CardTitle>
-          <CardDescription>Select the columns included in the CSV report.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-2 sm:grid-cols-2">
-          {reportSectionOptions.map((option) => (
-            <label
-              className="grid min-h-12 cursor-pointer grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-md border border-border bg-secondary/25 px-3 py-2"
-              key={option.value}
-            >
-              <input
-                checked={sections.includes(option.value)}
-                className="h-5 w-5 accent-primary"
-                onChange={() => toggleSection(option.value)}
-                type="checkbox"
-              />
-              <span className="text-sm font-medium text-foreground">{option.label}</span>
-            </label>
-          ))}
-        </CardContent>
-      </Card>
+      <ReportExportSections onToggle={toggleSection} sections={sections} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>File format</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-md border border-primary/50 bg-primary/10 p-4">
-            <FileSpreadsheet className="h-6 w-6 text-primary" aria-hidden="true" />
-            <div>
-              <p className="text-sm font-semibold">CSV spreadsheet</p>
-              <p className="mt-1 text-xs text-muted-foreground">Structured data for review and analysis.</p>
-            </div>
-            <CheckCircle2 className="h-5 w-5 text-teal-300" aria-hidden="true" />
-          </div>
-        </CardContent>
-      </Card>
+      <ReportExportOutput />
 
       {notice ? (
         <p
@@ -209,9 +145,9 @@ export function ReportExportForm({ caseId, scopeLabel }: { caseId: string | null
         </p>
       ) : null}
 
-      <Button disabled={isDownloading} size="lg" type="submit">
+      <Button className="min-h-14 md:text-base" disabled={isDownloading} size="lg" type="submit">
         <Download className="h-5 w-5" aria-hidden="true" />
-        {isDownloading ? "Generating report..." : "Download CSV report"}
+        {isDownloading ? "Generating report..." : "Export CSV report"}
       </Button>
     </form>
   );
