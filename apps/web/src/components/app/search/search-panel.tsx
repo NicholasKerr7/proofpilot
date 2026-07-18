@@ -144,7 +144,9 @@ export function SearchPanel({ cases, onOpenResult }: SearchPanelProps) {
             maxLength={160}
             onChange={(event) => setDraftQuery(event.target.value)}
             placeholder="Search cases, evidence, timelines, and more"
-            type="search"
+            inputMode="search"
+            role="searchbox"
+            type="text"
             value={draftQuery}
           />
           {draftQuery ? (
