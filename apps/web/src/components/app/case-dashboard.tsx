@@ -84,7 +84,7 @@ export function CaseDashboard({
   }
 
   return (
-    <section id="case-dashboard" aria-labelledby="cases-heading" className="grid scroll-mt-28 gap-5 lg:scroll-mt-8">
+    <section id="case-dashboard" aria-labelledby="cases-heading" className="grid scroll-mt-28 gap-5 lg:scroll-mt-24">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-primary">Case management</p>
@@ -169,6 +169,18 @@ export function CaseDashboard({
         </span>
         {query || statusFilter !== "all" ? <span>Filtered from {cases.length}</span> : null}
       </div>
+
+      {visibleCases.length ? (
+        <div className="hidden grid-cols-[3.25rem_minmax(15rem,1.4fr)_minmax(9rem,0.65fr)_minmax(9rem,0.65fr)_minmax(8rem,0.55fr)_5.5rem_2.75rem] items-center gap-4 border-y border-border px-5 py-3 text-xs font-medium text-muted-foreground xl:grid">
+          <span aria-hidden="true" />
+          <span>Case</span>
+          <span>Type</span>
+          <span>Status</span>
+          <span>Deadline</span>
+          <span>Progress</span>
+          <span className="sr-only">Actions</span>
+        </div>
+      ) : null}
 
       <div className="grid gap-3">
         {isLoading ? (
@@ -294,20 +306,20 @@ function CaseListItem({
     >
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-1 p-2 md:gap-2 md:p-3">
         <button
-          className="group grid min-h-32 min-w-0 grid-cols-[3.5rem_minmax(0,1fr)_auto] items-start gap-3 rounded-md p-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:grid-cols-[4.5rem_minmax(0,1fr)_auto_auto] md:items-center md:gap-5"
+          className="group grid min-h-32 min-w-0 grid-cols-[3.5rem_minmax(0,1fr)_auto] items-start gap-3 rounded-md p-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:grid-cols-[4.5rem_minmax(0,1fr)_auto_auto] md:items-center md:gap-5 xl:min-h-20 xl:grid-cols-[3.25rem_minmax(15rem,1.4fr)_minmax(9rem,0.65fr)_minmax(9rem,0.65fr)_minmax(8rem,0.55fr)_5.5rem_auto] xl:gap-4 xl:p-2"
           onClick={() => {
             void onOpen(caseRecord.id);
           }}
           type="button"
         >
-          <span className="flex h-14 w-14 items-center justify-center rounded-md border border-primary/35 bg-primary/10 text-xl font-semibold text-primary md:h-16 md:w-16 md:text-2xl">
+          <span className="flex h-14 w-14 items-center justify-center rounded-md border border-primary/35 bg-primary/10 text-xl font-semibold text-primary md:h-16 md:w-16 md:text-2xl xl:h-12 xl:w-12 xl:text-lg">
             {getPlatformInitial(caseRecord.platform)}
           </span>
 
           <span className="min-w-0">
             <span className="flex flex-wrap items-center gap-2">
               {isSelected ? <Badge>Primary case</Badge> : null}
-              <Badge variant={getCaseStatusVariant(caseRecord.status)}>
+              <Badge className="xl:hidden" variant={getCaseStatusVariant(caseRecord.status)}>
                 {formatCaseStatus(caseRecord.status)}
               </Badge>
             </span>
@@ -317,7 +329,7 @@ function CaseListItem({
             <span className="mt-1 block font-mono text-xs text-muted-foreground">
               {formatCaseReference(caseRecord)}
             </span>
-            <span className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+            <span className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2 xl:hidden">
               <span>
                 <span className="block">Deadline</span>
                 <span className="mt-1 block font-medium text-foreground">
@@ -331,6 +343,23 @@ function CaseListItem({
                 </span>
               </span>
             </span>
+          </span>
+
+          <span className="hidden min-w-0 xl:block">
+            <span className="block break-words text-sm font-medium text-foreground">
+              {caseRecord.caseType.name}
+            </span>
+            <span className="mt-1 block text-xs text-muted-foreground">{caseRecord.platform}</span>
+          </span>
+
+          <span className="hidden xl:block">
+            <Badge variant={getCaseStatusVariant(caseRecord.status)}>
+              {formatCaseStatus(caseRecord.status)}
+            </Badge>
+          </span>
+
+          <span className="hidden text-sm font-medium text-foreground xl:block">
+            {caseRecord.deadline ? formatCaseDate(caseRecord.deadline) : "Not set"}
           </span>
 
           <CaseProgressRing className="hidden sm:grid" size="compact" value={readiness} />

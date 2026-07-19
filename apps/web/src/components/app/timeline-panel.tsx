@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarPlus, RefreshCcw } from "lucide-react";
+import { CalendarDays, CalendarPlus, FileCheck2, Flag, RefreshCcw } from "lucide-react";
 import { TimelineEventComposer } from "@/components/app/timeline/timeline-event-composer";
 import { TimelineEventList } from "@/components/app/timeline/timeline-event-list";
 import { Badge } from "@/components/ui/badge";
@@ -84,7 +84,7 @@ export function TimelinePanel({ onCaseChanged, selectedCase }: TimelinePanelProp
   }
 
   return (
-    <Card id="case-timeline" className="scroll-mt-28 lg:scroll-mt-8">
+    <Card id="case-timeline" className="scroll-mt-28 lg:scroll-mt-24">
       <CardHeader className="md:grid-cols-[minmax(0,1fr)_auto] md:items-start md:gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -139,40 +139,126 @@ export function TimelinePanel({ onCaseChanged, selectedCase }: TimelinePanelProp
           />
         ) : null}
 
-        <div className="grid gap-3 rounded-md border border-border bg-secondary/25 p-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:p-3">
-          <div className="px-1">
-            <p className="text-sm font-semibold text-foreground">Case chronology</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {evidenceEventCount} evidence-linked, {timelineEvents.length - evidenceEventCount} manual
-            </p>
-          </div>
-          <div
-            aria-label="Filter timeline events"
-            className="grid grid-cols-3 gap-1 rounded-md border border-border bg-background/35 p-1"
-            role="group"
-          >
-            {timelineFilters.map((item) => (
-              <Button
-                key={item.value}
-                aria-pressed={filter === item.value}
-                onClick={() => setFilter(item.value)}
-                size="sm"
-                type="button"
-                variant={filter === item.value ? "secondary" : "ghost"}
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem] xl:items-start">
+          <div className="grid gap-4">
+            <div className="grid gap-3 rounded-md border border-border bg-secondary/25 p-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:p-3">
+              <div className="px-1">
+                <p className="text-sm font-semibold text-foreground">Case chronology</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {evidenceEventCount} evidence-linked, {timelineEvents.length - evidenceEventCount} manual
+                </p>
+              </div>
+              <div
+                aria-label="Filter timeline events"
+                className="grid grid-cols-3 gap-1 rounded-md border border-border bg-background/35 p-1"
+                role="group"
               >
-                {item.label}
-              </Button>
-            ))}
-          </div>
-        </div>
+                {timelineFilters.map((item) => (
+                  <Button
+                    key={item.value}
+                    aria-pressed={filter === item.value}
+                    onClick={() => setFilter(item.value)}
+                    size="sm"
+                    type="button"
+                    variant={filter === item.value ? "secondary" : "ghost"}
+                  >
+                    {item.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
 
-        <TimelineEventList
-          events={filteredEvents}
-          showPlaceholders={timelineEvents.length === 0}
-        />
+            <TimelineEventList
+              events={filteredEvents}
+              showPlaceholders={timelineEvents.length === 0}
+            />
+          </div>
+
+          <TimelineSummary
+            deadline={selectedCase.deadline}
+            evidenceEventCount={evidenceEventCount}
+            events={timelineEvents}
+          />
+        </div>
       </CardContent>
     </Card>
   );
+}
+
+function TimelineSummary({
+  deadline,
+  evidenceEventCount,
+  events
+}: {
+  deadline: string | null;
+  evidenceEventCount: number;
+  events: CaseEvent[];
+}) {
+  const firstEvent = events[0] ?? null;
+  const latestEvent = events.at(-1) ?? null;
+
+  return (
+    <aside className="hidden gap-3 xl:grid" aria-label="Timeline summary">
+      <section className="rounded-md border border-border bg-secondary/25 p-4">
+        <h4 className="text-xs font-semibold uppercase text-primary">Timeline summary</h4>
+        <dl className="mt-3 divide-y divide-border">
+          <TimelineSummaryRow
+            icon={CalendarDays}
+            label="First event"
+            value={firstEvent ? formatTimelineDate(firstEvent.occurredAt) : "Not added"}
+          />
+          <TimelineSummaryRow
+            icon={Flag}
+            label="Latest event"
+            value={latestEvent ? formatTimelineDate(latestEvent.occurredAt) : "Not added"}
+          />
+          <TimelineSummaryRow
+            icon={FileCheck2}
+            label="Evidence linked"
+            value={`${evidenceEventCount} of ${events.length}`}
+          />
+        </dl>
+      </section>
+
+      <section className="rounded-md border border-primary/30 bg-primary/5 p-4">
+        <h4 className="text-xs font-semibold uppercase text-primary">Case deadline</h4>
+        <p className="mt-3 text-base font-semibold text-foreground">
+          {deadline ? formatTimelineDate(deadline) : "No deadline set"}
+        </p>
+        <p className="mt-2 text-xs leading-5 text-muted-foreground">
+          Keep the chronology complete through the final submission date.
+        </p>
+      </section>
+    </aside>
+  );
+}
+
+function TimelineSummaryRow({
+  icon: Icon,
+  label,
+  value
+}: {
+  icon: typeof CalendarDays;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 py-3 first:pt-0 last:pb-0">
+      <Icon className="mt-0.5 h-4 w-4 text-primary" aria-hidden="true" />
+      <div>
+        <dt className="text-xs text-muted-foreground">{label}</dt>
+        <dd className="mt-1 text-sm font-medium text-foreground">{value}</dd>
+      </div>
+    </div>
+  );
+}
+
+function formatTimelineDate(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric"
+  }).format(new Date(value));
 }
 
 function matchesTimelineFilter(event: CaseEvent, filter: TimelineFilter) {

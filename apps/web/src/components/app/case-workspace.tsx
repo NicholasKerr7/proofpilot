@@ -44,6 +44,7 @@ interface CaseWorkspaceProps {
   onNotificationsChanged: () => void;
   onOpenCollaboration: () => void;
   onOpenPacketShare: () => void;
+  onSectionChange: (destinationId: CaseDestinationId) => void;
   selectedCase: CaseRecord | null;
 }
 
@@ -54,6 +55,7 @@ export function CaseWorkspace({
   onNotificationsChanged,
   onOpenCollaboration,
   onOpenPacketShare,
+  onSectionChange,
   selectedCase
 }: CaseWorkspaceProps) {
   const selectedCaseId = selectedCase?.id ?? null;
@@ -83,13 +85,13 @@ export function CaseWorkspace({
 
   return (
     <div className="grid grid-cols-1 gap-5">
-      <Card id="case-overview" className="proof-accent-frame scroll-mt-28 lg:scroll-mt-8">
-        <CardContent className="grid gap-5 p-5 md:grid-cols-[auto_minmax(0,1fr)] md:items-center md:gap-7 md:p-6">
+      <Card id="case-overview" className="proof-accent-frame scroll-mt-28 lg:scroll-mt-24">
+        <CardContent className="grid gap-5 p-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-7 md:p-6">
           <CaseProgressRing
-            className="order-2 justify-self-center md:order-1 md:justify-self-auto"
+            className="order-2 justify-self-center md:justify-self-end"
             value={readiness}
           />
-          <div className="order-1 min-w-0 md:order-2">
+          <div className="order-1 min-w-0">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <Button onClick={onBackToCases} size="sm" type="button" variant="ghost">
                 <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -145,6 +147,7 @@ export function CaseWorkspace({
           <a
             key={item.href}
             href={item.href}
+            onClick={() => onSectionChange(item.destinationId)}
             className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-md px-3 text-sm font-semibold text-muted-foreground hover:bg-secondary/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {item.label}
@@ -152,7 +155,11 @@ export function CaseWorkspace({
         ))}
       </nav>
 
-      <NextActionsPanel readiness={readiness} selectedCase={selectedCase} />
+      <NextActionsPanel
+        onSectionChange={onSectionChange}
+        readiness={readiness}
+        selectedCase={selectedCase}
+      />
 
       <div className="grid grid-cols-1 gap-5">
         <EvidencePanel
@@ -183,7 +190,7 @@ export function CaseWorkspace({
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.55fr)]">
+      <div className="grid grid-cols-1 gap-5">
         <StatementBuilder onCaseChanged={onCaseChanged} selectedCase={selectedCase} />
 
         <PacketExportPanel
@@ -201,18 +208,19 @@ export function CaseWorkspace({
 }
 
 const workspaceNavItems = [
-  { label: "Overview", href: "#case-overview" },
-  { label: "Actions", href: "#next-actions" },
-  { label: "Evidence", href: "#evidence-intake" },
-  { label: "Timeline", href: "#case-timeline" },
-  { label: "Checklist", href: "#evidence-checklist" },
-  { label: "Statement", href: "#statement-builder" },
-  { label: "Packet", href: "#packet-export" },
-  { label: "Reminders", href: "#case-reminders" },
-  { label: "Activity", href: "#case-activity" }
-];
+  { label: "Overview", href: "#case-overview", destinationId: "case-overview" },
+  { label: "Actions", href: "#next-actions", destinationId: "case-overview" },
+  { label: "Evidence", href: "#evidence-intake", destinationId: "evidence-intake" },
+  { label: "Timeline", href: "#case-timeline", destinationId: "case-timeline" },
+  { label: "Checklist", href: "#evidence-checklist", destinationId: "evidence-checklist" },
+  { label: "Statement", href: "#statement-builder", destinationId: "statement-builder" },
+  { label: "Packet", href: "#packet-export", destinationId: "packet-export" },
+  { label: "Reminders", href: "#case-reminders", destinationId: "case-reminders" },
+  { label: "Activity", href: "#case-activity", destinationId: "case-activity" }
+] satisfies Array<{ destinationId: CaseDestinationId; href: string; label: string }>;
 
 interface NextActionsPanelProps {
+  onSectionChange: (destinationId: CaseDestinationId) => void;
   readiness: number;
   selectedCase: CaseRecord;
 }
@@ -228,11 +236,15 @@ const actionIcons: Record<CaseDestinationId, LucideIcon> = {
   "case-activity": Activity
 };
 
-function NextActionsPanel({ readiness, selectedCase }: NextActionsPanelProps) {
+function NextActionsPanel({
+  onSectionChange,
+  readiness,
+  selectedCase
+}: NextActionsPanelProps) {
   const actions = getCaseNextActions(selectedCase);
 
   return (
-    <Card id="next-actions" className="scroll-mt-28 lg:scroll-mt-8">
+    <Card id="next-actions" className="scroll-mt-28 lg:scroll-mt-24">
       <CardHeader className="md:grid-cols-[minmax(0,1fr)_auto] md:items-start md:gap-4">
         <div>
           <CardTitle>Next actions</CardTitle>
@@ -242,7 +254,7 @@ function NextActionsPanel({ readiness, selectedCase }: NextActionsPanelProps) {
         </div>
         <Badge variant={readiness >= 80 ? "success" : "warning"}>{readiness}% ready</Badge>
       </CardHeader>
-      <CardContent className="grid gap-3 md:grid-cols-2">
+      <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {actions.map((action) => {
           const ActionIcon = actionIcons[action.destinationId];
 
@@ -250,9 +262,10 @@ function NextActionsPanel({ readiness, selectedCase }: NextActionsPanelProps) {
             <a
               key={action.destinationId}
               href={`#${action.destinationId}`}
+              onClick={() => onSectionChange(action.destinationId)}
               className={cn(
                 "group grid min-h-28 grid-cols-[auto_1fr_auto] gap-3 rounded-md border border-border bg-secondary/35 p-3 text-left hover:bg-secondary/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                action.wide ? "md:col-span-2" : null
+                action.wide ? "md:col-span-2 xl:col-span-1" : null
               )}
             >
               <span className="flex h-10 w-10 items-center justify-center rounded-md border border-primary/25 bg-primary/10 text-primary">

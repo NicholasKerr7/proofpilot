@@ -5,6 +5,7 @@ import {
   ArrowRight,
   CalendarDays,
   CheckCircle2,
+  Circle,
   Clock3,
   FileArchive,
   FileText,
@@ -27,6 +28,7 @@ import {
   getCaseStatusVariant,
   getCompletedChecklistCount,
   getMissingChecklistCount,
+  isChecklistReady,
   type CaseDestinationId
 } from "@/components/app/cases/case-utils";
 import { Badge } from "@/components/ui/badge";
@@ -181,7 +183,7 @@ export function HomeDashboard({
         ))}
       </div>
 
-      <div className="grid gap-5 md:grid-cols-2">
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         <Card>
           <CardHeader className="grid-cols-[minmax(0,1fr)_auto] items-center">
             <CardTitle>Next actions</CardTitle>
@@ -247,9 +249,8 @@ export function HomeDashboard({
             </p>
           </CardContent>
         </Card>
-      </div>
 
-      <Card>
+        <Card className="md:col-span-2 xl:col-span-1">
         <CardHeader className="grid-cols-[minmax(0,1fr)_auto] items-center">
           <CardTitle>Recent activity</CardTitle>
           <Button
@@ -292,7 +293,54 @@ export function HomeDashboard({
             </p>
           )}
         </CardContent>
-      </Card>
+        </Card>
+      </div>
+
+      {primaryCase.checklist?.length ? (
+        <Card>
+          <CardHeader className="grid-cols-[minmax(0,1fr)_auto] items-center">
+            <CardTitle>Case checklist overview</CardTitle>
+            <Button
+              onClick={() => {
+                void onOpenCase(primaryCase.id, "evidence-checklist");
+              }}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              {getCompletedChecklistCount(primaryCase)} of {primaryCase.checklist.length} ready
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+              {primaryCase.checklist.map((item) => {
+                const isReady = isChecklistReady(item.status);
+                const StatusIcon = isReady ? CheckCircle2 : Circle;
+
+                return (
+                  <li
+                    className="grid grid-cols-[auto_minmax(0,1fr)] gap-2 border-t border-border pt-3"
+                    key={item.id}
+                  >
+                    <StatusIcon
+                      aria-hidden="true"
+                      className={isReady ? "h-4 w-4 text-teal-300" : "h-4 w-4 text-primary"}
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-xs font-semibold leading-5 text-foreground">
+                        {item.label}
+                      </span>
+                      <span className="mt-1 block text-[11px] text-muted-foreground">
+                        {isReady ? "Evidence matched" : "Needs attention"}
+                      </span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          </CardContent>
+        </Card>
+      ) : null}
     </section>
   );
 }

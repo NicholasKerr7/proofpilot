@@ -168,7 +168,8 @@ export function CalendarDeadlinesPanel({
         </p>
       ) : null}
 
-      <Card>
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start">
+        <Card>
         <CardHeader className="gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
           <div className="flex flex-wrap items-center gap-3">
             <CardTitle>{formatCalendarMonth(visibleMonth)}</CardTitle>
@@ -245,10 +246,10 @@ export function CalendarDeadlinesPanel({
             visibleMonth={visibleMonth}
           />
         </CardContent>
-      </Card>
+        </Card>
 
-      <div className="grid gap-5 md:grid-cols-[minmax(15rem,0.72fr)_minmax(0,1.28fr)] md:items-start">
-        <Card>
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-1">
+          <Card>
           <CardHeader>
             <CardTitle>{formatCalendarDay(selectedDate)}</CardTitle>
           </CardHeader>
@@ -261,9 +262,9 @@ export function CalendarDeadlinesPanel({
               onOpenEvent={handleOpenEvent}
             />
           </CardContent>
-        </Card>
+          </Card>
 
-        <Card>
+          <Card>
           <CardHeader className="grid-cols-[minmax(0,1fr)_auto] items-start">
             <div>
               <CardTitle>Month agenda</CardTitle>
@@ -281,7 +282,8 @@ export function CalendarDeadlinesPanel({
               onOpenEvent={handleOpenEvent}
             />
           </CardContent>
-        </Card>
+          </Card>
+        </div>
       </div>
     </section>
   );

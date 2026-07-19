@@ -73,10 +73,10 @@ export function PacketExportContent({
         sections={sections}
       />
 
-      <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_17rem] xl:grid-cols-1">
+      <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_18rem]">
         <PacketSectionManifest sections={sections} />
 
-        <aside className="grid content-start gap-4 border-t border-border pt-4 md:border-l md:border-t-0 md:pl-5 md:pt-0 xl:border-l-0 xl:border-t xl:pl-0 xl:pt-4">
+        <aside className="grid content-start gap-4 border-t border-border pt-4 md:border-l md:border-t-0 md:pl-5 md:pt-0">
           <PacketExportActions
             generateLabel={generateLabel}
             isGenerateDisabled={isGenerateDisabled}
@@ -108,7 +108,7 @@ function PacketReadinessSummary({
   return (
     <section
       aria-labelledby="packet-readiness-heading"
-      className="grid gap-4 border-y border-border py-4 md:grid-cols-[7.5rem_minmax(0,1fr)] md:items-center xl:grid-cols-1"
+      className="grid gap-4 border-y border-border py-4 md:grid-cols-[7.5rem_minmax(0,1fr)] md:items-center"
     >
       <div className="flex items-baseline gap-2 md:grid md:gap-1">
         <span className="text-xs font-semibold uppercase text-muted-foreground">Readiness</span>

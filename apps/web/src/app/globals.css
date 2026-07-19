@@ -86,10 +86,7 @@ html {
 
 body {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top left, oklch(0.31 0.08 47 / 0.38), transparent 34rem),
-    radial-gradient(circle at bottom right, oklch(0.32 0.034 183 / 0.18), transparent 30rem),
-    var(--background);
+  background: var(--background);
   color: var(--foreground);
   overscroll-behavior-y: none;
 }
@@ -299,6 +296,12 @@ textarea {
     0 0 0 1px color-mix(in oklch, var(--primary) 9%, transparent),
     0 12px 36px rgb(71 44 24 / 0.1),
     inset 0 0 16px color-mix(in oklch, var(--primary) 2%, transparent);
+}
+
+@media (max-height: 860px) and (min-width: 1024px) {
+  .proof-sidebar-promo {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

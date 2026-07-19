@@ -175,7 +175,7 @@ export function PacketExportPanel({
   const generateLabel = getGenerateLabel(latestPacket, isGenerating, hasGeneratingPacket);
 
   return (
-    <Card id="packet-export" className="scroll-mt-28 lg:scroll-mt-8">
+    <Card id="packet-export" className="scroll-mt-28 lg:scroll-mt-24">
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>

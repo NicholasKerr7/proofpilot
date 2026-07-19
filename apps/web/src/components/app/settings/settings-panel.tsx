@@ -100,7 +100,8 @@ export function SettingsPanel({ onUpdate, settings }: SettingsPanelProps) {
         </div>
       </div>
 
-      <SettingsSection title="App preferences">
+      <div className="grid gap-5 xl:grid-cols-2 xl:items-start">
+        <SettingsSection title="App preferences">
         <SettingsRow
           control={
             <Switch
@@ -176,9 +177,9 @@ export function SettingsPanel({ onUpdate, settings }: SettingsPanelProps) {
           icon={ListFilter}
           title="Items per page"
         />
-      </SettingsSection>
+        </SettingsSection>
 
-      <SettingsSection title="Notifications">
+        <SettingsSection title="Notifications">
         <SettingsRow
           control={
             <Switch
@@ -274,9 +275,9 @@ export function SettingsPanel({ onUpdate, settings }: SettingsPanelProps) {
             />
           </div>
         ) : null}
-      </SettingsSection>
+        </SettingsSection>
 
-      <SettingsSection title="Appearance">
+        <SettingsSection title="Appearance">
         <SettingsRow
           control={
             <Select
@@ -343,9 +344,9 @@ export function SettingsPanel({ onUpdate, settings }: SettingsPanelProps) {
           icon={Wind}
           title="Reduce motion"
         />
-      </SettingsSection>
+        </SettingsSection>
 
-      <SettingsSection title="Data & sync">
+        <SettingsSection title="Data & sync">
         <SettingsRow
           control={
             <Switch
@@ -435,9 +436,9 @@ export function SettingsPanel({ onUpdate, settings }: SettingsPanelProps) {
             />
           </dl>
         ) : null}
-      </SettingsSection>
+        </SettingsSection>
 
-      <SettingsSection title="Default export format">
+        <SettingsSection title="Default export format">
         <SettingsRow
           control={
             <Select
@@ -460,7 +461,8 @@ export function SettingsPanel({ onUpdate, settings }: SettingsPanelProps) {
           icon={FileDown}
           title="Export format"
         />
-      </SettingsSection>
+        </SettingsSection>
+      </div>
     </section>
   );
 }

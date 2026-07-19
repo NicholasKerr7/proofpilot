@@ -169,7 +169,7 @@ export function SearchPanel({ cases, onOpenResult }: SearchPanelProps) {
         </Button>
         <Button
           aria-label="Open search filters"
-          className="relative"
+          className="relative xl:hidden"
           onClick={() => {
             setView("filters");
             scrollToTop();
@@ -188,43 +188,58 @@ export function SearchPanel({ cases, onOpenResult }: SearchPanelProps) {
         </Button>
       </form>
 
-      {error ? (
-        <div
-          className="flex flex-col gap-3 rounded-md border border-red-400/30 bg-red-400/10 px-3 py-3 text-sm text-red-100 sm:flex-row sm:items-center sm:justify-between"
-          role="alert"
-        >
-          <span>{error}</span>
-          <Button
-            onClick={() => setRefreshKey((current) => current + 1)}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            <RefreshCcw aria-hidden="true" className="h-4 w-4" />
-            Retry
-          </Button>
-        </div>
-      ) : null}
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start">
+        <div className="grid gap-5">
+          {error ? (
+            <div
+              className="flex flex-col gap-3 rounded-md border border-red-400/30 bg-red-400/10 px-3 py-3 text-sm text-red-100 sm:flex-row sm:items-center sm:justify-between"
+              role="alert"
+            >
+              <span>{error}</span>
+              <Button
+                onClick={() => setRefreshKey((current) => current + 1)}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                <RefreshCcw aria-hidden="true" className="h-4 w-4" />
+                Retry
+              </Button>
+            </div>
+          ) : null}
 
-      {isLoading && !response ? (
-        <Card>
-          <CardContent className="grid min-h-64 place-items-center p-6 text-sm text-muted-foreground">
-            Searching your workspace...
-          </CardContent>
-        </Card>
-      ) : response ? (
-        <SearchResultsView
-          activeTab={activeTab}
-          canLoadMore={resultLimit < maximumResultLimit}
-          isLoadingMore={isLoading}
-          onLoadMore={() =>
-            setResultLimit((current) => Math.min(maximumResultLimit, current + initialResultLimit))
-          }
-          onOpenResult={onOpenResult}
-          onTabChange={setActiveTab}
-          response={response}
-        />
-      ) : null}
+          {isLoading && !response ? (
+            <Card>
+              <CardContent className="grid min-h-64 place-items-center p-6 text-sm text-muted-foreground">
+                Searching your workspace...
+              </CardContent>
+            </Card>
+          ) : response ? (
+            <SearchResultsView
+              activeTab={activeTab}
+              canLoadMore={resultLimit < maximumResultLimit}
+              isLoadingMore={isLoading}
+              onLoadMore={() =>
+                setResultLimit((current) => Math.min(maximumResultLimit, current + initialResultLimit))
+              }
+              onOpenResult={onOpenResult}
+              onTabChange={setActiveTab}
+              response={response}
+            />
+          ) : null}
+        </div>
+
+        <aside className="sticky top-24 hidden max-h-[calc(100vh-7rem)] overflow-y-auto pr-1 scroll-container xl:block">
+          <SearchFilterPanel
+            cases={cases}
+            compact
+            filters={filters}
+            onApply={applyFilters}
+            onBack={() => undefined}
+            query={draftQuery}
+          />
+        </aside>
+      </div>
     </section>
   );
 }

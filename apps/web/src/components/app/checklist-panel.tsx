@@ -131,7 +131,7 @@ export function ChecklistPanel({ onCaseChanged, selectedCase }: ChecklistPanelPr
   }
 
   return (
-    <Card id="evidence-checklist" className="scroll-mt-28 lg:scroll-mt-8">
+    <Card id="evidence-checklist" className="scroll-mt-28 lg:scroll-mt-24">
       <CardHeader className="md:grid-cols-[minmax(0,1fr)_auto] md:items-start md:gap-4">
         <div>
           <CardTitle>Evidence checklist</CardTitle>

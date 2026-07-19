@@ -161,7 +161,7 @@ export function StatementBuilder({ onCaseChanged, selectedCase }: StatementBuild
   const canSave = draftContent.trim().length > 0 && !isSaving && !isGenerating;
 
   return (
-    <Card id="statement-builder" className="scroll-mt-28 lg:scroll-mt-8">
+    <Card id="statement-builder" className="scroll-mt-28 lg:scroll-mt-24">
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -182,7 +182,7 @@ export function StatementBuilder({ onCaseChanged, selectedCase }: StatementBuild
           </p>
         ) : null}
 
-        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_14rem]">
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_14rem] xl:grid-cols-[minmax(0,1fr)_18rem]">
           <div className="grid min-w-0 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="statement">Draft statement</Label>

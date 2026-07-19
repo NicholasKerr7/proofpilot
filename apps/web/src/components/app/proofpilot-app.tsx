@@ -59,6 +59,8 @@ export function ProofPilotApp() {
   const [caseTypes, setCaseTypes] = useState<CaseType[]>(fallbackCaseTypes);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<AppView>("home");
+  const [activeCaseDestinationId, setActiveCaseDestinationId] =
+    useState<CaseDestinationId>("case-overview");
   const [accountSection, setAccountSection] = useState<AccountSection>("profile");
   const [helpInitialView, setHelpInitialView] = useState<"home" | "contact">("home");
   const [helpInitialRequestId, setHelpInitialRequestId] = useState<string | null>(null);
@@ -68,6 +70,7 @@ export function ProofPilotApp() {
   const [isCaseLoading, setIsCaseLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [notificationRefreshKey, setNotificationRefreshKey] = useState(0);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   const selectedCase = useMemo(
     () => cases.find((caseRecord) => caseRecord.id === selectedCaseId) ?? cases[0] ?? null,
@@ -112,9 +115,21 @@ export function ProofPilotApp() {
     }
   }, []);
 
+  const loadUnreadNotificationCount = useCallback(async () => {
+    try {
+      const notifications = await apiRequest<AppNotification[]>("/api/notifications");
+      setUnreadNotificationCount(
+        notifications.filter((notification) => !notification.readAt).length
+      );
+    } catch {
+      setUnreadNotificationCount(0);
+    }
+  }, []);
+
   const refreshNotifications = useCallback(() => {
     setNotificationRefreshKey((currentKey) => currentKey + 1);
-  }, []);
+    void loadUnreadNotificationCount();
+  }, [loadUnreadNotificationCount]);
 
   const loadCaseDetail = useCallback(async (caseId: string) => {
     const caseDetail = await apiRequest<CaseRecord>(`/api/cases/${caseId}`);
@@ -172,7 +187,12 @@ export function ProofPilotApp() {
           return;
         }
         setUser(currentUser);
-        const [nextCases] = await Promise.all([loadCases(), loadCaseTypes(), loadSettings()]);
+        const [nextCases] = await Promise.all([
+          loadCases(),
+          loadCaseTypes(),
+          loadSettings(),
+          loadUnreadNotificationCount()
+        ]);
 
         if (isMounted && nextCases[0]) {
           await loadCaseDetail(nextCases[0].id);
@@ -193,7 +213,7 @@ export function ProofPilotApp() {
     return () => {
       isMounted = false;
     };
-  }, [loadCaseDetail, loadCases, loadCaseTypes, loadSettings]);
+  }, [loadCaseDetail, loadCases, loadCaseTypes, loadSettings, loadUnreadNotificationCount]);
 
   async function authenticate(
     path: "/api/auth/demo" | "/api/auth/login" | "/api/auth/register",
@@ -230,7 +250,8 @@ export function ProofPilotApp() {
     setSettings(null);
     setSelectedCaseId(null);
     setActiveView("home");
-    refreshNotifications();
+    setActiveCaseDestinationId("case-overview");
+    setUnreadNotificationCount(0);
   }
 
   async function handleCreateCase(payload: CreateCasePayload) {
@@ -272,6 +293,7 @@ export function ProofPilotApp() {
 
     try {
       await loadCaseDetail(caseId);
+      setActiveCaseDestinationId(destinationId);
       setActiveView(destinationId === "evidence-intake" ? "upload" : "case");
       scrollToDestination(destinationId);
     } catch (error) {
@@ -337,6 +359,14 @@ export function ProofPilotApp() {
     }
     setActiveView(view);
     scrollToPageTop();
+  }
+
+  function handleNavigateCaseDestination(destinationId: CaseDestinationId) {
+    if (!selectedCase) {
+      return;
+    }
+
+    void handleOpenCase(selectedCase.id, destinationId);
   }
 
   function handleOpenAccount(section: AccountSection) {
@@ -429,9 +459,13 @@ export function ProofPilotApp() {
 
   return (
     <AppShell
+      activeCaseDestinationId={activeCaseDestinationId}
       activeView={activeView}
+      hasCase={Boolean(selectedCase)}
       onLogout={handleLogout}
       onNavigate={handleNavigate}
+      onNavigateCaseDestination={handleNavigateCaseDestination}
+      unreadNotificationCount={unreadNotificationCount}
       user={user}
     >
       {message ? (
@@ -491,6 +525,7 @@ export function ProofPilotApp() {
           onNotificationsChanged={refreshNotifications}
           onOpenCollaboration={() => handleNavigate("collaboration")}
           onOpenPacketShare={handleOpenPacketShare}
+          onSectionChange={setActiveCaseDestinationId}
           selectedCase={selectedCase}
         />
       ) : null}
@@ -541,6 +576,7 @@ export function ProofPilotApp() {
         <NotificationCenter
           onOpenCase={handleOpenCase}
           onOpenSupport={handleOpenSupport}
+          onUnreadCountChange={setUnreadNotificationCount}
           refreshKey={notificationRefreshKey}
         />
       ) : null}

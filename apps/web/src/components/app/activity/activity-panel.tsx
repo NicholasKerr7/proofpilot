@@ -93,7 +93,7 @@ export function ActivityPanel({ selectedCase }: { selectedCase: CaseRecord }) {
   }
 
   return (
-    <Card id="case-activity" className="scroll-mt-28 lg:scroll-mt-8">
+    <Card id="case-activity" className="scroll-mt-28 lg:scroll-mt-24">
       <ActivityToolbar
         category={category}
         isLoading={isLoading}

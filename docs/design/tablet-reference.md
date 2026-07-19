@@ -96,8 +96,6 @@ Use these tablet screens first while expanding the Account Ban / Appeal Builder 
 - [47 Document Detail](tablet-reference/proofpilot-tablet-47_document_detail.png)
 - [48 Contact Support](tablet-reference/proofpilot-tablet-48_contact_support.png)
 
-## Remaining Breakpoint
+## Desktop Breakpoint
 
-When desktop assets are provided, add them under:
-
-- `docs/design/desktop-reference/`
+Desktop references are available in [desktop-reference.md](desktop-reference.md).

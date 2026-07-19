@@ -52,6 +52,7 @@ const statusIcons: Record<GlobalSearchStatusFilter, LucideIcon> = {
 
 interface SearchFilterPanelProps {
   cases: CaseRecord[];
+  compact?: boolean;
   filters: SearchFiltersState;
   onApply: (filters: SearchFiltersState, query: string) => void;
   onBack: () => void;
@@ -60,6 +61,7 @@ interface SearchFilterPanelProps {
 
 export function SearchFilterPanel({
   cases,
+  compact = false,
   filters,
   onApply,
   onBack,
@@ -137,33 +139,50 @@ export function SearchFilterPanel({
   return (
     <section
       aria-labelledby="search-filters-heading"
-      className="grid gap-4 md:flex md:min-h-[calc(100dvh-15rem)] md:flex-col md:gap-3"
+      className={cn(
+        "grid gap-4",
+        compact ? "gap-3" : "md:flex md:min-h-[calc(100dvh-15rem)] md:flex-col md:gap-3"
+      )}
     >
       <div className="flex items-start gap-2 md:items-center">
-        <Button
-          aria-label="Back to results"
-          className="-ml-2 shrink-0"
-          onClick={onBack}
-          size="icon"
-          title="Back to results"
-          type="button"
-          variant="ghost"
-        >
-          <ArrowLeft aria-hidden="true" className="h-5 w-5" />
-        </Button>
+        {!compact ? (
+          <Button
+            aria-label="Back to results"
+            className="-ml-2 shrink-0"
+            onClick={onBack}
+            size="icon"
+            title="Back to results"
+            type="button"
+            variant="ghost"
+          >
+            <ArrowLeft aria-hidden="true" className="h-5 w-5" />
+          </Button>
+        ) : null}
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold sm:text-3xl" id="search-filters-heading">
-            <span className="md:hidden">Filters</span>
-            <span className="hidden md:inline">Search filters</span>
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Refine your search to quickly find what you need.
-          </p>
+          {compact ? (
+            <h2 className="text-base font-semibold" id="search-filters-heading">
+              Filters
+            </h2>
+          ) : (
+            <h1 className="text-2xl font-semibold sm:text-3xl" id="search-filters-heading">
+              <span className="md:hidden">Filters</span>
+              <span className="hidden md:inline">Search filters</span>
+            </h1>
+          )}
+          {!compact ? (
+            <p className="mt-1 text-sm text-muted-foreground">
+              Refine your search to quickly find what you need.
+            </p>
+          ) : null}
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 md:gap-3">
-        <Card className="md:col-span-2 md:grid md:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)] md:items-center">
+      <div className={cn("grid gap-4", compact ? "gap-3" : "md:grid-cols-2 md:gap-3")}>
+        <Card
+          className={cn(
+            compact ? null : "md:col-span-2 md:grid md:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)] md:items-center"
+          )}
+        >
           <CardHeader className="p-4 pb-2 md:p-4 md:pr-3">
             <CardTitle className="flex items-center gap-2 md:text-sm md:uppercase md:text-primary">
               <BriefcaseBusiness aria-hidden="true" className="h-5 w-5 text-primary" />
@@ -195,7 +214,13 @@ export function SearchFilterPanel({
           </CardContent>
         </Card>
 
-        <Card className="md:col-span-2 md:grid md:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)] md:items-center">
+        <Card
+          className={cn(
+            compact
+              ? "hidden"
+              : "md:col-span-2 md:grid md:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)] md:items-center"
+          )}
+        >
           <CardHeader className="p-4 pb-2 md:p-4 md:pr-3">
             <CardTitle className="flex items-center gap-2 md:text-sm md:uppercase md:text-primary">
               <Search aria-hidden="true" className="h-5 w-5 text-primary" />
@@ -233,14 +258,19 @@ export function SearchFilterPanel({
           </CardContent>
         </Card>
 
-        <Card className="md:col-span-2">
+        <Card className={compact ? undefined : "md:col-span-2"}>
           <CardHeader className="p-4 pb-2">
             <CardTitle className="flex items-center gap-2 md:text-sm md:uppercase md:text-primary">
               <LayoutGrid aria-hidden="true" className="h-5 w-5 text-primary" />
               Result types
             </CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-2 p-4 pt-0 sm:grid-cols-4">
+          <CardContent
+            className={cn(
+              "grid grid-cols-2 gap-2 p-4 pt-0",
+              compact ? null : "sm:grid-cols-4"
+            )}
+          >
             <FilterChoice
               icon={LayoutGrid}
               label="All types"
@@ -268,14 +298,19 @@ export function SearchFilterPanel({
           </CardContent>
         </Card>
 
-        <Card className="md:col-span-2">
+        <Card className={compact ? undefined : "md:col-span-2"}>
           <CardHeader className="p-4 pb-2">
             <CardTitle className="flex items-center gap-2 md:text-sm md:uppercase md:text-primary">
               <ShieldCheck aria-hidden="true" className="h-5 w-5 text-primary" />
               Status
             </CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-2 p-4 pt-0 md:grid-cols-5">
+          <CardContent
+            className={cn(
+              "grid grid-cols-2 gap-2 p-4 pt-0",
+              compact ? null : "md:grid-cols-5"
+            )}
+          >
             {searchStatusOptions.map((option) => (
               <FilterChoice
                 description={option.description}
@@ -384,7 +419,12 @@ export function SearchFilterPanel({
         </p>
       ) : null}
 
-      <div className="grid gap-2 sm:grid-cols-2 md:mt-auto md:gap-3">
+      <div
+        className={cn(
+          "grid gap-2",
+          compact ? null : "sm:grid-cols-2 md:mt-auto md:gap-3"
+        )}
+      >
         <Button
           className="order-2 border-transparent text-primary sm:order-1 sm:border-border sm:text-foreground"
           onClick={resetFilters}

@@ -1,20 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import {
+  BarChart3,
+  Bell,
+  CalendarDays,
   ChevronDown,
+  Clock3,
   FolderOpen,
   Home,
   Inbox,
+  ListChecks,
   LogOut,
   Menu,
+  Search,
   Sparkles,
   UploadCloud,
   UserRound,
   type LucideIcon
 } from "lucide-react";
 import { getUserInitials } from "@/components/app/account/account-utils";
+import type { CaseDestinationId } from "@/components/app/cases/case-utils";
 import { ApiStatus } from "@/components/system/api-status";
 import { Button } from "@/components/ui/button";
 import type { AuthUser } from "@/lib/client/types";
@@ -55,6 +62,13 @@ interface NavigationItem {
   view: PrimaryNavigationView;
 }
 
+interface DesktopNavigationItem {
+  destinationId?: CaseDestinationId;
+  icon: LucideIcon;
+  label: string;
+  view?: AppView;
+}
+
 const navItems: NavigationItem[] = [
   { label: "Home", view: "home", icon: Home },
   { label: "Cases", view: "cases", icon: FolderOpen },
@@ -66,20 +80,81 @@ const navItems: NavigationItem[] = [
 
 const phoneNavItems = navItems.filter((item) => item.view !== "assistant");
 
+const desktopNavItems: DesktopNavigationItem[] = [
+  { label: "Home", view: "home", icon: Home },
+  { label: "Cases", view: "cases", icon: FolderOpen },
+  { label: "Upload / Evidence", view: "upload", icon: UploadCloud },
+  { label: "Inbox", view: "notifications", icon: Inbox },
+  { label: "Timeline", destinationId: "case-timeline", icon: Clock3 },
+  { label: "Tasks", destinationId: "evidence-checklist", icon: ListChecks },
+  { label: "Reports", view: "reports", icon: BarChart3 },
+  { label: "More", view: "more", icon: Menu }
+];
+
+const calendarDesktopNavigationItem: DesktopNavigationItem = {
+  label: "Calendar",
+  view: "calendar",
+  icon: CalendarDays
+};
+
 interface AppShellProps {
+  activeCaseDestinationId: CaseDestinationId;
   activeView: AppView;
   children: React.ReactNode;
+  hasCase: boolean;
   onLogout: () => Promise<void>;
   onNavigate: (view: AppView) => void;
+  onNavigateCaseDestination: (destinationId: CaseDestinationId) => void;
+  unreadNotificationCount: number;
   user: AuthUser;
 }
 
-export function AppShell({ activeView, children, onLogout, onNavigate, user }: AppShellProps) {
+export function AppShell({
+  activeCaseDestinationId,
+  activeView,
+  children,
+  hasCase,
+  onLogout,
+  onNavigate,
+  onNavigateCaseDestination,
+  unreadNotificationCount,
+  user
+}: AppShellProps) {
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const visibleDesktopNavItems =
+    activeView === "calendar"
+      ? [
+          ...desktopNavItems.slice(0, 6),
+          calendarDesktopNavigationItem,
+          ...desktopNavItems.slice(6)
+        ]
+      : desktopNavItems;
+
+  useEffect(() => {
+    function handleSearchShortcut(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setIsAccountMenuOpen(false);
+        onNavigate("search");
+      }
+
+      if (event.key === "Escape") {
+        setIsAccountMenuOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", handleSearchShortcut);
+    return () => window.removeEventListener("keydown", handleSearchShortcut);
+  }, [onNavigate]);
 
   function handleNavigate(view: AppView) {
     setIsAccountMenuOpen(false);
     onNavigate(view);
+  }
+
+  function handleCaseDestinationNavigate(destinationId: CaseDestinationId) {
+    setIsAccountMenuOpen(false);
+    onNavigateCaseDestination(destinationId);
   }
 
   async function handleLogout() {
@@ -96,51 +171,139 @@ export function AppShell({ activeView, children, onLogout, onNavigate, user }: A
         Skip to workspace
       </a>
 
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-border bg-background/90 px-4 py-5 backdrop-blur lg:flex lg:flex-col">
-        <ProofPilotWordmark />
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-border bg-background/95 backdrop-blur lg:flex lg:flex-col">
+        <div className="flex h-20 shrink-0 items-center border-b border-border px-5">
+          <ProofPilotWordmark />
+        </div>
 
-        <nav className="mt-8 grid gap-1" aria-label="Primary">
-          {navItems.map((item) => {
-            const isActive = isNavigationActive(activeView, item.view, false);
+        <nav className="grid gap-1 overflow-y-auto px-4 py-5 scroll-container" aria-label="Primary">
+          {visibleDesktopNavItems.map((item) => {
+            const isActive = isDesktopNavigationActive(
+              activeView,
+              activeCaseDestinationId,
+              item
+            );
+            const isDisabled = Boolean(item.destinationId && !hasCase);
 
             return (
               <Button
-                key={item.view}
+                key={item.label}
                 aria-current={isActive ? "page" : undefined}
-                className={cn("justify-start", isActive ? "proof-nav-active" : null)}
-                onClick={() => handleNavigate(item.view)}
+                className={cn("min-h-12 justify-start", isActive ? "proof-nav-active" : null)}
+                disabled={isDisabled}
+                onClick={() => {
+                  if (item.destinationId) {
+                    handleCaseDestinationNavigate(item.destinationId);
+                  } else if (item.view) {
+                    handleNavigate(item.view);
+                  }
+                }}
                 type="button"
                 variant={isActive ? "secondary" : "ghost"}
               >
-                <item.icon className="h-4 w-4" aria-hidden="true" />
-                {item.label}
+                <item.icon className="h-5 w-5" aria-hidden="true" />
+                <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
+                {item.view === "notifications" && unreadNotificationCount > 0 ? (
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+                    {Math.min(unreadNotificationCount, 99)}
+                  </span>
+                ) : null}
               </Button>
             );
           })}
         </nav>
 
-        <div className="mt-auto grid gap-3 rounded-md border border-border bg-card p-4">
+        <div className="proof-sidebar-promo mx-4 mt-auto grid gap-4 rounded-md border border-primary/30 bg-card p-4">
           <div>
-            <p className="text-sm font-semibold">{user.name ?? user.email}</p>
-            <p className="mt-1 truncate text-xs text-muted-foreground">{user.email}</p>
+            <div className="flex items-center gap-2 text-primary">
+              <Sparkles className="h-5 w-5" aria-hidden="true" />
+              <p className="text-sm font-semibold text-foreground">Build a stronger appeal</p>
+            </div>
+            <p className="mt-3 text-xs leading-5 text-muted-foreground">
+              Keep evidence organized and every required item visible.
+            </p>
           </div>
-          <ApiStatus />
-          <Button onClick={() => handleNavigate("account")} type="button" variant="outline">
-            <UserRound className="h-4 w-4" aria-hidden="true" />
-            Manage account
-          </Button>
-          <Button
-            onClick={() => {
-              void handleLogout();
-            }}
-            type="button"
-            variant="outline"
-          >
-            <LogOut className="h-4 w-4" aria-hidden="true" />
-            Sign out
+          <Button onClick={() => handleNavigate("billing")} type="button">
+            Manage plan
           </Button>
         </div>
+
+        <div className="px-5 py-4">
+          <ApiStatus />
+        </div>
       </aside>
+
+      <header className="fixed left-64 right-0 top-0 z-30 hidden h-20 items-center justify-between gap-6 border-b border-border bg-background/92 px-6 backdrop-blur lg:flex xl:px-8">
+        <button
+          aria-label="Open global search"
+          className="flex h-12 w-full max-w-xl items-center gap-3 rounded-md border border-border bg-input px-4 text-left text-sm text-muted-foreground transition-colors hover:border-primary/35 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          onClick={() => handleNavigate("search")}
+          type="button"
+        >
+          <Search className="h-5 w-5 shrink-0" aria-hidden="true" />
+          <span className="min-w-0 flex-1 truncate">Search cases, evidence, or tasks...</span>
+          <kbd className="rounded-sm border border-border bg-secondary/60 px-1.5 py-0.5 font-sans text-[11px] text-muted-foreground">
+            Cmd K
+          </kbd>
+        </button>
+
+        <div className="relative flex shrink-0 items-center gap-3">
+          <Button
+            aria-label={
+              unreadNotificationCount
+                ? `Open inbox, ${unreadNotificationCount} unread`
+                : "Open inbox"
+            }
+            className="relative"
+            onClick={() => handleNavigate("notifications")}
+            size="icon"
+            title="Inbox"
+            type="button"
+            variant="ghost"
+          >
+            <Bell className="h-5 w-5" aria-hidden="true" />
+            {unreadNotificationCount > 0 ? (
+              <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-semibold text-primary-foreground">
+                {Math.min(unreadNotificationCount, 99)}
+              </span>
+            ) : null}
+          </Button>
+
+          <div className="hidden text-right xl:block">
+            <p className="max-w-44 truncate text-sm font-semibold">{user.name ?? "ProofPilot user"}</p>
+            <p className="text-xs text-primary">Private workspace</p>
+          </div>
+
+          <button
+            aria-expanded={isAccountMenuOpen}
+            aria-controls="desktop-account-popover"
+            aria-label="Open account menu"
+            className="flex min-h-11 items-center gap-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={() => setIsAccountMenuOpen((current) => !current)}
+            type="button"
+          >
+            <span className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/55 bg-primary/10 text-sm font-semibold text-primary">
+              {getUserInitials(user)}
+            </span>
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 text-muted-foreground transition-transform",
+                isAccountMenuOpen ? "rotate-180" : null
+              )}
+              aria-hidden="true"
+            />
+          </button>
+
+          {isAccountMenuOpen ? (
+            <AccountPopover
+              id="desktop-account-popover"
+              onLogout={handleLogout}
+              onNavigate={handleNavigate}
+              user={user}
+            />
+          ) : null}
+        </div>
+      </header>
 
       <header className="sticky top-0 z-30 border-b border-border bg-background/90 px-4 py-3 backdrop-blur md:px-8 md:py-4 lg:hidden">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
@@ -172,32 +335,12 @@ export function AppShell({ activeView, children, onLogout, onNavigate, user }: A
             </button>
 
             {isAccountMenuOpen ? (
-              <div
-                aria-label="Account details"
-                className="absolute right-0 top-14 z-50 grid w-72 gap-3 rounded-md border border-border bg-background p-4 shadow-[0_18px_60px_rgba(0,0,0,0.45)]"
+              <AccountPopover
                 id="account-popover"
-                role="region"
-              >
-                <div className="min-w-0">
-                  <p className="font-semibold text-foreground">{user.name ?? "ProofPilot user"}</p>
-                  <p className="mt-1 truncate text-xs text-muted-foreground">{user.email}</p>
-                </div>
-                <ApiStatus />
-                <Button onClick={() => handleNavigate("account")} type="button" variant="outline">
-                  <UserRound className="h-4 w-4" aria-hidden="true" />
-                  Manage account
-                </Button>
-                <Button
-                  onClick={() => {
-                    void handleLogout();
-                  }}
-                  type="button"
-                  variant="outline"
-                >
-                  <LogOut className="h-4 w-4" aria-hidden="true" />
-                  Sign out
-                </Button>
-              </div>
+                onLogout={handleLogout}
+                onNavigate={handleNavigate}
+                user={user}
+              />
             ) : null}
           </div>
         </div>
@@ -206,7 +349,7 @@ export function AppShell({ activeView, children, onLogout, onNavigate, user }: A
       <main
         id="proofpilot-content"
         tabIndex={-1}
-        className="mx-auto flex w-full max-w-[1560px] flex-col gap-5 px-4 py-4 focus:outline-none sm:px-6 md:gap-6 md:px-8 md:py-6 lg:pl-72 lg:pr-8 lg:pt-8"
+        className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-4 focus:outline-none sm:px-6 md:gap-6 md:px-8 md:py-6 lg:ml-64 lg:w-auto lg:max-w-none lg:px-6 lg:pb-8 lg:pt-24 xl:px-8"
       >
         {children}
       </main>
@@ -225,6 +368,47 @@ export function AppShell({ activeView, children, onLogout, onNavigate, user }: A
         items={navItems}
         onNavigate={handleNavigate}
       />
+    </div>
+  );
+}
+
+function AccountPopover({
+  id,
+  onLogout,
+  onNavigate,
+  user
+}: {
+  id: string;
+  onLogout: () => Promise<void>;
+  onNavigate: (view: AppView) => void;
+  user: AuthUser;
+}) {
+  return (
+    <div
+      aria-label="Account details"
+      className="absolute right-0 top-14 z-50 grid w-72 gap-3 rounded-md border border-border bg-background p-4 shadow-[0_18px_60px_rgba(0,0,0,0.45)]"
+      id={id}
+      role="region"
+    >
+      <div className="min-w-0">
+        <p className="font-semibold text-foreground">{user.name ?? "ProofPilot user"}</p>
+        <p className="mt-1 truncate text-xs text-muted-foreground">{user.email}</p>
+      </div>
+      <ApiStatus />
+      <Button onClick={() => onNavigate("account")} type="button" variant="outline">
+        <UserRound className="h-4 w-4" aria-hidden="true" />
+        Manage account
+      </Button>
+      <Button
+        onClick={() => {
+          void onLogout();
+        }}
+        type="button"
+        variant="outline"
+      >
+        <LogOut className="h-4 w-4" aria-hidden="true" />
+        Sign out
+      </Button>
     </div>
   );
 }
@@ -325,4 +509,42 @@ function isNavigationActive(
   }
 
   return activeView === navigationView;
+}
+
+function isDesktopNavigationActive(
+  activeView: AppView,
+  activeCaseDestinationId: CaseDestinationId,
+  item: DesktopNavigationItem
+) {
+  if (item.destinationId) {
+    return activeView === "case" && activeCaseDestinationId === item.destinationId;
+  }
+
+  if (item.view === "cases") {
+    return (
+      activeView === "cases" ||
+      activeView === "create" ||
+      activeView === "collaboration" ||
+      activeView === "share-packet" ||
+      (activeView === "case" &&
+        activeCaseDestinationId !== "case-timeline" &&
+        activeCaseDestinationId !== "evidence-checklist")
+    );
+  }
+
+  if (item.view === "more") {
+    return (
+      activeView === "more" ||
+      activeView === "assistant" ||
+      activeView === "account" ||
+      activeView === "settings" ||
+      activeView === "connections" ||
+      activeView === "billing" ||
+      activeView === "security" ||
+      activeView === "help" ||
+      activeView === "search"
+    );
+  }
+
+  return activeView === item.view;
 }

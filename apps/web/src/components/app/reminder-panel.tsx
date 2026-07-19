@@ -216,7 +216,7 @@ export function ReminderPanel({
   }
 
   return (
-    <Card id="case-reminders" className="scroll-mt-28 lg:scroll-mt-8">
+    <Card id="case-reminders" className="scroll-mt-28 lg:scroll-mt-24">
       <CardHeader className="md:grid-cols-[minmax(0,1fr)_auto] md:items-start md:gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-2">

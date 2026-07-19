@@ -45,6 +45,7 @@ const notificationFilters: Array<{
 interface NotificationCenterProps {
   onOpenCase: (caseId: string, destinationId: CaseDestinationId) => Promise<void>;
   onOpenSupport: (notification: AppNotification) => void;
+  onUnreadCountChange: (count: number) => void;
   refreshKey: number;
 }
 
@@ -56,6 +57,7 @@ type Notice = {
 export function NotificationCenter({
   onOpenCase,
   onOpenSupport,
+  onUnreadCountChange,
   refreshKey
 }: NotificationCenterProps) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -75,6 +77,10 @@ export function NotificationCenter({
   const selectedNotification =
     filteredNotifications.find((notification) => notification.id === expandedNotificationId) ??
     null;
+
+  useEffect(() => {
+    onUnreadCountChange(unreadCount);
+  }, [onUnreadCountChange, unreadCount]);
 
   useEffect(() => {
     let isMounted = true;
@@ -197,7 +203,7 @@ export function NotificationCenter({
   }
 
   return (
-    <Card id="notifications-center" className="scroll-mt-28 lg:scroll-mt-8">
+    <Card id="notifications-center" className="scroll-mt-28 lg:scroll-mt-24">
       <CardHeader className="md:grid-cols-[minmax(0,1fr)_auto] md:items-start md:gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-2">

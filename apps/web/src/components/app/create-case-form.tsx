@@ -6,10 +6,13 @@ import {
   ArrowRight,
   CalendarDays,
   Check,
+  Circle,
   FileText,
   FolderPlus,
   Globe2,
+  Lightbulb,
   ListChecks,
+  ShieldCheck,
   type LucideIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -106,7 +109,7 @@ export function CreateCaseForm({
     caseTypes.find((caseType) => caseType.slug === caseTypeSlug) ?? caseTypes[0] ?? null;
 
   return (
-    <section aria-labelledby="create-case-heading" className="mx-auto grid w-full max-w-5xl gap-5">
+    <section aria-labelledby="create-case-heading" className="mx-auto grid w-full max-w-6xl gap-5 2xl:max-w-none">
       <div className="flex items-start gap-3">
         <Button
           aria-label={step === 2 ? "Back to case details" : "Back to cases"}
@@ -129,8 +132,9 @@ export function CreateCaseForm({
 
       <CaseCreationProgress currentStep={step} />
 
-      <Card>
-        <form onSubmit={handleSubmit}>
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start">
+        <Card>
+          <form onSubmit={handleSubmit}>
           <CardHeader>
             <CardTitle>{step === 1 ? "Case details" : "Review case"}</CardTitle>
             <p className="text-sm leading-6 text-muted-foreground">
@@ -258,9 +262,61 @@ export function CreateCaseForm({
               </Button>
             </div>
           </CardContent>
-        </form>
-      </Card>
+          </form>
+        </Card>
+
+        <aside className="hidden gap-4 lg:sticky lg:top-24 lg:grid" aria-label="Case setup guidance">
+          <Card>
+            <CardHeader>
+              <CardTitle>Setup checklist</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ol className="grid gap-3">
+                <SetupStep isComplete={Boolean(title.trim() && platform.trim())} label="Case details" />
+                <SetupStep isComplete={step === 2} label="Review details" />
+                <SetupStep isComplete={false} label="Add evidence" />
+              </ol>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Before you continue</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 text-sm leading-6 text-muted-foreground">
+              <p className="flex items-start gap-3">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                Case records and uploaded evidence remain private to your workspace.
+              </p>
+              <p className="flex items-start gap-3">
+                <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                Use the platform name and issue in the case title so it stays easy to find.
+              </p>
+            </CardContent>
+          </Card>
+        </aside>
+      </div>
     </section>
+  );
+}
+
+function SetupStep({ isComplete, label }: { isComplete: boolean; label: string }) {
+  const StatusIcon = isComplete ? Check : Circle;
+
+  return (
+    <li className="flex items-center gap-3 border-b border-border pb-3 last:border-b-0 last:pb-0">
+      <span
+        className={cn(
+          "flex h-8 w-8 shrink-0 items-center justify-center rounded-md border",
+          isComplete
+            ? "border-teal-400/30 bg-teal-400/10 text-teal-200"
+            : "border-border bg-secondary/35 text-muted-foreground"
+        )}
+      >
+        <StatusIcon className="h-4 w-4" aria-hidden="true" />
+      </span>
+      <span className="text-sm font-medium text-foreground">{label}</span>
+    </li>
   );
 }
 

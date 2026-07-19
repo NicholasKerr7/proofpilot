@@ -185,6 +185,9 @@ export function EvidencePanel({
         if (isMounted) {
           setDocuments(nextDocuments);
           setSelectedDocumentId(nextDocuments[0]?.id ?? null);
+          setIsVaultOpen(
+            nextDocuments.length > 0 && window.matchMedia("(min-width: 1024px)").matches
+          );
         }
       } catch (error) {
         if (isMounted) {
@@ -723,7 +726,7 @@ export function EvidencePanel({
   ).length;
 
   return (
-    <div id="evidence-intake" className="grid scroll-mt-28 gap-5 lg:scroll-mt-8">
+    <div id="evidence-intake" className="grid scroll-mt-28 gap-5 lg:scroll-mt-24">
       <EvidenceSourcePicker
         onFilesSelected={enqueueFiles}
         onScanSelected={handleScanSelected}
@@ -784,7 +787,7 @@ export function EvidencePanel({
       {isVaultOpen ? (
         <section
           aria-labelledby="evidence-library-heading"
-          className="scroll-mt-28 rounded-md border border-border bg-card p-4 sm:p-5 lg:scroll-mt-8"
+          className="scroll-mt-28 rounded-md border border-border bg-card p-4 sm:p-5 lg:scroll-mt-24"
           id="evidence-vault"
         >
           <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
