@@ -19,7 +19,7 @@ export function EvidenceImportHero({ caseRecord }: EvidenceImportHeroProps) {
   return (
     <section
       aria-label={`Primary case: ${caseRecord.title}`}
-      className="grid gap-4 rounded-md border border-primary/45 bg-card p-4 shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:grid-cols-[minmax(0,1.4fr)_minmax(9rem,0.7fr)_minmax(11rem,0.9fr)] sm:items-center sm:p-5"
+      className="proof-accent-frame grid gap-4 rounded-md border p-4 sm:grid-cols-[minmax(0,1.4fr)_minmax(9rem,0.7fr)_minmax(11rem,0.9fr)] sm:items-center sm:p-5"
     >
       <div className="grid min-w-0 grid-cols-[3.75rem_minmax(0,1fr)] items-center gap-4 sm:block">
         <span className="flex h-15 w-15 items-center justify-center rounded-full border border-primary/55 bg-primary/10 text-primary sm:hidden">

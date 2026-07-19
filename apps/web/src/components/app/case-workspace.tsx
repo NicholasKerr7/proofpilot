@@ -83,7 +83,7 @@ export function CaseWorkspace({
 
   return (
     <div className="grid grid-cols-1 gap-5">
-      <Card id="case-overview" className="scroll-mt-28 lg:scroll-mt-8">
+      <Card id="case-overview" className="proof-accent-frame scroll-mt-28 lg:scroll-mt-8">
         <CardContent className="grid gap-5 p-5 md:grid-cols-[auto_minmax(0,1fr)] md:items-center md:gap-7 md:p-6">
           <CaseProgressRing
             className="order-2 justify-self-center md:order-1 md:justify-self-auto"

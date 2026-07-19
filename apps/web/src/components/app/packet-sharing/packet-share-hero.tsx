@@ -18,7 +18,7 @@ export function PacketShareHero({ caseRecord, showReadiness = true }: PacketShar
   const readiness = getCaseReadiness(caseRecord);
 
   return (
-    <section className="grid gap-5 rounded-md border border-primary/35 bg-card p-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:p-6">
+    <section className="proof-accent-frame grid gap-5 rounded-md border p-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:p-6">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <BriefcaseBusiness className="h-4 w-4 text-primary" aria-hidden="true" />

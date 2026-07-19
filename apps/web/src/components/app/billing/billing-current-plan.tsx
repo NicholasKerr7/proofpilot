@@ -29,7 +29,7 @@ export function BillingCurrentPlan({ overview }: { overview: BillingOverview }) 
   return (
     <section
       aria-labelledby="current-plan-heading"
-      className="rounded-md border border-primary/45 bg-card p-4 md:p-5"
+      className="proof-accent-frame rounded-md border p-4 md:p-5"
     >
       <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-4 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
         <span className="flex h-20 w-20 items-center justify-center rounded-md border border-primary/45 bg-primary/10 text-primary md:h-24 md:w-24">

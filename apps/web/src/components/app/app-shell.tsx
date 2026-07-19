@@ -100,19 +100,23 @@ export function AppShell({ activeView, children, onLogout, onNavigate, user }: A
         <ProofPilotWordmark />
 
         <nav className="mt-8 grid gap-1" aria-label="Primary">
-          {navItems.map((item) => (
-            <Button
-              key={item.view}
-              aria-current={isNavigationActive(activeView, item.view, false) ? "page" : undefined}
-              className="justify-start"
-              onClick={() => handleNavigate(item.view)}
-              type="button"
-              variant={isNavigationActive(activeView, item.view, false) ? "secondary" : "ghost"}
-            >
-              <item.icon className="h-4 w-4" aria-hidden="true" />
-              {item.label}
-            </Button>
-          ))}
+          {navItems.map((item) => {
+            const isActive = isNavigationActive(activeView, item.view, false);
+
+            return (
+              <Button
+                key={item.view}
+                aria-current={isActive ? "page" : undefined}
+                className={cn("justify-start", isActive ? "proof-nav-active" : null)}
+                onClick={() => handleNavigate(item.view)}
+                type="button"
+                variant={isActive ? "secondary" : "ghost"}
+              >
+                <item.icon className="h-4 w-4" aria-hidden="true" />
+                {item.label}
+              </Button>
+            );
+          })}
         </nav>
 
         <div className="mt-auto grid gap-3 rounded-md border border-border bg-card p-4">
@@ -275,7 +279,7 @@ function BottomNavigation({
             aria-current={isActive ? "page" : undefined}
             className={cn(
               "flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-md px-1 text-[11px] text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-xs",
-              isActive ? "bg-secondary text-primary" : null
+              isActive ? "proof-nav-active text-primary" : null
             )}
             onClick={() => onNavigate(item.view)}
             type="button"

@@ -135,6 +135,172 @@ textarea {
   background: var(--primary);
 }
 
+.proof-button-primary {
+  border: 1px solid color-mix(in oklch, var(--primary) 78%, white 22%);
+  background:
+    radial-gradient(
+      ellipse at 50% 0%,
+      color-mix(in oklch, var(--primary) 52%, white 48%) 0%,
+      color-mix(in oklch, var(--primary) 88%, transparent) 28%,
+      transparent 58%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklch, var(--primary) 88%, white 12%) 0%,
+      var(--primary) 48%,
+      color-mix(in oklch, var(--primary) 76%, black 24%) 100%
+    );
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--primary) 24%, transparent),
+    0 9px 20px rgb(0 0 0 / 0.34),
+    0 0 18px color-mix(in oklch, var(--primary) 24%, transparent),
+    inset 0 1px 0 rgb(255 244 218 / 0.38),
+    inset 0 -2px 0 rgb(55 12 4 / 0.24);
+  text-shadow: 0 1px 1px rgb(0 0 0 / 0.38);
+}
+
+.proof-button-primary:not(:disabled):hover {
+  filter: brightness(1.04);
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--primary) 32%, transparent),
+    0 10px 24px rgb(0 0 0 / 0.38),
+    0 0 24px color-mix(in oklch, var(--primary) 28%, transparent),
+    inset 0 1px 0 rgb(255 246 224 / 0.44),
+    inset 0 -2px 0 rgb(55 12 4 / 0.27);
+}
+
+.proof-button-primary:not(:disabled):active {
+  filter: brightness(0.95);
+  transform: translateY(1px);
+}
+
+.proof-button-primary:focus-visible,
+.proof-nav-active:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.proof-nav-active {
+  border: 1px solid color-mix(in oklch, var(--primary) 44%, transparent);
+  background:
+    radial-gradient(
+      ellipse at 15% 50%,
+      color-mix(in oklch, var(--primary) 24%, transparent) 0%,
+      color-mix(in oklch, var(--primary) 9%, transparent) 38%,
+      transparent 68%
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in oklch, var(--secondary) 92%, black 8%) 0%,
+      color-mix(in oklch, var(--secondary) 78%, var(--background) 22%) 100%
+    );
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--primary) 8%, transparent),
+    0 0 18px color-mix(in oklch, var(--primary) 12%, transparent),
+    inset 0 1px 0 rgb(255 236 205 / 0.08);
+  color: var(--foreground);
+}
+
+.proof-nav-active:hover {
+  background:
+    radial-gradient(
+      ellipse at 15% 50%,
+      color-mix(in oklch, var(--primary) 29%, transparent) 0%,
+      color-mix(in oklch, var(--primary) 11%, transparent) 40%,
+      transparent 70%
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in oklch, var(--secondary) 88%, var(--primary) 12%) 0%,
+      color-mix(in oklch, var(--secondary) 76%, var(--background) 24%) 100%
+    );
+}
+
+.proof-nav-active svg {
+  color: var(--primary);
+  filter: drop-shadow(0 0 6px color-mix(in oklch, var(--primary) 30%, transparent));
+}
+
+.proof-accent-frame {
+  border-color: color-mix(in oklch, var(--primary) 50%, transparent);
+  background:
+    linear-gradient(
+        90deg,
+        transparent 0%,
+        color-mix(in oklch, var(--primary) 18%, transparent) 20%,
+        color-mix(in oklch, var(--primary) 58%, white 42%) 50%,
+        color-mix(in oklch, var(--primary) 18%, transparent) 80%,
+        transparent 100%
+      )
+      top center / calc(100% - 2rem) 1px no-repeat,
+    radial-gradient(
+      ellipse at 50% 0%,
+      color-mix(in oklch, var(--primary) 11%, transparent) 0%,
+      color-mix(in oklch, var(--primary) 4%, transparent) 28%,
+      transparent 58%
+    ),
+    var(--card);
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--primary) 11%, transparent),
+    0 0 22px color-mix(in oklch, var(--primary) 8%, transparent),
+    0 18px 60px rgb(0 0 0 / 0.2),
+    inset 0 0 16px color-mix(in oklch, var(--primary) 3%, transparent);
+}
+
+.proof-progress-orb {
+  --proof-orb-color: var(--primary);
+  border: 1px solid color-mix(in oklch, var(--proof-orb-color) 26%, transparent);
+  border-radius: 999px;
+  background:
+    radial-gradient(
+      circle at 50% 42%,
+      color-mix(in oklch, var(--proof-orb-color) 9%, transparent) 0%,
+      transparent 58%
+    ),
+    color-mix(in oklch, var(--background) 84%, black 16%);
+  box-shadow:
+    0 0 30px color-mix(in oklch, var(--proof-orb-color) 13%, transparent),
+    inset 0 0 28px rgb(255 255 255 / 0.025),
+    inset 0 0 48px rgb(0 0 0 / 0.62);
+}
+
+.proof-progress-orb::before {
+  position: absolute;
+  inset: 20%;
+  border: 1px solid color-mix(in oklch, var(--proof-orb-color) 10%, transparent);
+  border-radius: inherit;
+  box-shadow: inset 0 0 18px rgb(0 0 0 / 0.68);
+  content: "";
+  pointer-events: none;
+}
+
+.proof-progress-orb-complete {
+  --proof-orb-color: oklch(0.78 0.17 137);
+}
+
+.proof-progress-orb-stroke {
+  color: var(--proof-orb-color);
+  filter: drop-shadow(
+    0 0 5px color-mix(in oklch, var(--proof-orb-color) 54%, transparent)
+  );
+}
+
+.light .proof-button-primary {
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--primary) 20%, transparent),
+    0 8px 18px rgb(76 40 18 / 0.2),
+    0 0 16px color-mix(in oklch, var(--primary) 18%, transparent),
+    inset 0 1px 0 rgb(255 255 255 / 0.52),
+    inset 0 -2px 0 rgb(92 38 11 / 0.16);
+}
+
+.light .proof-accent-frame {
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--primary) 9%, transparent),
+    0 12px 36px rgb(71 44 24 / 0.1),
+    inset 0 0 16px color-mix(in oklch, var(--primary) 2%, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

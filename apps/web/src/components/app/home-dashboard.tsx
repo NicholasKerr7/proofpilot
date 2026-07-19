@@ -117,7 +117,7 @@ export function HomeDashboard({
         </Button>
       </div>
 
-      <Card className="border-primary/45">
+      <Card className="proof-accent-frame">
         <CardContent className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-5 p-5 md:grid-cols-[minmax(0,1.35fr)_auto_minmax(13rem,0.7fr)] md:items-center md:p-6">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
