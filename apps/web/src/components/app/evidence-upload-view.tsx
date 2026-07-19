@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback } from "react";
-import { ArrowLeft, FolderOpen, Plus, UploadCloud } from "lucide-react";
+import { ArrowLeft, FolderOpen, Plus } from "lucide-react";
+import { EvidenceImportHero } from "@/components/app/evidence/evidence-import-hero";
 import { EvidencePanel } from "@/components/app/evidence/evidence-panel";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { CaseRecord } from "@/lib/client/types";
@@ -36,7 +36,7 @@ export function EvidenceUploadView({
         <div>
           <p className="text-sm font-semibold text-primary">Evidence intake</p>
           <h1 id="upload-view-heading" className="mt-1 text-2xl font-semibold sm:text-3xl">
-            Upload evidence
+            Import evidence
           </h1>
         </div>
         <Card>
@@ -66,38 +66,40 @@ export function EvidenceUploadView({
 
   return (
     <section aria-labelledby="upload-view-heading" className="grid gap-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <Button
-            aria-label="Back to cases"
-            onClick={onViewCases}
-            size="icon"
-            title="Back to cases"
-            type="button"
-            variant="outline"
-          >
-            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-          </Button>
-          <div>
-            <p className="text-sm font-semibold text-primary">Evidence intake</p>
-            <h1 id="upload-view-heading" className="mt-1 text-2xl font-semibold sm:text-3xl">
-              Upload evidence
-            </h1>
-            <p className="mt-2 text-sm text-muted-foreground">{selectedCase.title}</p>
-          </div>
+      <header className="order-1 flex items-start gap-3 sm:order-2">
+        <Button
+          aria-label="Back to cases"
+          className="shrink-0 sm:hidden"
+          onClick={onViewCases}
+          size="icon"
+          title="Back to cases"
+          type="button"
+          variant="ghost"
+        >
+          <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+        </Button>
+        <div>
+          <h1 id="upload-view-heading" className="text-2xl font-semibold leading-8 sm:text-3xl">
+            Import evidence
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Bring files, emails, and documents into your case.
+          </p>
         </div>
-        <Badge variant="secondary">
-          <UploadCloud className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-          {selectedCase.platform}
-        </Badge>
+      </header>
+
+      <div className="order-2 sm:order-1">
+        <EvidenceImportHero caseRecord={selectedCase} />
       </div>
 
-      <EvidencePanel
-        confirmBeforeDelete={confirmBeforeDelete}
-        key={selectedCase.id}
-        onDocumentsChanged={handleDocumentsChanged}
-        selectedCase={selectedCase}
-      />
+      <div className="order-3">
+        <EvidencePanel
+          confirmBeforeDelete={confirmBeforeDelete}
+          key={selectedCase.id}
+          onDocumentsChanged={handleDocumentsChanged}
+          selectedCase={selectedCase}
+        />
+      </div>
     </section>
   );
 }

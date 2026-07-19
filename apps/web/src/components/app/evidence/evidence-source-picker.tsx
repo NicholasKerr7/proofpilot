@@ -1,7 +1,22 @@
 "use client";
 
-import { type ChangeEvent, type DragEvent, useState } from "react";
-import { Mail, PlugZap, ScanLine, UploadCloud } from "lucide-react";
+import Image from "next/image";
+import {
+  ArrowRight,
+  Camera,
+  FileUp,
+  FolderOpen,
+  Images,
+  ScanLine,
+  type LucideIcon
+} from "lucide-react";
+import {
+  type ChangeEvent,
+  type DragEvent,
+  type InputHTMLAttributes,
+  type ReactNode,
+  useState
+} from "react";
 import {
   evidenceFileTypeListLabel,
   evidenceMaxUploadSizeLabel,
@@ -16,22 +31,30 @@ interface EvidenceSourcePickerProps {
   onScanSelected: (file: File) => void;
 }
 
+type SourceTone = "blue" | "green" | "primary" | "red" | "rose" | "violet";
+
+const sourceToneClassNames: Record<SourceTone, string> = {
+  blue: "border-blue-400/30 bg-blue-400/10 text-blue-200",
+  green: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
+  primary: "border-primary/40 bg-primary/10 text-primary",
+  red: "border-red-400/30 bg-red-400/10 text-red-200",
+  rose: "border-rose-400/30 bg-rose-400/10 text-rose-200",
+  violet: "border-violet-400/30 bg-violet-400/10 text-violet-200"
+};
+
 export function EvidenceSourcePicker({
   onFilesSelected,
   onScanSelected
 }: EvidenceSourcePickerProps) {
   const [isDragging, setIsDragging] = useState(false);
 
-  function handleFileInput(event: ChangeEvent<HTMLInputElement>) {
+  function handleFileInput(
+    event: ChangeEvent<HTMLInputElement>,
+    source: EvidenceUploadSource
+  ) {
     const files = Array.from(event.target.files ?? []);
     event.target.value = "";
-    onFilesSelected(files, "files");
-  }
-
-  function handleEmailInput(event: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? []);
-    event.target.value = "";
-    onFilesSelected(files, "email");
+    onFilesSelected(files, source);
   }
 
   function handleScanInput(event: ChangeEvent<HTMLInputElement>) {
@@ -43,12 +66,12 @@ export function EvidenceSourcePicker({
     }
   }
 
-  function handleDragOver(event: DragEvent<HTMLDivElement>) {
+  function handleDragOver(event: DragEvent<HTMLElement>) {
     event.preventDefault();
     setIsDragging(true);
   }
 
-  function handleDragLeave(event: DragEvent<HTMLDivElement>) {
+  function handleDragLeave(event: DragEvent<HTMLElement>) {
     event.preventDefault();
 
     if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
@@ -56,116 +79,225 @@ export function EvidenceSourcePicker({
     }
   }
 
-  function handleDrop(event: DragEvent<HTMLDivElement>) {
+  function handleDrop(event: DragEvent<HTMLElement>) {
     event.preventDefault();
     setIsDragging(false);
     onFilesSelected(Array.from(event.dataTransfer.files), "files");
   }
 
   return (
-    <section aria-labelledby="evidence-sources-heading" className="grid gap-3">
+    <section
+      aria-labelledby="evidence-sources-heading"
+      className={cn(
+        "grid gap-3 rounded-md focus-within:outline-none",
+        isDragging ? "ring-2 ring-primary ring-offset-4 ring-offset-background" : null
+      )}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h4 id="evidence-sources-heading" className="text-sm font-semibold text-foreground">
-            Import evidence
-          </h4>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Bring supported files, email exports, and camera images into this case.
+          <h2 id="evidence-sources-heading" className="text-lg font-semibold text-foreground">
+            Choose a source
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Files enter this case through private signed uploads.
           </p>
         </div>
-        <Badge variant="secondary">Private signed uploads</Badge>
+        <Badge variant="secondary">Drag and drop supported</Badge>
       </div>
 
-      <div
-        className={cn(
-          "grid grid-cols-2 gap-2 rounded-md border border-dashed border-border p-2 md:grid-cols-4",
-          isDragging ? "border-primary bg-primary/10" : null
-        )}
-        onDragLeave={handleDragLeave}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-      >
-        <label className="grid min-h-36 cursor-pointer content-between gap-3 rounded-md border border-primary/35 bg-primary/10 p-3 focus-within:ring-2 focus-within:ring-ring hover:bg-primary/15">
-          <input
-            accept={evidenceUploadAccept}
-            className="sr-only"
-            multiple
-            onChange={handleFileInput}
-            type="file"
-          />
-          <span className="flex h-11 w-11 items-center justify-center rounded-md border border-primary/30 bg-background/35 text-primary">
-            <UploadCloud className="h-5 w-5" aria-hidden="true" />
-          </span>
-          <span>
-            <span className="block text-sm font-semibold text-foreground">Upload files</span>
-            <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-              Select several documents at once.
-            </span>
-          </span>
-        </label>
+      <div className="grid grid-cols-2 gap-2 min-[360px]:grid-cols-3 sm:hidden">
+        <SourceOption
+          accept=".eml,message/rfc822"
+          compact
+          description="Add a saved .eml file"
+          icon={<IntegrationLogo alt="" src="/integrations/gmail.svg" />}
+          multiple
+          onChange={(event) => handleFileInput(event, "email")}
+          title="Gmail"
+          tone="red"
+        />
+        <SourceOption
+          accept={evidenceUploadAccept}
+          compact
+          description="Choose downloaded files"
+          icon={<IntegrationLogo alt="" src="/integrations/google-drive.svg" />}
+          multiple
+          onChange={(event) => handleFileInput(event, "google-drive")}
+          title="Google Drive"
+          tone="green"
+        />
+        <SourceOption
+          accept={evidenceUploadAccept}
+          compact
+          description="Choose downloaded files"
+          icon={<IntegrationLogo alt="" src="/integrations/dropbox.svg" />}
+          multiple
+          onChange={(event) => handleFileInput(event, "dropbox")}
+          title="Dropbox"
+          tone="blue"
+        />
+        <SourceOption
+          accept="image/png,image/jpeg"
+          compact
+          description="Select image evidence"
+          icon={<SourceIcon icon={Images} />}
+          multiple
+          onChange={(event) => handleFileInput(event, "photos")}
+          title="Photos"
+          tone="rose"
+        />
+        <SourceOption
+          accept={evidenceUploadAccept}
+          compact
+          description="Browse this device"
+          icon={<SourceIcon icon={FolderOpen} />}
+          multiple
+          onChange={(event) => handleFileInput(event, "files")}
+          title="Files"
+          tone="primary"
+        />
+        <SourceOption
+          accept="image/png,image/jpeg"
+          capture="environment"
+          compact
+          description="Capture a document"
+          icon={<SourceIcon icon={Camera} />}
+          onChange={handleScanInput}
+          title="Camera scan"
+          tone="violet"
+        />
+      </div>
 
-        <label className="grid min-h-36 cursor-pointer content-between gap-3 rounded-md border border-border bg-secondary/25 p-3 focus-within:ring-2 focus-within:ring-ring hover:bg-secondary/45">
-          <input
-            accept=".eml,message/rfc822"
-            className="sr-only"
-            multiple
-            onChange={handleEmailInput}
-            type="file"
-          />
-          <span className="flex h-11 w-11 items-center justify-center rounded-md border border-sky-400/25 bg-sky-400/10 text-sky-200">
-            <Mail className="h-5 w-5" aria-hidden="true" />
-          </span>
-          <span>
-            <span className="block text-sm font-semibold text-foreground">Email exports</span>
-            <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-              Add saved EML messages.
-            </span>
-          </span>
-        </label>
-
-        <label className="grid min-h-36 cursor-pointer content-between gap-3 rounded-md border border-border bg-secondary/25 p-3 focus-within:ring-2 focus-within:ring-ring hover:bg-secondary/45">
-          <input
-            accept="image/png,image/jpeg"
-            capture="environment"
-            className="sr-only"
-            onChange={handleScanInput}
-            type="file"
-          />
-          <span className="flex h-11 w-11 items-center justify-center rounded-md border border-violet-400/25 bg-violet-400/10 text-violet-200">
-            <ScanLine className="h-5 w-5" aria-hidden="true" />
-          </span>
-          <span>
-            <span className="block text-sm font-semibold text-foreground">Scan document</span>
-            <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-              Capture and review an image.
-            </span>
-          </span>
-        </label>
-
-        <div
-          aria-disabled="true"
-          className="grid min-h-36 content-between gap-3 rounded-md border border-border bg-secondary/15 p-3 opacity-70"
-          title="Connect Gmail or Google Drive before importing from connected apps"
-        >
-          <span className="flex h-11 w-11 items-center justify-center rounded-md border border-teal-400/20 bg-teal-400/10 text-teal-200">
-            <PlugZap className="h-5 w-5" aria-hidden="true" />
-          </span>
-          <span>
-            <span className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-semibold text-foreground">Connected apps</span>
-              <Badge variant="secondary">Not connected</Badge>
-            </span>
-            <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-              Gmail and Drive come after account connection.
-            </span>
-          </span>
-        </div>
+      <div className="hidden gap-3 sm:grid sm:grid-cols-4">
+        <SourceOption
+          accept={evidenceUploadAccept}
+          description="Upload documents, images, PDFs, and spreadsheets."
+          icon={<SourceIcon icon={FileUp} />}
+          multiple
+          onChange={(event) => handleFileInput(event, "files")}
+          title="Upload files"
+          tone="primary"
+        />
+        <SourceOption
+          accept=".eml,message/rfc822"
+          description="Add saved Gmail messages as EML files."
+          icon={<IntegrationLogo alt="" src="/integrations/gmail.svg" />}
+          multiple
+          onChange={(event) => handleFileInput(event, "email")}
+          title="Gmail import"
+          tone="red"
+        />
+        <SourceOption
+          accept={evidenceUploadAccept}
+          description="Choose downloaded Drive files from this device."
+          icon={<IntegrationLogo alt="" src="/integrations/google-drive.svg" />}
+          multiple
+          onChange={(event) => handleFileInput(event, "google-drive")}
+          title="Google Drive"
+          tone="green"
+        />
+        <SourceOption
+          accept="image/png,image/jpeg"
+          capture="environment"
+          description="Use your camera to capture and review a document."
+          icon={<SourceIcon icon={ScanLine} />}
+          onChange={handleScanInput}
+          title="Scan document"
+          tone="violet"
+        />
       </div>
 
       <p className="text-xs leading-5 text-muted-foreground">
-        Drag and drop anywhere in this import area. Supported: {evidenceFileTypeListLabel}, up
-        to {evidenceMaxUploadSizeLabel} each.
+        Supported: {evidenceFileTypeListLabel}, up to {evidenceMaxUploadSizeLabel} each. Gmail,
+        Drive, and Dropbox selections use files available through your device picker.
       </p>
     </section>
   );
+}
+
+interface SourceOptionProps {
+  accept: string;
+  capture?: InputHTMLAttributes<HTMLInputElement>["capture"];
+  compact?: boolean;
+  description: string;
+  icon: ReactNode;
+  multiple?: boolean;
+  onChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  title: string;
+  tone: SourceTone;
+}
+
+function SourceOption({
+  accept,
+  capture,
+  compact = false,
+  description,
+  icon,
+  multiple = false,
+  onChange,
+  title,
+  tone
+}: SourceOptionProps) {
+  return (
+    <label
+      className={cn(
+        "group grid cursor-pointer grid-rows-[auto_1fr_auto] border border-border bg-card transition-colors focus-within:ring-2 focus-within:ring-ring hover:border-primary/55 hover:bg-secondary/30",
+        compact ? "min-h-40 gap-2 rounded-md p-3" : "min-h-56 gap-4 rounded-md p-4"
+      )}
+    >
+      <input
+        accept={accept}
+        capture={capture}
+        className="sr-only"
+        multiple={multiple}
+        onChange={onChange}
+        type="file"
+      />
+      <span
+        className={cn(
+          "flex items-center justify-center rounded-md border",
+          compact ? "h-11 w-11" : "h-16 w-16",
+          sourceToneClassNames[tone]
+        )}
+      >
+        {icon}
+      </span>
+      <span className="self-end">
+        <span
+          className={cn(
+            "block break-words font-semibold text-foreground",
+            compact ? "text-xs leading-4" : "text-base"
+          )}
+        >
+          {title}
+        </span>
+        <span
+          className={cn(
+            "mt-1 block text-muted-foreground",
+            compact ? "text-[11px] leading-4" : "text-sm leading-5"
+          )}
+        >
+          {description}
+        </span>
+      </span>
+      <ArrowRight
+        className={cn(
+          "text-muted-foreground transition-colors group-hover:text-primary",
+          compact ? "h-4 w-4 justify-self-end" : "h-5 w-5"
+        )}
+        aria-hidden="true"
+      />
+    </label>
+  );
+}
+
+function IntegrationLogo({ alt, src }: { alt: string; src: string }) {
+  return <Image alt={alt} className="h-9 w-9 object-contain" height={36} src={src} width={36} />;
+}
+
+function SourceIcon({ icon: Icon }: { icon: LucideIcon }) {
+  return <Icon className="h-7 w-7" aria-hidden="true" />;
 }

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { EvidenceRecentImports } from "@/components/app/evidence/evidence-recent-imports";
 import { EvidenceReviewWorkspace } from "@/components/app/evidence/evidence-review-workspace";
 import { EvidenceScanReview } from "@/components/app/evidence/evidence-scan-review";
 import { EvidenceSourcePicker } from "@/components/app/evidence/evidence-source-picker";
@@ -16,7 +17,7 @@ import {
   type EvidenceUploadQueueItem,
   type EvidenceUploadSource
 } from "@/components/app/evidence/evidence-upload-utils";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/client/api";
 import type {
   CaseRecord,
@@ -79,6 +80,7 @@ export function EvidencePanel({
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isReprocessing, setIsReprocessing] = useState(false);
+  const [isVaultOpen, setIsVaultOpen] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
   const processingUploadIdRef = useRef<string | null>(null);
   const processingQueueDocumentIdsKey = JSON.stringify(
@@ -691,92 +693,141 @@ export function EvidencePanel({
     void deleteDocument(document);
   }
 
+  function openVault(documentId?: string) {
+    if (documentId) {
+      setSelectedDocumentId(documentId);
+    }
+
+    setIsVaultOpen(true);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        document.getElementById("evidence-vault")?.scrollIntoView({
+          behavior: getEvidenceScrollBehavior(),
+          block: "start"
+        });
+      });
+    });
+  }
+
+  function toggleVault() {
+    if (isVaultOpen) {
+      setIsVaultOpen(false);
+      return;
+    }
+
+    openVault();
+  }
+
   const attentionDocumentCount = documents.filter(
     (document) => document.status === "FAILED" || document.status === "NEEDS_REVIEW"
   ).length;
 
   return (
-    <Card id="evidence-intake" className="scroll-mt-28 lg:scroll-mt-8">
-      <CardHeader className="md:grid-cols-[minmax(0,1fr)_auto] md:items-start md:gap-4">
-        <div>
-          <CardTitle>Evidence intake</CardTitle>
-          <CardDescription>Import, queue, search, and review private support files.</CardDescription>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="secondary">{formatFileCount(documents.length)}</Badge>
-          {attentionDocumentCount ? (
-            <Badge variant="warning">{attentionDocumentCount} need review</Badge>
-          ) : null}
-        </div>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <EvidenceSourcePicker
-          onFilesSelected={enqueueFiles}
-          onScanSelected={handleScanSelected}
+    <div id="evidence-intake" className="grid scroll-mt-28 gap-5 lg:scroll-mt-8">
+      <EvidenceSourcePicker
+        onFilesSelected={enqueueFiles}
+        onScanSelected={handleScanSelected}
+      />
+
+      {scanFile ? (
+        <EvidenceScanReview
+          file={scanFile}
+          onCancel={() => setScanFile(null)}
+          onConfirm={() => {
+            enqueueFiles([scanFile], "camera");
+            setScanFile(null);
+          }}
+          onReplace={handleScanSelected}
         />
+      ) : null}
 
-        {scanFile ? (
-          <EvidenceScanReview
-            file={scanFile}
-            onCancel={() => setScanFile(null)}
-            onConfirm={() => {
-              enqueueFiles([scanFile], "camera");
-              setScanFile(null);
-            }}
-            onReplace={handleScanSelected}
-          />
-        ) : null}
+      <EvidenceUploadQueue
+        activeUploadId={activeUploadId}
+        items={uploadQueue}
+        onClearFinished={() =>
+          setUploadQueue((currentQueue) =>
+            currentQueue.filter((item) => !isFinishedQueueStatus(item.status))
+          )
+        }
+        onRemove={(itemId) =>
+          setUploadQueue((currentQueue) =>
+            currentQueue.filter((item) => item.id !== itemId)
+          )
+        }
+        onRetry={handleRetryUpload}
+      />
 
-        <EvidenceUploadQueue
-          activeUploadId={activeUploadId}
-          items={uploadQueue}
-          onClearFinished={() =>
-            setUploadQueue((currentQueue) =>
-              currentQueue.filter((item) => !isFinishedQueueStatus(item.status))
-            )
-          }
-          onRemove={(itemId) =>
-            setUploadQueue((currentQueue) =>
-              currentQueue.filter((item) => item.id !== itemId)
-            )
-          }
-          onRetry={handleRetryUpload}
-        />
+      {notice ? (
+        <p
+          className={cn(
+            "rounded-md border px-3 py-2 text-sm",
+            notice.tone === "success"
+              ? "border-teal-400/30 bg-teal-400/10 text-teal-100"
+              : null,
+            notice.tone === "error" ? "border-red-400/30 bg-red-400/10 text-red-100" : null,
+            notice.tone === "info" ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : null
+          )}
+          role={notice.tone === "error" ? "alert" : "status"}
+        >
+          {notice.text}
+        </p>
+      ) : null}
 
-        {notice ? (
-          <p
-            className={cn(
-              "rounded-md border px-3 py-2 text-sm",
-              notice.tone === "success"
-                ? "border-teal-400/30 bg-teal-400/10 text-teal-100"
-                : null,
-              notice.tone === "error" ? "border-red-400/30 bg-red-400/10 text-red-100" : null,
-              notice.tone === "info" ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : null
-            )}
-            role={notice.tone === "error" ? "alert" : "status"}
-          >
-            {notice.text}
-          </p>
-        ) : null}
+      <EvidenceRecentImports
+        documents={documents}
+        isLoading={isLoading}
+        isVaultOpen={isVaultOpen}
+        onOpenDocument={openVault}
+        onViewAll={toggleVault}
+      />
 
-        <EvidenceReviewWorkspace
-          documents={documents}
-          documentToDelete={documentToDelete}
-          isDeleting={isDeleting}
-          isDetailLoading={isDetailLoading}
-          isLoading={isLoading}
-          isReprocessing={isReprocessing}
-          onCancelDelete={() => setDocumentToDelete(null)}
-          onConfirmDelete={confirmDelete}
-          onRefresh={refreshDocuments}
-          onReprocess={handleReprocess}
-          onRequestDelete={handleRequestDelete}
-          onSelectDocument={setSelectedDocumentId}
-          selectedDocument={selectedDocument}
-          selectedDocumentId={selectedDocumentId}
-        />
-      </CardContent>
-    </Card>
+      {isVaultOpen ? (
+        <section
+          aria-labelledby="evidence-library-heading"
+          className="scroll-mt-28 rounded-md border border-border bg-card p-4 sm:p-5 lg:scroll-mt-8"
+          id="evidence-vault"
+        >
+          <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
+            <div>
+              <h2 id="evidence-library-heading" className="text-base font-semibold">
+                Evidence library
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Search, inspect, reprocess, and remove case evidence.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="secondary">{formatFileCount(documents.length)}</Badge>
+              {attentionDocumentCount ? (
+                <Badge variant="warning">{attentionDocumentCount} need review</Badge>
+              ) : null}
+              <Button onClick={() => setIsVaultOpen(false)} size="sm" type="button" variant="ghost">
+                Hide
+              </Button>
+            </div>
+          </header>
+
+          <div className="pt-4">
+            <EvidenceReviewWorkspace
+              documents={documents}
+              documentToDelete={documentToDelete}
+              isDeleting={isDeleting}
+              isDetailLoading={isDetailLoading}
+              isLoading={isLoading}
+              isReprocessing={isReprocessing}
+              onCancelDelete={() => setDocumentToDelete(null)}
+              onConfirmDelete={confirmDelete}
+              onRefresh={refreshDocuments}
+              onReprocess={handleReprocess}
+              onRequestDelete={handleRequestDelete}
+              onSelectDocument={setSelectedDocumentId}
+              selectedDocument={selectedDocument}
+              selectedDocumentId={selectedDocumentId}
+            />
+          </div>
+        </section>
+      ) : null}
+    </div>
   );
 }
 
@@ -790,4 +841,11 @@ function shouldAnalyzeChecklistAfterProcessing(status: string) {
 
 function formatFileCount(count: number) {
   return `${count} ${count === 1 ? "file" : "files"}`;
+}
+
+function getEvidenceScrollBehavior(): ScrollBehavior {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+    document.documentElement.dataset.reduceMotion === "true"
+    ? "auto"
+    : "smooth";
 }

@@ -8,7 +8,13 @@ import {
 } from "@proofpilot/types/evidence";
 import type { CreateDocumentResponse } from "@/lib/client/types";
 
-export type EvidenceUploadSource = "camera" | "email" | "files";
+export type EvidenceUploadSource =
+  | "camera"
+  | "dropbox"
+  | "email"
+  | "files"
+  | "google-drive"
+  | "photos";
 
 export type EvidenceUploadQueueStatus =
   | "queued"

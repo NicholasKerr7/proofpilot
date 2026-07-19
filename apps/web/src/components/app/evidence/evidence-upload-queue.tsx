@@ -230,8 +230,20 @@ function formatUploadSource(source: EvidenceUploadQueueItem["source"]) {
     return "Camera scan";
   }
 
+  if (source === "dropbox") {
+    return "Dropbox file picker";
+  }
+
   if (source === "email") {
     return "Email export";
+  }
+
+  if (source === "google-drive") {
+    return "Google Drive file picker";
+  }
+
+  if (source === "photos") {
+    return "Photo library";
   }
 
   return "Device files";
