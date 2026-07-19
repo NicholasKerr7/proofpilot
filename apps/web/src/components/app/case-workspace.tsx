@@ -43,6 +43,7 @@ interface CaseWorkspaceProps {
   onCaseChanged: (caseId: string) => Promise<unknown>;
   onNotificationsChanged: () => void;
   onOpenCollaboration: () => void;
+  onOpenPacketShare: () => void;
   selectedCase: CaseRecord | null;
 }
 
@@ -52,6 +53,7 @@ export function CaseWorkspace({
   onCaseChanged,
   onNotificationsChanged,
   onOpenCollaboration,
+  onOpenPacketShare,
   selectedCase
 }: CaseWorkspaceProps) {
   const selectedCaseId = selectedCase?.id ?? null;
@@ -187,6 +189,7 @@ export function CaseWorkspace({
         <PacketExportPanel
           onNotificationsChanged={onNotificationsChanged}
           onCaseChanged={onCaseChanged}
+          onOpenPacketShare={onOpenPacketShare}
           readiness={readiness}
           selectedCase={selectedCase}
         />

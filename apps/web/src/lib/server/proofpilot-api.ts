@@ -91,6 +91,34 @@ export async function proxyToProofPilotApi(path: string, init: RequestInit = {})
   }
 }
 
+export async function proxyToPublicProofPilotApi(path: string, init: RequestInit = {}) {
+  try {
+    const headers = new Headers(init.headers);
+
+    if (init.body && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
+
+    const response = await fetch(`${getApiBaseUrl()}${path}`, {
+      ...init,
+      headers,
+      cache: "no-store"
+    });
+    const payload = parseBody(await response.text());
+
+    return NextResponse.json(payload ?? {}, {
+      status: response.status
+    });
+  } catch {
+    return NextResponse.json(
+      {
+        message: "ProofPilot API is offline. Start Docker services and the API server, then retry."
+      },
+      { status: 503 }
+    );
+  }
+}
+
 export async function readJsonBody(request: NextRequest) {
   const text = await request.text();
   return text ? text : "{}";

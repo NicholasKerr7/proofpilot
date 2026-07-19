@@ -26,6 +26,7 @@ export type AppView =
   | "create"
   | "case"
   | "collaboration"
+  | "share-packet"
   | "assistant"
   | "upload"
   | "notifications"
@@ -298,7 +299,8 @@ function isNavigationActive(
       activeView === "cases" ||
       activeView === "create" ||
       activeView === "case" ||
-      activeView === "collaboration"
+      activeView === "collaboration" ||
+      activeView === "share-packet"
     );
   }
 

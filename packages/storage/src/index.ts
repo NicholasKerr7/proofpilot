@@ -128,17 +128,29 @@ export async function createPresignedUploadUrl(input: {
 
 export async function createPresignedDownloadUrl(input: {
   key: string;
+  disposition?: "attachment" | "inline";
   expiresInSeconds?: number;
+  fileName?: string;
 }) {
   const config = getStorageConfig();
   const command = new GetObjectCommand({
     Bucket: config.STORAGE_BUCKET,
-    Key: input.key
+    Key: input.key,
+    ...(input.disposition
+      ? {
+          ResponseContentDisposition: `${input.disposition}; filename="${sanitizeDownloadFileName(input.fileName)}"`
+        }
+      : {})
   });
 
   return getSignedUrl(getStorageClient(), command, {
     expiresIn: input.expiresInSeconds ?? 300
   });
+}
+
+function sanitizeDownloadFileName(value: string | undefined) {
+  const sanitized = (value ?? "proofpilot-packet.pdf").replace(/[^a-zA-Z0-9._-]/g, "_");
+  return sanitized || "proofpilot-packet.pdf";
 }
 
 export async function deleteStoredObject(input: { key: string }) {

@@ -13,6 +13,7 @@ import {
   ListChecks,
   PenLine,
   RefreshCcw,
+  Share2,
   type LucideIcon
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,7 @@ interface PacketExportContentProps {
   latestExport: CasePacketExport | null;
   latestReadyPacket: CasePacket | null;
   onGenerate: () => Promise<void>;
+  onOpenPacketShare: () => void;
   packets: CasePacket[];
   readiness: number;
   readinessState: PacketReadinessState;
@@ -55,6 +57,7 @@ export function PacketExportContent({
   latestExport,
   latestReadyPacket,
   onGenerate,
+  onOpenPacketShare,
   packets,
   readiness,
   readinessState,
@@ -80,6 +83,7 @@ export function PacketExportContent({
             latestExport={latestExport}
             latestReadyPacket={latestReadyPacket}
             onGenerate={onGenerate}
+            onOpenPacketShare={onOpenPacketShare}
           />
           <PacketExportHistory isLoading={isLoading} packets={packets} />
         </aside>
@@ -179,6 +183,7 @@ interface PacketExportActionsProps {
   latestExport: CasePacketExport | null;
   latestReadyPacket: CasePacket | null;
   onGenerate: () => Promise<void>;
+  onOpenPacketShare: () => void;
 }
 
 function PacketExportActions({
@@ -186,7 +191,8 @@ function PacketExportActions({
   isGenerateDisabled,
   latestExport,
   latestReadyPacket,
-  onGenerate
+  onGenerate,
+  onOpenPacketShare
 }: PacketExportActionsProps) {
   return (
     <section aria-labelledby="packet-actions-heading">
@@ -208,12 +214,18 @@ function PacketExportActions({
           {generateLabel}
         </Button>
         {latestExport ? (
-          <Button asChild variant="secondary">
-            <a href={latestExport.downloadUrl} target="_blank" rel="noreferrer">
-              <Download className="h-4 w-4" aria-hidden="true" />
-              Download latest PDF
-            </a>
-          </Button>
+          <>
+            <Button onClick={onOpenPacketShare} type="button" variant="secondary">
+              <Share2 className="h-4 w-4" aria-hidden="true" />
+              Share latest packet
+            </Button>
+            <Button asChild variant="secondary">
+              <a href={latestExport.downloadUrl} target="_blank" rel="noreferrer">
+                <Download className="h-4 w-4" aria-hidden="true" />
+                Download latest PDF
+              </a>
+            </Button>
+          </>
         ) : (
           <Button type="button" variant="secondary" disabled>
             <Download className="h-4 w-4" aria-hidden="true" />

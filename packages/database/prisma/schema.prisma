@@ -129,6 +129,12 @@ enum CaseCollaboratorStatus {
   ACTIVE
 }
 
+enum PacketSharePermission {
+  VIEW
+  COMMENT
+  DOWNLOAD
+}
+
 model User {
   id                  String               @id @default(cuid())
   email               String               @unique
@@ -145,6 +151,7 @@ model User {
   supportRequests     SupportRequest[]
   assistantThreads    AssistantThread[]
   caseCollaborations  CaseCollaborator[]   @relation("CaseCollaboratorUser")
+  packetSharesCreated PacketShare[]        @relation("PacketShareCreator")
 }
 
 model UserPreference {
@@ -270,6 +277,7 @@ model Case {
   assistantThreads AssistantThread[]
   collaborators    CaseCollaborator[]
   sharingSettings  CaseSharingSettings?
+  packetShares     PacketShare[]
 
   @@index([ownerId, status])
   @@index([caseTypeId])
@@ -510,12 +518,64 @@ model CasePacket {
 }
 
 model PacketExport {
-  id         String     @id @default(cuid())
+  id         String        @id @default(cuid())
   packetId   String
-  packet     CasePacket @relation(fields: [packetId], references: [id], onDelete: Cascade)
+  packet     CasePacket    @relation(fields: [packetId], references: [id], onDelete: Cascade)
   storageKey String
   byteSize   Int?
-  createdAt  DateTime   @default(now())
+  createdAt  DateTime      @default(now())
+  shares     PacketShare[]
+}
+
+model PacketShare {
+  id                       String                 @id @default(cuid())
+  caseId                   String
+  case                     Case                   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  packetExportId           String
+  packetExport             PacketExport           @relation(fields: [packetExportId], references: [id], onDelete: Cascade)
+  createdById              String
+  createdBy                User                   @relation("PacketShareCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  tokenHash                String                 @unique
+  expiresAt                DateTime?
+  requireEmailVerification Boolean                @default(false)
+  watermarkDocuments       Boolean                @default(false)
+  revokedAt                DateTime?
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @updatedAt
+  recipients               PacketShareRecipient[]
+  comments                 PacketShareComment[]
+
+  @@index([caseId, createdAt])
+  @@index([packetExportId])
+}
+
+model PacketShareRecipient {
+  id             String                @id @default(cuid())
+  shareId        String
+  share          PacketShare           @relation(fields: [shareId], references: [id], onDelete: Cascade)
+  email          String
+  permission     PacketSharePermission @default(VIEW)
+  lastAccessedAt DateTime?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  comments       PacketShareComment[]
+
+  @@unique([shareId, email])
+  @@index([shareId, permission])
+}
+
+model PacketShareComment {
+  id          String               @id @default(cuid())
+  shareId     String
+  share       PacketShare          @relation(fields: [shareId], references: [id], onDelete: Cascade)
+  recipientId String
+  recipient   PacketShareRecipient @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  content     String
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@index([shareId, createdAt])
+  @@index([recipientId, createdAt])
 }
 
 model Notification {

@@ -13,6 +13,7 @@ import type { CasePacket, CaseRecord } from "@/lib/client/types";
 interface PacketExportPanelProps {
   onCaseChanged: (caseId: string) => Promise<unknown>;
   onNotificationsChanged: () => void;
+  onOpenPacketShare: () => void;
   readiness: number;
   selectedCase: CaseRecord;
 }
@@ -25,6 +26,7 @@ type Notice = {
 export function PacketExportPanel({
   onCaseChanged,
   onNotificationsChanged,
+  onOpenPacketShare,
   readiness,
   selectedCase
 }: PacketExportPanelProps) {
@@ -207,6 +209,7 @@ export function PacketExportPanel({
           latestExport={latestExport}
           latestReadyPacket={latestReadyPacket ?? null}
           onGenerate={handleGeneratePacket}
+          onOpenPacketShare={onOpenPacketShare}
           packets={packets}
           readiness={readiness}
           readinessState={readinessState}

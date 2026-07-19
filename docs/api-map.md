@@ -48,6 +48,23 @@
 
 These management endpoints require an authenticated case-owner match. Invitations and active demo roster records do not grant case or document access in the current MVP; invitation acceptance and collaborator-session authorization remain future work.
 
+## Packet Sharing
+
+Owner routes:
+
+- `GET /cases/:caseId/packet-shares/prepare`
+- `POST /cases/:caseId/packet-shares`
+- `DELETE /cases/:caseId/packet-shares/:shareId`
+
+Public recipient routes:
+
+- `POST /packet-shares/metadata`
+- `POST /packet-shares/access`
+- `POST /packet-shares/content`
+- `POST /packet-shares/comments`
+
+Owner routes require an authenticated case-owner match and a ready packet export. Public routes accept the raw share token in a request body, never a URL path; content and comment calls also require a short-lived recipient access token. Email delivery, email verification, and PDF watermarking report as unavailable until providers are configured.
+
 ## Documents
 
 - `GET /documents/:documentId`

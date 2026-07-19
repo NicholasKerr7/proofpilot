@@ -82,6 +82,30 @@ describe("case activity presentation", () => {
     });
   });
 
+  it("presents packet sharing without exposing recipients or token metadata", () => {
+    const item = toCaseActivityItem({
+      id: "activity-share",
+      action: "case.packet_share_created",
+      metadata: {
+        recipientCount: 2,
+        shareId: "share-private",
+        token: "must-not-appear",
+        email: "recipient@example.com"
+      },
+      createdAt
+    });
+
+    expect(item).toEqual({
+      id: "activity-share",
+      action: "case.packet_share_created",
+      category: "packet",
+      title: "Packet share link created",
+      detail: "2 recipients",
+      createdAt: createdAt.toISOString()
+    });
+    expect(item).not.toHaveProperty("metadata");
+  });
+
   it("presents a selected-case support request without exposing its message", () => {
     const item = toCaseActivityItem({
       id: "activity-4",

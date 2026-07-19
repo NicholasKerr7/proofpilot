@@ -28,6 +28,7 @@ import { HelpCenterPanel } from "@/components/app/help/help-center-panel";
 import { MoreMenu } from "@/components/app/more-menu";
 import { NotificationCenter } from "@/components/app/notification-center";
 import { getSupportRequestIdFromNotification } from "@/components/app/notifications/notification-utils";
+import { PacketSharePanel } from "@/components/app/packet-sharing/packet-share-panel";
 import { ReportsPanel } from "@/components/app/reports/reports-panel";
 import { SearchPanel } from "@/components/app/search/search-panel";
 import { SecurityPrivacyPanel } from "@/components/app/security/security-privacy-panel";
@@ -378,6 +379,30 @@ export function ProofPilotApp() {
     scrollToPageTop();
   }
 
+  function handleOpenPacketShare() {
+    if (!selectedCase) {
+      return;
+    }
+
+    setMessage(null);
+    setActiveView("share-packet");
+    scrollToPageTop();
+  }
+
+  function handleClosePacketShare() {
+    setMessage(null);
+    setActiveView("case");
+    scrollToDestination("packet-export");
+  }
+
+  function handleOpenPacketSupport() {
+    setMessage(null);
+    setHelpInitialView("contact");
+    setHelpInitialRequestId(null);
+    setActiveView("help");
+    scrollToPageTop();
+  }
+
   if (isBooting) {
     return (
       <main className="grid min-h-screen place-items-center px-4">
@@ -465,6 +490,7 @@ export function ProofPilotApp() {
           onCaseChanged={loadCaseDetail}
           onNotificationsChanged={refreshNotifications}
           onOpenCollaboration={() => handleNavigate("collaboration")}
+          onOpenPacketShare={handleOpenPacketShare}
           selectedCase={selectedCase}
         />
       ) : null}
@@ -474,6 +500,17 @@ export function ProofPilotApp() {
           caseRecord={selectedCase}
           key={selectedCase.id}
           onBack={() => handleNavigate("case")}
+        />
+      ) : null}
+
+      {activeView === "share-packet" && selectedCase ? (
+        <PacketSharePanel
+          caseRecord={selectedCase}
+          key={selectedCase.id}
+          onBack={handleClosePacketShare}
+          onDone={handleClosePacketShare}
+          onOpenSupport={handleOpenPacketSupport}
+          ownerName={user.name ?? user.email}
         />
       ) : null}
 

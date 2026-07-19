@@ -10,13 +10,13 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 
 ## Packages
 
-- `packages/types`: Shared case, assistant, auth, settings, security, connection, billing, and API schemas.
+- `packages/types`: Shared case, assistant, auth, settings, security, connection, billing, packet-sharing, and API schemas.
 - `packages/database`: Prisma schema, client export, and seed data.
 - `packages/storage`: S3-compatible private evidence storage helpers.
 
 ## Local Services
 
-- PostgreSQL stores users, cases, assistant threads and messages, audit logs, connection metadata, billing metadata, evidence metadata, timelines, checklist data, statements, packet exports, notifications, and jobs.
+- PostgreSQL stores users, cases, assistant threads and messages, audit logs, connection metadata, billing metadata, evidence metadata, timelines, checklist data, statements, packet exports, packet shares, notifications, and jobs.
 - Redis backs BullMQ queues.
 - MinIO provides a local S3-compatible private storage target.
 
@@ -37,6 +37,15 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 - Assistant threads use a compound user-and-case key, and every assistant request resolves the case through the authenticated owner's ID before thread access.
 - Assistant audit events record IDs, response mode, intent, and prompt length without duplicating message content in audit metadata.
 - Collaboration management resolves every case through the authenticated owner ID. Audit metadata records collaborator IDs, roles, and changed setting names without storing invited email addresses.
+- Packet-share creation and revocation resolve the ready export through the authenticated case owner. Audit metadata stores share IDs, recipient counts, permissions, and expiry without storing raw tokens or recipient addresses.
+
+## Packet Sharing Foundation
+
+Packet share URLs place a 256-bit random bearer token in the URL fragment. Browsers do not send fragments in the initial HTTP request, and the database stores only the token's SHA-256 hash. Public API calls send the raw token in JSON request bodies so it does not enter route parameters or ordinary URL logs.
+
+Before packet details are returned, the recipient must submit an address on the share's normalized allowlist. The API then issues a short-lived JWT scoped to that share and recipient. Every content and comment request validates both the raw link token and the scoped JWT, and revoked or expired shares fail before a new signed object URL is created. Owners can revoke active shares from the sharing workspace.
+
+`VIEW`, `COMMENT`, and `DOWNLOAD` permissions control whether the API returns an attachment URL and accepts comments. An inline signed PDF response is an authorization boundary, not DRM: a recipient who can view document bytes may still capture them. The UI does not claim stronger prevention. Email delivery, one-time email verification, and document watermarking remain disabled until production providers are configured.
 
 ## Collaboration Foundation
 

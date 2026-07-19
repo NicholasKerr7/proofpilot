@@ -112,6 +112,10 @@ function getActivityPresentation(
       return activity("packet", "Packet generation started", null);
     case "case.packet_generated":
       return activity("packet", "Packet generated", getPacketSizeDetail(metadata));
+    case "case.packet_share_created":
+      return activity("packet", "Packet share link created", getPacketShareDetail(metadata));
+    case "case.packet_share_revoked":
+      return activity("packet", "Packet share link revoked", null);
     case "case.packet_generation_failed":
     case "case.packet_generation_queue_failed":
       return activity("packet", "Packet generation failed", "The packet can be retried.");
@@ -213,6 +217,16 @@ function getPacketSizeDetail(metadata: Record<string, unknown>) {
   }
 
   return `${new Intl.NumberFormat("en-US").format(byteSize)} bytes`;
+}
+
+function getPacketShareDetail(metadata: Record<string, unknown>) {
+  const recipientCount = readNumber(metadata, "recipientCount");
+
+  if (recipientCount === null) {
+    return null;
+  }
+
+  return `${recipientCount} ${recipientCount === 1 ? "recipient" : "recipients"}`;
 }
 
 function readString(metadata: Record<string, unknown>, key: string) {

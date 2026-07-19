@@ -13,6 +13,7 @@ import { DocumentsModule } from "./documents/documents.module.js";
 import { HealthController } from "./health/health.controller.js";
 import { MonitoringModule } from "./monitoring/monitoring.module.js";
 import { NotificationsModule } from "./notifications/notifications.module.js";
+import { PacketSharingModule } from "./packet-sharing/packet-sharing.module.js";
 import { PrismaModule } from "./prisma/prisma.module.js";
 import { QueueModule } from "./queue/queue.module.js";
 import { ReportsModule } from "./reports/reports.module.js";
@@ -36,6 +37,7 @@ import { SupportModule } from "./support/support.module.js";
     CasesModule,
     DocumentsModule,
     NotificationsModule,
+    PacketSharingModule,
     ReportsModule,
     SearchModule,
     SecurityModule,
