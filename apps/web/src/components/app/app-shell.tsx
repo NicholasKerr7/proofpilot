@@ -25,6 +25,7 @@ export type AppView =
   | "cases"
   | "create"
   | "case"
+  | "collaboration"
   | "assistant"
   | "upload"
   | "notifications"
@@ -293,7 +294,12 @@ function isNavigationActive(
   includeAssistantInMore: boolean
 ) {
   if (navigationView === "cases") {
-    return activeView === "cases" || activeView === "create" || activeView === "case";
+    return (
+      activeView === "cases" ||
+      activeView === "create" ||
+      activeView === "case" ||
+      activeView === "collaboration"
+    );
   }
 
   if (navigationView === "more") {

@@ -5,6 +5,8 @@ import {
   BillingCycle,
   BillingMode,
   BillingPlan,
+  CaseCollaboratorRole,
+  CaseCollaboratorStatus,
   CaseStatus,
   ChecklistStatus,
   ConnectionMode,
@@ -291,6 +293,64 @@ async function main() {
     }
   });
 
+  await prisma.caseSharingSettings.upsert({
+    where: { caseId: demoCase.id },
+    update: {
+      invitationExpiryDays: 7,
+      preventDownloads: false
+    },
+    create: {
+      id: "demo-nicholas-case-sharing-settings",
+      caseId: demoCase.id,
+      invitationExpiryDays: 7,
+      preventDownloads: false
+    }
+  });
+
+  const collaborationNow = new Date();
+  const demoCollaborators = [
+    {
+      id: "demo-nicholas-collaborator-jane",
+      acceptedAt: addDays(collaborationNow, -5),
+      email: "jane.smith@legalgroup.test",
+      invitedAt: addDays(collaborationNow, -6),
+      name: "Jane Smith",
+      role: CaseCollaboratorRole.EDITOR
+    },
+    {
+      id: "demo-nicholas-collaborator-alex",
+      acceptedAt: addDays(collaborationNow, -3),
+      email: "alex.patel@evidencehub.test",
+      invitedAt: addDays(collaborationNow, -4),
+      name: "Alex Patel",
+      role: CaseCollaboratorRole.VIEWER
+    }
+  ];
+
+  for (const collaborator of demoCollaborators) {
+    await prisma.caseCollaborator.upsert({
+      where: {
+        caseId_email: {
+          caseId: demoCase.id,
+          email: collaborator.email
+        }
+      },
+      update: {
+        acceptedAt: collaborator.acceptedAt,
+        expiresAt: null,
+        invitedAt: collaborator.invitedAt,
+        name: collaborator.name,
+        role: collaborator.role,
+        status: CaseCollaboratorStatus.ACTIVE
+      },
+      create: {
+        ...collaborator,
+        caseId: demoCase.id,
+        status: CaseCollaboratorStatus.ACTIVE
+      }
+    });
+  }
+
   for (const requirement of requirements) {
     await prisma.caseChecklistItem.upsert({
       where: { id: `demo-nicholas-checklist-${requirement.sortOrder}` },
@@ -533,6 +593,25 @@ async function main() {
       action: "demo.seeded",
       createdAt: addMinutes(activityNow, -20),
       metadata: { email: user.email, title: demoCase.title }
+    },
+    {
+      id: "demo-nicholas-audit-collaboration-invited",
+      action: "case.collaboration_invited",
+      createdAt: addDays(activityNow, -6),
+      metadata: {
+        collaboratorId: "demo-nicholas-collaborator-jane",
+        role: CaseCollaboratorRole.EDITOR,
+        status: CaseCollaboratorStatus.PENDING
+      }
+    },
+    {
+      id: "demo-nicholas-audit-collaboration-role-updated",
+      action: "case.collaboration_role_updated",
+      createdAt: addDays(activityNow, -2),
+      metadata: {
+        collaboratorId: "demo-nicholas-collaborator-alex",
+        role: CaseCollaboratorRole.VIEWER
+      }
     }
   ];
 

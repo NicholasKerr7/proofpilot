@@ -36,6 +36,13 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 - Storage helpers generate signed upload/download URLs instead of exposing private object URLs.
 - Assistant threads use a compound user-and-case key, and every assistant request resolves the case through the authenticated owner's ID before thread access.
 - Assistant audit events record IDs, response mode, intent, and prompt length without duplicating message content in audit metadata.
+- Collaboration management resolves every case through the authenticated owner ID. Audit metadata records collaborator IDs, roles, and changed setting names without storing invited email addresses.
+
+## Collaboration Foundation
+
+Case owners can maintain a ten-seat roster, create expiring invitations, assign Editor or Viewer roles, remove collaborators, and persist sharing controls. The API derives expired invitation state at read time and excludes expired invitations from seat usage.
+
+The current MVP intentionally keeps all case, document, packet, and assistant resources owner-only. A collaboration record does not grant resource access until invitation acceptance, collaborator-session authorization, and permission enforcement are implemented end to end. The prevent-download setting is persisted for that future enforcement boundary and is not presented as active protection for owner downloads.
 
 ## Security And Privacy Foundation
 

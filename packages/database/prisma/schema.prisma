@@ -119,6 +119,16 @@ enum AssistantResponseMode {
   MODEL
 }
 
+enum CaseCollaboratorRole {
+  EDITOR
+  VIEWER
+}
+
+enum CaseCollaboratorStatus {
+  PENDING
+  ACTIVE
+}
+
 model User {
   id                  String               @id @default(cuid())
   email               String               @unique
@@ -134,6 +144,7 @@ model User {
   auditLogs           AuditLog[]
   supportRequests     SupportRequest[]
   assistantThreads    AssistantThread[]
+  caseCollaborations  CaseCollaborator[]   @relation("CaseCollaboratorUser")
 }
 
 model UserPreference {
@@ -233,19 +244,19 @@ model CaseType {
 }
 
 model Case {
-  id               String              @id @default(cuid())
+  id               String               @id @default(cuid())
   ownerId          String
-  owner            User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner            User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   caseTypeId       String
-  caseType         CaseType            @relation(fields: [caseTypeId], references: [id])
+  caseType         CaseType             @relation(fields: [caseTypeId], references: [id])
   title            String
   platform         String
   summary          String?
-  status           CaseStatus          @default(DRAFT)
+  status           CaseStatus           @default(DRAFT)
   deadline         DateTime?
   archivedAt       DateTime?
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
   documents        Document[]
   events           CaseEvent[]
   checklist        CaseChecklistItem[]
@@ -257,9 +268,42 @@ model Case {
   auditLogs        AuditLog[]
   supportRequests  SupportRequest[]
   assistantThreads AssistantThread[]
+  collaborators    CaseCollaborator[]
+  sharingSettings  CaseSharingSettings?
 
   @@index([ownerId, status])
   @@index([caseTypeId])
+}
+
+model CaseCollaborator {
+  id         String                 @id @default(cuid())
+  caseId     String
+  case       Case                   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?                  @relation("CaseCollaboratorUser", fields: [userId], references: [id], onDelete: SetNull)
+  email      String
+  name       String?
+  role       CaseCollaboratorRole
+  status     CaseCollaboratorStatus @default(PENDING)
+  invitedAt  DateTime               @default(now())
+  expiresAt  DateTime?
+  acceptedAt DateTime?
+  createdAt  DateTime               @default(now())
+  updatedAt  DateTime               @updatedAt
+
+  @@unique([caseId, email])
+  @@index([caseId, status])
+  @@index([userId, status])
+}
+
+model CaseSharingSettings {
+  id                   String   @id @default(cuid())
+  caseId               String   @unique
+  case                 Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  preventDownloads     Boolean  @default(false)
+  invitationExpiryDays Int      @default(7)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 }
 
 model Document {

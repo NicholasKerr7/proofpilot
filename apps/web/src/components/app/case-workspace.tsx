@@ -11,6 +11,7 @@ import {
   ListChecks,
   PenLine,
   UploadCloud,
+  UsersRound,
   type LucideIcon
 } from "lucide-react";
 import { ActivityPanel } from "@/components/app/activity/activity-panel";
@@ -41,6 +42,7 @@ interface CaseWorkspaceProps {
   onBackToCases: () => void;
   onCaseChanged: (caseId: string) => Promise<unknown>;
   onNotificationsChanged: () => void;
+  onOpenCollaboration: () => void;
   selectedCase: CaseRecord | null;
 }
 
@@ -49,6 +51,7 @@ export function CaseWorkspace({
   onBackToCases,
   onCaseChanged,
   onNotificationsChanged,
+  onOpenCollaboration,
   selectedCase
 }: CaseWorkspaceProps) {
   const selectedCaseId = selectedCase?.id ?? null;
@@ -91,6 +94,10 @@ export function CaseWorkspace({
                 All cases
               </Button>
               <div className="flex flex-wrap items-center gap-2">
+                <Button onClick={onOpenCollaboration} size="sm" type="button" variant="outline">
+                  <UsersRound className="h-4 w-4" aria-hidden="true" />
+                  Collaborators
+                </Button>
                 <Badge>Primary case</Badge>
                 <Badge variant={getCaseStatusVariant(selectedCase.status)}>
                   {formatCaseStatus(selectedCase.status)}

@@ -3,6 +3,7 @@ export * from "./activity.js";
 export * from "./assistant.js";
 export * from "./billing.js";
 export * from "./cases.js";
+export * from "./collaboration.js";
 export * from "./connections.js";
 export * from "./evidence.js";
 export * from "./reports.js";

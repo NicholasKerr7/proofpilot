@@ -16,6 +16,7 @@ import { AssistantPanel } from "@/components/app/assistant/assistant-panel";
 import { AuthPanel } from "@/components/app/auth-panel";
 import { BillingPanel } from "@/components/app/billing/billing-panel";
 import { CaseDashboard } from "@/components/app/case-dashboard";
+import { CaseCollaborationPanel } from "@/components/app/collaboration/case-collaboration-panel";
 import { CaseWorkspace } from "@/components/app/case-workspace";
 import { CalendarDeadlinesPanel } from "@/components/app/calendar-deadlines-panel";
 import type { CaseDestinationId } from "@/components/app/cases/case-utils";
@@ -463,7 +464,16 @@ export function ProofPilotApp() {
           onBackToCases={() => handleNavigate("cases")}
           onCaseChanged={loadCaseDetail}
           onNotificationsChanged={refreshNotifications}
+          onOpenCollaboration={() => handleNavigate("collaboration")}
           selectedCase={selectedCase}
+        />
+      ) : null}
+
+      {activeView === "collaboration" && selectedCase ? (
+        <CaseCollaborationPanel
+          caseRecord={selectedCase}
+          key={selectedCase.id}
+          onBack={() => handleNavigate("case")}
         />
       ) : null}
 

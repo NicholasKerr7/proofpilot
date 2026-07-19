@@ -38,6 +38,16 @@
 - `GET /cases/:caseId/packets`
 - `POST /cases/:caseId/packet/generate`
 
+## Case Collaboration
+
+- `GET /cases/:caseId/collaboration`
+- `POST /cases/:caseId/collaboration/invitations`
+- `PATCH /cases/:caseId/collaboration/collaborators/:collaboratorId`
+- `DELETE /cases/:caseId/collaboration/collaborators/:collaboratorId`
+- `PATCH /cases/:caseId/collaboration/settings`
+
+These management endpoints require an authenticated case-owner match. Invitations and active demo roster records do not grant case or document access in the current MVP; invitation acceptance and collaborator-session authorization remain future work.
+
 ## Documents
 
 - `GET /documents/:documentId`

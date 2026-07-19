@@ -3,6 +3,7 @@ import { ConfigModule } from "@nestjs/config";
 import { AssistantModule } from "./assistant/assistant.module.js";
 import { AuthModule } from "./auth/auth.module.js";
 import { BillingModule } from "./billing/billing.module.js";
+import { CollaborationModule } from "./collaboration/collaboration.module.js";
 import { CasesModule } from "./cases/cases.module.js";
 import { CaseTypesModule } from "./case-types/case-types.module.js";
 import { ConnectionsModule } from "./connections/connections.module.js";
@@ -29,6 +30,7 @@ import { SupportModule } from "./support/support.module.js";
     AssistantModule,
     AuthModule,
     BillingModule,
+    CollaborationModule,
     CaseTypesModule,
     ConnectionsModule,
     CasesModule,
