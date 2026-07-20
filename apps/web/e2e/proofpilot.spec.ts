@@ -153,6 +153,55 @@ test.describe("ProofPilot responsive workspace", () => {
     ).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });
+
+  test("demo user can complete the guided statement and restore a version", async ({ page }) => {
+    await loginAsDemoUser(page);
+
+    await getPrimaryNavigation(page)
+      .getByRole("button", { exact: true, name: "Cases" })
+      .click();
+    await page
+      .getByRole("button", { name: /PayPal account closure appeal/ })
+      .first()
+      .click();
+
+    const statementBuilder = page.locator("#statement-builder");
+    await statementBuilder.scrollIntoViewIfNeeded();
+    const answer = `PayPal permanently limited the demo account during verification ${Date.now()}.`;
+    await statementBuilder
+      .getByLabel("What platform closed or restricted your account?")
+      .fill(answer);
+    await statementBuilder.getByRole("button", { exact: true, name: "Save answers" }).click();
+    await expect(statementBuilder.getByText("Guided answers saved.")).toBeVisible();
+
+    await statementBuilder.getByRole("button", { exact: true, name: "Generate draft" }).click();
+    await expect(
+      statementBuilder.getByText("Statement draft generated and saved as a new version.")
+    ).toBeVisible();
+    const draftStatement = statementBuilder.getByLabel("Draft statement");
+    await expect(draftStatement).toHaveValue(
+      /PayPal permanently limited the demo account/
+    );
+    const generatedContent = await draftStatement.inputValue();
+    await draftStatement.fill(`${generatedContent} Unsaved edit`);
+    await expect(
+      statementBuilder.getByRole("button", { exact: true, name: "Generate draft" })
+    ).toBeDisabled();
+    await draftStatement.fill(generatedContent);
+
+    await statementBuilder.getByRole("button", { exact: true, name: "Refresh summary" }).click();
+    await expect(
+      statementBuilder.getByText("Case summary generated from the saved record.")
+    ).toBeVisible();
+
+    await statementBuilder.getByRole("button", { name: /Restore version/ }).first().click();
+    await expect(
+      statementBuilder.getByText("Statement version restored as the current version.")
+    ).toBeVisible();
+
+    await expectNoHorizontalOverflow(page);
+    await expectAccessible(page, "statement builder workspace");
+  });
 });
 
 async function loginAsDemoUser(page: Page) {

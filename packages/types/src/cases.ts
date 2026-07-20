@@ -56,6 +56,26 @@ export const saveStatementSchema = z.object({
   content: z.string().trim().min(1).max(12000)
 });
 
+export const statementGuidanceFields = [
+  "platformAction",
+  "actionDate",
+  "reasonGiven",
+  "accountUse",
+  "supportContact",
+  "requestedOutcome",
+  "supportingDocuments"
+] as const;
+
+export const saveStatementGuidanceSchema = z.object({
+  platformAction: z.string().trim().max(500),
+  actionDate: z.string().trim().max(160),
+  reasonGiven: z.string().trim().max(2000),
+  accountUse: z.string().trim().max(2000),
+  supportContact: z.string().trim().max(2000),
+  requestedOutcome: z.string().trim().max(1200),
+  supportingDocuments: z.string().trim().max(2000)
+});
+
 export const createTimelineEventSchema = z.object({
   occurredAt: z.coerce.date(),
   title: z.string().trim().min(3).max(160),
@@ -69,6 +89,8 @@ export type ChecklistStatus = (typeof checklistStatuses)[number];
 export type CreateCaseInput = z.infer<typeof createCaseSchema>;
 export type UpdateCaseInput = z.infer<typeof updateCaseSchema>;
 export type SaveStatementInput = z.infer<typeof saveStatementSchema>;
+export type SaveStatementGuidanceInput = z.infer<typeof saveStatementGuidanceSchema>;
+export type StatementGuidanceField = (typeof statementGuidanceFields)[number];
 export type CreateTimelineEventInput = z.infer<typeof createTimelineEventSchema>;
 
 export interface CaseSummary {
@@ -96,6 +118,28 @@ export interface CaseStatementSummary {
   createdAt: string;
   updatedAt: string;
   versions: StatementVersionSummary[];
+}
+
+export interface StatementGuidanceSummary extends SaveStatementGuidanceInput {
+  id: string;
+  caseId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GeneratedCaseSummary {
+  id: string;
+  caseId: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StatementWorkspaceSummary {
+  statement: CaseStatementSummary | null;
+  guidance: StatementGuidanceSummary | null;
+  summary: GeneratedCaseSummary | null;
+  summaryHistory: GeneratedCaseSummary[];
 }
 
 export interface PacketExportSummary {

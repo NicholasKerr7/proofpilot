@@ -38,9 +38,14 @@
 - `DELETE /cases/:caseId/timeline/:eventId`
 - `GET /cases/:caseId/statement`
 - `PUT /cases/:caseId/statement`
+- `PUT /cases/:caseId/statement/guidance`
 - `POST /cases/:caseId/statement/generate`
+- `POST /cases/:caseId/statement/versions/:versionId/restore`
+- `POST /cases/:caseId/summary/generate`
 - `GET /cases/:caseId/packets`
 - `POST /cases/:caseId/packet/generate`
+
+Statement routes resolve the active case through the authenticated owner. Guided answers are stored separately from statement versions, draft generation uses only saved case context, and restoration creates a new current version instead of overwriting history. Summary generation versions the result in `CaseSummary` and updates the case's current summary for packet export.
 
 ## Case Collaboration
 

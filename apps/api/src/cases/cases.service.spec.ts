@@ -1,5 +1,5 @@
 import { BadRequestException, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
-import { PacketStatus } from "@proofpilot/database";
+import { ChecklistStatus, PacketStatus } from "@proofpilot/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service.js";
 import type { PacketGenerationQueueService } from "../queue/packet-generation-queue.service.js";
@@ -57,7 +57,8 @@ function createPrismaMock() {
       findMany: vi.fn()
     },
     case: {
-      findFirst: vi.fn()
+      findFirst: vi.fn(),
+      update: vi.fn().mockResolvedValue({})
     },
     casePacket: {
       create: vi.fn(),
@@ -81,6 +82,23 @@ function createPrismaMock() {
     },
     document: {
       findMany: vi.fn()
+    },
+    caseStatement: {
+      create: vi.fn(),
+      findFirst: vi.fn(),
+      update: vi.fn()
+    },
+    caseSummary: {
+      create: vi.fn(),
+      findMany: vi.fn()
+    },
+    statementGuidance: {
+      findUnique: vi.fn(),
+      upsert: vi.fn()
+    },
+    statementVersion: {
+      aggregate: vi.fn(),
+      findFirst: vi.fn()
     },
     eventSource: {
       createMany: vi.fn(),
@@ -226,6 +244,218 @@ describe("CasesService", () => {
 
     expect(prisma.caseChecklistItem.update).not.toHaveBeenCalled();
     expect(databaseMocks.analyzeCaseChecklistTransaction).not.toHaveBeenCalled();
+  });
+
+  it("saves normalized guided answers for an owned case without auditing their contents", async () => {
+    const createdAt = new Date("2026-05-12T12:00:00.000Z");
+    const savedGuidance = {
+      id: "guidance-1",
+      caseId,
+      platformAction: "PayPal limited my account",
+      actionDate: null,
+      reasonGiven: null,
+      accountUse: "Routine business payments",
+      supportContact: null,
+      requestedOutcome: "Restore access",
+      supportingDocuments: null,
+      createdAt,
+      updatedAt: createdAt
+    };
+    prisma.case.findFirst.mockResolvedValue({ id: caseId });
+    prisma.statementGuidance.upsert.mockResolvedValue(savedGuidance);
+
+    const result = await service.saveStatementGuidance(ownerId, caseId, {
+      platformAction: " PayPal limited my account ",
+      actionDate: "",
+      reasonGiven: " ",
+      accountUse: " Routine business payments ",
+      supportContact: "",
+      requestedOutcome: " Restore access ",
+      supportingDocuments: ""
+    });
+
+    expect(prisma.statementGuidance.upsert).toHaveBeenCalledWith({
+      where: { caseId },
+      update: {
+        platformAction: "PayPal limited my account",
+        actionDate: null,
+        reasonGiven: null,
+        accountUse: "Routine business payments",
+        supportContact: null,
+        requestedOutcome: "Restore access",
+        supportingDocuments: null
+      },
+      create: {
+        caseId,
+        platformAction: "PayPal limited my account",
+        actionDate: null,
+        reasonGiven: null,
+        accountUse: "Routine business payments",
+        supportContact: null,
+        requestedOutcome: "Restore access",
+        supportingDocuments: null
+      },
+      select: expect.any(Object)
+    });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: {
+        userId: ownerId,
+        caseId,
+        action: "case.statement_guidance_saved",
+        metadata: {
+          answeredCount: 3,
+          guidanceId: "guidance-1"
+        }
+      }
+    });
+    expect(result).toEqual({
+      ...savedGuidance,
+      actionDate: "",
+      reasonGiven: "",
+      supportContact: "",
+      supportingDocuments: ""
+    });
+  });
+
+  it("restores an owned statement version as a new version", async () => {
+    const createdAt = new Date("2026-05-12T12:00:00.000Z");
+    const restoredStatement = {
+      id: "statement-1",
+      caseId,
+      content: "Earlier statement content",
+      createdAt,
+      updatedAt: createdAt,
+      versions: [
+        {
+          id: "version-3",
+          content: "Earlier statement content",
+          version: 3,
+          createdAt
+        }
+      ]
+    };
+    prisma.statementVersion.findFirst.mockResolvedValue({
+      content: "Earlier statement content",
+      version: 1
+    });
+    prisma.caseStatement.findFirst.mockResolvedValue({ id: "statement-1" });
+    prisma.statementVersion.aggregate.mockResolvedValue({ _max: { version: 2 } });
+    prisma.caseStatement.update.mockResolvedValue(restoredStatement);
+
+    const result = await service.restoreStatementVersion(ownerId, caseId, "version-1");
+
+    expect(prisma.statementVersion.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "version-1",
+        statement: {
+          caseId,
+          case: {
+            ownerId,
+            archivedAt: null
+          }
+        }
+      },
+      select: {
+        content: true,
+        version: true
+      }
+    });
+    expect(prisma.caseStatement.update).toHaveBeenCalledWith({
+      where: { id: "statement-1" },
+      data: {
+        content: "Earlier statement content",
+        versions: {
+          create: {
+            content: "Earlier statement content",
+            version: 3
+          }
+        }
+      },
+      select: expect.any(Object)
+    });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: {
+        userId: ownerId,
+        caseId,
+        action: "case.statement_restored",
+        metadata: {
+          statementId: "statement-1",
+          version: 3,
+          restoredFromVersion: 1
+        }
+      }
+    });
+    expect(result).toEqual(restoredStatement);
+  });
+
+  it("rejects statement versions outside the owned case", async () => {
+    prisma.statementVersion.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.restoreStatementVersion(ownerId, caseId, "foreign-version")
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(prisma.caseStatement.update).not.toHaveBeenCalled();
+  });
+
+  it("generates and versions a case summary from owned timeline and evidence records", async () => {
+    const createdAt = new Date("2026-05-15T12:00:00.000Z");
+    const summaryRecord = {
+      id: "summary-1",
+      caseId,
+      content: "Generated case summary",
+      createdAt,
+      updatedAt: createdAt
+    };
+    prisma.case.findFirst.mockResolvedValue({
+      id: caseId,
+      title: "PayPal account closure appeal",
+      platform: "PayPal",
+      documents: [{ originalName: "notice.pdf", status: "PROCESSED" }],
+      events: [
+        {
+          occurredAt: new Date("2026-05-12T12:00:00.000Z"),
+          title: "Notice received"
+        }
+      ],
+      checklist: [
+        {
+          label: "Account notice",
+          status: ChecklistStatus.FOUND,
+          requirement: { required: true }
+        }
+      ],
+      statements: [{ content: "Saved statement" }],
+      statementGuidance: { requestedOutcome: "Restore access" }
+    });
+    prisma.caseSummary.create.mockResolvedValue(summaryRecord);
+
+    const result = await service.generateSummary(ownerId, caseId);
+
+    expect(prisma.caseSummary.create).toHaveBeenCalledWith({
+      data: {
+        caseId,
+        content: expect.stringContaining("Notice received")
+      },
+      select: expect.any(Object)
+    });
+    expect(prisma.case.update).toHaveBeenCalledWith({
+      where: { id: caseId },
+      data: { summary: expect.stringContaining("Restore access") }
+    });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: {
+        userId: ownerId,
+        caseId,
+        action: "case.statement_summary_generated",
+        metadata: {
+          documentCount: 1,
+          eventCount: 1,
+          summaryId: "summary-1"
+        }
+      }
+    });
+    expect(result).toEqual(summaryRecord);
   });
 
   it("creates a generating packet and enqueues packet generation", async () => {

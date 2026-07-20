@@ -439,11 +439,11 @@ function TimelineSummaryRow({
 }) {
   return (
     <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 py-3 first:pt-0 last:pb-0">
-      <Icon className="mt-0.5 h-4 w-4 text-primary" aria-hidden="true" />
-      <div>
-        <dt className="text-xs text-muted-foreground">{label}</dt>
-        <dd className="mt-1 text-sm font-medium text-foreground">{value}</dd>
-      </div>
+      <dt className="col-span-2 grid grid-cols-[auto_minmax(0,1fr)] gap-3 text-xs text-muted-foreground">
+        <Icon className="mt-0.5 h-4 w-4 text-primary" aria-hidden="true" />
+        <span>{label}</span>
+      </dt>
+      <dd className="col-start-2 text-sm font-medium text-foreground">{value}</dd>
     </div>
   );
 }

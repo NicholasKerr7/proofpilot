@@ -349,15 +349,15 @@ function ReminderSummary({
 }) {
   return (
     <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-2 sm:border-l sm:border-border sm:pl-3 first:sm:border-l-0 first:sm:pl-0">
-      <span className="pt-0.5 text-primary">
-        {icon === "deadline" ? <CalendarClock className="h-4 w-4" aria-hidden="true" /> : null}
-        {icon === "next" ? <Clock3 className="h-4 w-4" aria-hidden="true" /> : null}
-        {icon === "pending" ? <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> : null}
-      </span>
-      <div>
-        <dt className="text-xs text-muted-foreground">{label}</dt>
-        <dd className="mt-1 break-words text-sm font-medium leading-5 text-foreground">{value}</dd>
-      </div>
+      <dt className="col-span-2 grid grid-cols-[auto_minmax(0,1fr)] gap-2 text-xs text-muted-foreground">
+        <span className="pt-0.5 text-primary">
+          {icon === "deadline" ? <CalendarClock className="h-4 w-4" aria-hidden="true" /> : null}
+          {icon === "next" ? <Clock3 className="h-4 w-4" aria-hidden="true" /> : null}
+          {icon === "pending" ? <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> : null}
+        </span>
+        <span>{label}</span>
+      </dt>
+      <dd className="col-start-2 break-words text-sm font-medium leading-5 text-foreground">{value}</dd>
     </div>
   );
 }

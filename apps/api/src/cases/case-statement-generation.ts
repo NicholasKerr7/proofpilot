@@ -16,6 +16,16 @@ interface StatementDocument {
   status: string;
 }
 
+interface StatementGuidance {
+  platformAction: string | null;
+  actionDate: string | null;
+  reasonGiven: string | null;
+  accountUse: string | null;
+  supportContact: string | null;
+  requestedOutcome: string | null;
+  supportingDocuments: string | null;
+}
+
 interface GenerateStatementInput {
   title: string;
   platform: string;
@@ -24,30 +34,45 @@ interface GenerateStatementInput {
   events: StatementEvent[];
   checklist: StatementChecklistItem[];
   documents: StatementDocument[];
+  guidance: StatementGuidance | null;
 }
 
 const readyChecklistStatuses = new Set<ChecklistStatus>([
   ChecklistStatus.COMPLETE,
   ChecklistStatus.FOUND
 ]);
+const maxStatementLength = 12000;
 
 export function generateAppealStatement(input: GenerateStatementInput) {
   const sections = [
     `To the ${input.platform} Appeals Team,`,
     buildOpening(input),
-    buildTimelineSection(input.events),
-    buildEvidenceSection(input.documents, input.checklist),
+    buildTimelineSection(input.events, input.guidance?.actionDate ?? null),
+    buildContextSection(input.guidance),
+    buildEvidenceSection(
+      input.documents,
+      input.checklist,
+      input.guidance?.supportingDocuments ?? null
+    ),
     buildRequestedOutcome(input)
   ].filter(Boolean);
 
-  return sections.join("\n\n");
+  return limitLength(sections.join("\n\n"), maxStatementLength);
 }
 
 function buildOpening(input: GenerateStatementInput) {
+  const platformAction = normalizeAnswer(input.guidance?.platformAction);
+  const reasonGiven = normalizeAnswer(input.guidance?.reasonGiven);
   const lines = [
-    `I am requesting a review of the account action related to "${input.title}".`,
+    platformAction
+      ? ensureSentence(platformAction)
+      : `I am requesting a review of the account action related to "${input.title}".`,
     input.summary?.trim() || "My goal is to provide a clear record of what happened and the evidence available for review."
   ];
+
+  if (reasonGiven) {
+    lines.push(`The reason communicated to me was: ${ensureSentence(reasonGiven)}`);
+  }
 
   if (input.deadline) {
     lines.push(`I am trying to resolve this before ${formatDate(input.deadline)}.`);
@@ -56,9 +81,12 @@ function buildOpening(input: GenerateStatementInput) {
   return lines.join(" ");
 }
 
-function buildTimelineSection(events: StatementEvent[]) {
+function buildTimelineSection(events: StatementEvent[], actionDate: string | null) {
   if (!events.length) {
-    return "Timeline\nI am still organizing the key dates and will update this statement as additional evidence is added.";
+    const dateAnswer = normalizeAnswer(actionDate);
+    return dateAnswer
+      ? `Timeline\n- Account action: ${ensureSentence(dateAnswer)}`
+      : "Timeline\nI am still organizing the key dates and will update this statement as additional evidence is added.";
   }
 
   const lines = events.slice(0, 6).map((event) => {
@@ -69,9 +97,31 @@ function buildTimelineSection(events: StatementEvent[]) {
   return ["Timeline", ...lines].join("\n");
 }
 
+function buildContextSection(guidance: StatementGuidance | null) {
+  const accountUse = normalizeAnswer(guidance?.accountUse);
+  const supportContact = normalizeAnswer(guidance?.supportContact);
+
+  if (!accountUse && !supportContact) {
+    return null;
+  }
+
+  const lines = ["Account context"];
+
+  if (accountUse) {
+    lines.push(`- Account use: ${ensureSentence(accountUse)}`);
+  }
+
+  if (supportContact) {
+    lines.push(`- Support contact: ${ensureSentence(supportContact)}`);
+  }
+
+  return lines.join("\n");
+}
+
 function buildEvidenceSection(
   documents: StatementDocument[],
-  checklist: StatementChecklistItem[]
+  checklist: StatementChecklistItem[],
+  supportingDocuments: string | null
 ) {
   const readyItems = checklist
     .filter((item) => readyChecklistStatuses.has(item.status))
@@ -84,6 +134,11 @@ function buildEvidenceSection(
     .map((document) => document.originalName);
 
   const lines = ["Evidence available for review"];
+
+  const documentAnswer = normalizeAnswer(supportingDocuments);
+  if (documentAnswer) {
+    lines.push(`- Supporting context: ${ensureSentence(documentAnswer)}`);
+  }
 
   if (readyItems.length) {
     lines.push(`- Matched requirements: ${readyItems.slice(0, 6).join("; ")}.`);
@@ -105,11 +160,31 @@ function buildEvidenceSection(
 }
 
 function buildRequestedOutcome(input: GenerateStatementInput) {
+  const requestedOutcome = normalizeAnswer(input.guidance?.requestedOutcome);
+
   return [
     "Requested outcome",
-    `Please review the attached evidence and reconsider the ${input.platform} account action.`,
-    "I am asking for the restriction, hold, closure, or suspension to be removed, or for a specific explanation of what additional information is required."
+    requestedOutcome
+      ? ensureSentence(requestedOutcome)
+      : `Please review the attached evidence and reconsider the ${input.platform} account action.`,
+    "If additional information is required, please identify the specific records or steps needed to complete the review."
   ].join("\n");
+}
+
+function normalizeAnswer(value: string | null | undefined) {
+  return value?.trim() || null;
+}
+
+function ensureSentence(value: string) {
+  return /[.!?]$/.test(value) ? value : `${value}.`;
+}
+
+function limitLength(value: string, maxLength: number) {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  return `${value.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
 function formatDate(value: Date) {

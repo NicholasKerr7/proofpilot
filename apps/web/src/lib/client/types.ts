@@ -136,8 +136,33 @@ export interface CaseStatement {
   versions: CaseStatementVersion[];
 }
 
+export interface StatementGuidance {
+  id: string;
+  caseId: string;
+  platformAction: string;
+  actionDate: string;
+  reasonGiven: string;
+  accountUse: string;
+  supportContact: string;
+  requestedOutcome: string;
+  supportingDocuments: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GeneratedCaseSummary {
+  id: string;
+  caseId: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CaseStatementResponse {
   statement: CaseStatement | null;
+  guidance: StatementGuidance | null;
+  summary: GeneratedCaseSummary | null;
+  summaryHistory: GeneratedCaseSummary[];
 }
 
 export interface CasePacketExport {

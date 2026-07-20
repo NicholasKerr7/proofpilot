@@ -19,11 +19,13 @@ import { PrismaService } from "../prisma/prisma.service.js";
 import { PacketGenerationQueueService } from "../queue/packet-generation-queue.service.js";
 import { getCaseActivityActionFilter, toCaseActivityItem } from "./case-activity.js";
 import { generateAppealStatement } from "./case-statement-generation.js";
+import { generateCaseSummary } from "./case-summary-generation.js";
 import { analyzeTimelineEvidence } from "./case-timeline-analysis.js";
 import type { CreateCaseDto } from "./dto/create-case.dto.js";
 import type { CreateTimelineEventDto } from "./dto/create-timeline-event.dto.js";
 import type { ListCaseActivityQueryDto } from "./dto/list-case-activity-query.dto.js";
 import type { ReorderTimelineEventsDto } from "./dto/reorder-timeline-events.dto.js";
+import type { SaveStatementGuidanceDto } from "./dto/save-statement-guidance.dto.js";
 import type { SaveStatementDto } from "./dto/save-statement.dto.js";
 import type { UpdateCaseDto } from "./dto/update-case.dto.js";
 import type { UpdateChecklistItemDto } from "./dto/update-checklist-item.dto.js";
@@ -42,6 +44,25 @@ interface PrivatePacketRecord {
     createdAt: Date;
   }[];
 }
+
+interface PrivateStatementGuidanceRecord {
+  id: string;
+  caseId: string;
+  platformAction: string | null;
+  actionDate: string | null;
+  reasonGiven: string | null;
+  accountUse: string | null;
+  supportContact: string | null;
+  requestedOutcome: string | null;
+  supportingDocuments: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+type StatementAuditAction =
+  | "case.statement_generated"
+  | "case.statement_restored"
+  | "case.statement_saved";
 
 @Injectable()
 export class CasesService {
@@ -688,18 +709,72 @@ export class CasesService {
   async getStatement(ownerId: string, caseId: string) {
     await this.assertCaseOwnership(ownerId, caseId);
 
-    const statement = await this.prisma.caseStatement.findFirst({
-      where: { caseId },
-      orderBy: { updatedAt: "desc" },
-      select: this.getStatementSelect()
-    });
+    const [statement, guidance, summaryHistory] = await Promise.all([
+      this.prisma.caseStatement.findFirst({
+        where: { caseId },
+        orderBy: { updatedAt: "desc" },
+        select: this.getStatementSelect()
+      }),
+      this.prisma.statementGuidance.findUnique({
+        where: { caseId },
+        select: this.getStatementGuidanceSelect()
+      }),
+      this.prisma.caseSummary.findMany({
+        where: { caseId },
+        orderBy: { createdAt: "desc" },
+        select: this.getCaseSummarySelect(),
+        take: 5
+      })
+    ]);
 
-    return { statement };
+    return {
+      statement,
+      guidance: this.toPublicStatementGuidance(guidance),
+      summary: summaryHistory[0] ?? null,
+      summaryHistory
+    };
   }
 
   async saveStatement(ownerId: string, caseId: string, input: SaveStatementDto) {
     await this.assertCaseOwnership(ownerId, caseId);
     return this.upsertStatementDraft(ownerId, caseId, input.content, "case.statement_saved");
+  }
+
+  async saveStatementGuidance(
+    ownerId: string,
+    caseId: string,
+    input: SaveStatementGuidanceDto
+  ) {
+    await this.assertCaseOwnership(ownerId, caseId);
+    const data = this.normalizeStatementGuidance(input);
+
+    const guidance = await this.prisma.$transaction(async (tx) => {
+      const savedGuidance = await tx.statementGuidance.upsert({
+        where: { caseId },
+        update: data,
+        create: {
+          caseId,
+          ...data
+        },
+        select: this.getStatementGuidanceSelect()
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: ownerId,
+          caseId,
+          action: "case.statement_guidance_saved",
+          metadata: {
+            answeredCount: Object.values(data).filter(Boolean).length,
+            guidanceId: savedGuidance.id
+          }
+        }
+      });
+
+      return savedGuidance;
+    });
+
+    return this.toPublicStatementGuidance(guidance);
   }
 
   async generateStatement(ownerId: string, caseId: string) {
@@ -736,6 +811,17 @@ export class CasesService {
             title: true,
             description: true
           }
+        },
+        statementGuidance: {
+          select: {
+            platformAction: true,
+            actionDate: true,
+            reasonGiven: true,
+            accountUse: true,
+            supportContact: true,
+            requestedOutcome: true,
+            supportingDocuments: true
+          }
         }
       }
     });
@@ -744,8 +830,128 @@ export class CasesService {
       throw new NotFoundException("Case not found.");
     }
 
-    const content = generateAppealStatement(foundCase);
+    const content = generateAppealStatement({
+      ...foundCase,
+      guidance: foundCase.statementGuidance
+    });
     return this.upsertStatementDraft(ownerId, caseId, content, "case.statement_generated");
+  }
+
+  async restoreStatementVersion(ownerId: string, caseId: string, versionId: string) {
+    const version = await this.prisma.statementVersion.findFirst({
+      where: {
+        id: versionId,
+        statement: {
+          caseId,
+          case: {
+            ownerId,
+            archivedAt: null
+          }
+        }
+      },
+      select: {
+        content: true,
+        version: true
+      }
+    });
+
+    if (!version) {
+      throw new NotFoundException("Statement version not found.");
+    }
+
+    return this.upsertStatementDraft(
+      ownerId,
+      caseId,
+      version.content,
+      "case.statement_restored",
+      { restoredFromVersion: version.version }
+    );
+  }
+
+  async generateSummary(ownerId: string, caseId: string) {
+    const foundCase = await this.prisma.case.findFirst({
+      where: {
+        id: caseId,
+        ownerId,
+        archivedAt: null
+      },
+      select: {
+        id: true,
+        title: true,
+        platform: true,
+        documents: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            originalName: true,
+            status: true
+          }
+        },
+        events: {
+          orderBy: [{ sortOrder: "asc" }, { occurredAt: "asc" }, { id: "asc" }],
+          select: {
+            occurredAt: true,
+            title: true
+          }
+        },
+        checklist: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            label: true,
+            status: true,
+            requirement: {
+              select: { required: true }
+            }
+          }
+        },
+        statements: {
+          orderBy: { updatedAt: "desc" },
+          take: 1,
+          select: { content: true }
+        },
+        statementGuidance: {
+          select: { requestedOutcome: true }
+        }
+      }
+    });
+
+    if (!foundCase) {
+      throw new NotFoundException("Case not found.");
+    }
+
+    const content = generateCaseSummary({
+      ...foundCase,
+      statement: foundCase.statements[0]?.content ?? null,
+      requestedOutcome: foundCase.statementGuidance?.requestedOutcome ?? null
+    });
+
+    return this.prisma.$transaction(async (tx) => {
+      const summary = await tx.caseSummary.create({
+        data: {
+          caseId,
+          content
+        },
+        select: this.getCaseSummarySelect()
+      });
+
+      await tx.case.update({
+        where: { id: caseId },
+        data: { summary: content }
+      });
+      await tx.auditLog.create({
+        data: {
+          userId: ownerId,
+          caseId,
+          action: "case.statement_summary_generated",
+          metadata: {
+            documentCount: foundCase.documents.length,
+            eventCount: foundCase.events.length,
+            summaryId: summary.id
+          }
+        }
+      });
+
+      return summary;
+    });
   }
 
   async listPackets(ownerId: string, caseId: string) {
@@ -1036,8 +1242,34 @@ export class CasesService {
           version: true,
           createdAt: true
         },
-        take: 5
+        take: 10
       }
+    };
+  }
+
+  private getStatementGuidanceSelect() {
+    return {
+      id: true,
+      caseId: true,
+      platformAction: true,
+      actionDate: true,
+      reasonGiven: true,
+      accountUse: true,
+      supportContact: true,
+      requestedOutcome: true,
+      supportingDocuments: true,
+      createdAt: true,
+      updatedAt: true
+    };
+  }
+
+  private getCaseSummarySelect() {
+    return {
+      id: true,
+      caseId: true,
+      content: true,
+      createdAt: true,
+      updatedAt: true
     };
   }
 
@@ -1085,12 +1317,17 @@ export class CasesService {
     ownerId: string,
     caseId: string,
     rawContent: string,
-    action: "case.statement_generated" | "case.statement_saved"
+    action: StatementAuditAction,
+    auditMetadata: Record<string, number> = {}
   ) {
     const content = rawContent.trim();
 
     if (!content) {
       throw new BadRequestException("Statement content is required.");
+    }
+
+    if (content.length > 12000) {
+      throw new BadRequestException("Statement content must be 12,000 characters or fewer.");
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -1123,7 +1360,8 @@ export class CasesService {
           action,
           metadata: {
             statementId: statement.id,
-            version: statement.versions[0]?.version ?? 1
+            version: statement.versions[0]?.version ?? 1,
+            ...auditMetadata
           }
         }
       });
@@ -1155,6 +1393,35 @@ export class CasesService {
       },
       select: this.getStatementSelect()
     });
+  }
+
+  private normalizeStatementGuidance(input: SaveStatementGuidanceDto) {
+    return {
+      platformAction: input.platformAction.trim() || null,
+      actionDate: input.actionDate.trim() || null,
+      reasonGiven: input.reasonGiven.trim() || null,
+      accountUse: input.accountUse.trim() || null,
+      supportContact: input.supportContact.trim() || null,
+      requestedOutcome: input.requestedOutcome.trim() || null,
+      supportingDocuments: input.supportingDocuments.trim() || null
+    };
+  }
+
+  private toPublicStatementGuidance(guidance: PrivateStatementGuidanceRecord | null) {
+    if (!guidance) {
+      return null;
+    }
+
+    return {
+      ...guidance,
+      platformAction: guidance.platformAction ?? "",
+      actionDate: guidance.actionDate ?? "",
+      reasonGiven: guidance.reasonGiven ?? "",
+      accountUse: guidance.accountUse ?? "",
+      supportContact: guidance.supportContact ?? "",
+      requestedOutcome: guidance.requestedOutcome ?? "",
+      supportingDocuments: guidance.supportingDocuments ?? ""
+    };
   }
 
   private toUpdateAuditMetadata(input: UpdateCaseDto) {

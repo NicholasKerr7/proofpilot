@@ -227,16 +227,16 @@ function ChecklistMetric({
 }) {
   return (
     <div className="grid min-h-20 grid-cols-[auto_minmax(0,1fr)] items-center gap-3 border border-border bg-secondary/25 p-3">
-      <span className="text-primary">
-        {icon === "total" ? <ListChecks className="h-5 w-5" aria-hidden="true" /> : null}
-        {icon === "ready" ? <CheckCircle2 className="h-5 w-5 text-teal-100" aria-hidden="true" /> : null}
-        {icon === "missing" ? <FileCheck2 className="h-5 w-5" aria-hidden="true" /> : null}
-        {icon === "review" ? <AlertTriangle className="h-5 w-5 text-amber-100" aria-hidden="true" /> : null}
-      </span>
-      <div>
-        <dt className="text-xs text-muted-foreground">{label}</dt>
-        <dd className="mt-1 text-lg font-semibold text-foreground">{value}</dd>
-      </div>
+      <dt className="col-span-2 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 text-xs text-muted-foreground">
+        <span className="text-primary">
+          {icon === "total" ? <ListChecks className="h-5 w-5" aria-hidden="true" /> : null}
+          {icon === "ready" ? <CheckCircle2 className="h-5 w-5 text-teal-100" aria-hidden="true" /> : null}
+          {icon === "missing" ? <FileCheck2 className="h-5 w-5" aria-hidden="true" /> : null}
+          {icon === "review" ? <AlertTriangle className="h-5 w-5 text-amber-100" aria-hidden="true" /> : null}
+        </span>
+        <span>{label}</span>
+      </dt>
+      <dd className="col-start-2 text-lg font-semibold text-foreground">{value}</dd>
     </div>
   );
 }

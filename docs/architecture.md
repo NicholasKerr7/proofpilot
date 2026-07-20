@@ -40,6 +40,7 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 - Assistant audit events record IDs, response mode, intent, and prompt length without duplicating message content in audit metadata.
 - Collaboration management resolves every case through the authenticated owner ID. Audit metadata records collaborator IDs, roles, and changed setting names without storing invited email addresses.
 - Packet-share creation and revocation resolve the ready export through the authenticated case owner. Audit metadata stores share IDs, recipient counts, permissions, and expiry without storing raw tokens or recipient addresses.
+- Statement guidance, version restore, and summary generation resolve the active case through the authenticated owner. Audit metadata stores record IDs, answer counts, and source counts without duplicating answers, drafts, or summary text.
 
 ## Packet Sharing Foundation
 
@@ -72,3 +73,9 @@ The billing portal endpoint validates the requested action but returns `503` unt
 The assistant workspace persists one owner-scoped thread per user and case. Its current guided responder classifies a request and composes case-aware next steps from records already stored in ProofPilot. It does not mutate case data, rewrite statements automatically, or claim model generation.
 
 The schema reserves response-mode, model, token, and estimated-cost fields for a later model-backed capability. Those fields remain empty for guided responses, and the API reports `modelGeneration: false` so the web app can disclose the active capability accurately.
+
+## Statement And Summary Workflow
+
+The statement workspace persists seven validated guidance answers in a one-to-one `StatementGuidance` record. Deterministic draft generation combines those answers with the owned case, timeline, checklist, and evidence metadata; it does not send case content to an external model provider. Every save, generation, or restore operation creates a new immutable `StatementVersion`, and restoring an older entry never removes later history.
+
+Case summary generation reads the same owned timeline and evidence boundary, creates a versioned `CaseSummary`, and updates `Case.summary` as the current packet-facing value in one transaction. The responsive editor presents guided steps on mobile and persistent question navigation, editor context, summary review, and recovery controls at wider breakpoints.

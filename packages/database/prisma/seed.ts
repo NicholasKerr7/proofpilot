@@ -62,6 +62,8 @@ const requirements = [
 
 const demoCaseId = "demo-nicholas-paypal-appeal";
 const demoStatementId = "demo-nicholas-paypal-statement";
+const demoCaseSummary =
+  "PayPal limited the account after a payment review. The saved timeline covers the restriction notice, support contact, and appeal preparation. Current evidence includes the limitation notice and account records, with ownership proof still being gathered. Nicholas is requesting restored access or a specific explanation of any remaining requirements.";
 
 async function main() {
   const caseType = await prisma.caseType.upsert({
@@ -276,8 +278,7 @@ async function main() {
       ownerId: user.id,
       platform: "PayPal",
       status: CaseStatus.NEEDS_MORE_EVIDENCE,
-      summary:
-        "PayPal limited the account after a payment review. The appeal packet needs the restriction notice, support messages, ownership proof, and a concise written explanation.",
+      summary: demoCaseSummary,
       title: "PayPal account closure appeal"
     },
     create: {
@@ -287,8 +288,7 @@ async function main() {
       ownerId: user.id,
       platform: "PayPal",
       status: CaseStatus.NEEDS_MORE_EVIDENCE,
-      summary:
-        "PayPal limited the account after a payment review. The appeal packet needs the restriction notice, support messages, ownership proof, and a concise written explanation.",
+      summary: demoCaseSummary,
       title: "PayPal account closure appeal"
     }
   });
@@ -445,6 +445,47 @@ async function main() {
       content: statementContent,
       statementId: demoStatementId,
       version: 1
+    }
+  });
+
+  await prisma.statementGuidance.upsert({
+    where: { caseId: demoCase.id },
+    update: {
+      platformAction: "PayPal permanently limited my account after a payment review.",
+      actionDate: "The limitation notice arrived five days ago.",
+      reasonGiven: "The notice referred to a review of recent account activity.",
+      accountUse: "I used the account for legitimate customer payments and routine business activity.",
+      supportContact: "I contacted support and began gathering the records requested for review.",
+      requestedOutcome:
+        "Restore account access after reviewing the attached evidence, or identify the specific information still required.",
+      supportingDocuments:
+        "The case includes the limitation notice, support correspondence, account records, and transaction context."
+    },
+    create: {
+      id: "demo-nicholas-paypal-statement-guidance",
+      caseId: demoCase.id,
+      platformAction: "PayPal permanently limited my account after a payment review.",
+      actionDate: "The limitation notice arrived five days ago.",
+      reasonGiven: "The notice referred to a review of recent account activity.",
+      accountUse: "I used the account for legitimate customer payments and routine business activity.",
+      supportContact: "I contacted support and began gathering the records requested for review.",
+      requestedOutcome:
+        "Restore account access after reviewing the attached evidence, or identify the specific information still required.",
+      supportingDocuments:
+        "The case includes the limitation notice, support correspondence, account records, and transaction context."
+    }
+  });
+
+  await prisma.caseSummary.upsert({
+    where: { id: "demo-nicholas-paypal-summary-v1" },
+    update: {
+      caseId: demoCase.id,
+      content: demoCaseSummary
+    },
+    create: {
+      id: "demo-nicholas-paypal-summary-v1",
+      caseId: demoCase.id,
+      content: demoCaseSummary
     }
   });
 

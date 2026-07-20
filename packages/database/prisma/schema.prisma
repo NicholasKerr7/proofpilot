@@ -251,33 +251,34 @@ model CaseType {
 }
 
 model Case {
-  id               String               @id @default(cuid())
-  ownerId          String
-  owner            User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  caseTypeId       String
-  caseType         CaseType             @relation(fields: [caseTypeId], references: [id])
-  title            String
-  platform         String
-  summary          String?
-  status           CaseStatus           @default(DRAFT)
-  deadline         DateTime?
-  archivedAt       DateTime?
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
-  documents        Document[]
-  events           CaseEvent[]
-  checklist        CaseChecklistItem[]
-  statements       CaseStatement[]
-  summaries        CaseSummary[]
-  packets          CasePacket[]
-  reminders        Reminder[]
-  notifications    Notification[]
-  auditLogs        AuditLog[]
-  supportRequests  SupportRequest[]
-  assistantThreads AssistantThread[]
-  collaborators    CaseCollaborator[]
-  sharingSettings  CaseSharingSettings?
-  packetShares     PacketShare[]
+  id                String               @id @default(cuid())
+  ownerId           String
+  owner             User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  caseTypeId        String
+  caseType          CaseType             @relation(fields: [caseTypeId], references: [id])
+  title             String
+  platform          String
+  summary           String?
+  status            CaseStatus           @default(DRAFT)
+  deadline          DateTime?
+  archivedAt        DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  documents         Document[]
+  events            CaseEvent[]
+  checklist         CaseChecklistItem[]
+  statementGuidance StatementGuidance?
+  statements        CaseStatement[]
+  summaries         CaseSummary[]
+  packets           CasePacket[]
+  reminders         Reminder[]
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+  supportRequests   SupportRequest[]
+  assistantThreads  AssistantThread[]
+  collaborators     CaseCollaborator[]
+  sharingSettings   CaseSharingSettings?
+  packetShares      PacketShare[]
 
   @@index([ownerId, status])
   @@index([caseTypeId])
@@ -458,6 +459,21 @@ model CaseStatement {
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
   versions  StatementVersion[]
+}
+
+model StatementGuidance {
+  id                  String   @id @default(cuid())
+  caseId              String   @unique
+  case                Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  platformAction      String?
+  actionDate          String?
+  reasonGiven         String?
+  accountUse          String?
+  supportContact      String?
+  requestedOutcome    String?
+  supportingDocuments String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
 
 model StatementVersion {

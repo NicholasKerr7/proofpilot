@@ -124,8 +124,14 @@ function getActivityPresentation(
       return activity("checklist", "Checklist item reopened", readString(metadata, "label"));
     case "case.statement_generated":
       return activity("statement", "Statement draft generated", getVersionDetail(metadata));
+    case "case.statement_guidance_saved":
+      return activity("statement", "Guided answers saved", getGuidanceDetail(metadata));
+    case "case.statement_restored":
+      return activity("statement", "Statement version restored", getRestoredVersionDetail(metadata));
     case "case.statement_saved":
       return activity("statement", "Statement draft saved", getVersionDetail(metadata));
+    case "case.statement_summary_generated":
+      return activity("statement", "Case summary generated", getSummaryDetail(metadata));
     case "case.packet_generation_queued":
       return activity("packet", "Packet generation started", null);
     case "case.packet_generated":
@@ -255,6 +261,27 @@ function readString(metadata: Record<string, unknown>, key: string) {
 function readNumber(metadata: Record<string, unknown>, key: string) {
   const value = metadata[key];
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function getGuidanceDetail(metadata: Record<string, unknown>) {
+  const answeredCount = readNumber(metadata, "answeredCount");
+  return answeredCount === null ? null : `${answeredCount} of 7 prompts answered`;
+}
+
+function getRestoredVersionDetail(metadata: Record<string, unknown>) {
+  const sourceVersion = readNumber(metadata, "restoredFromVersion");
+  return sourceVersion === null ? getVersionDetail(metadata) : `Restored from version ${sourceVersion}`;
+}
+
+function getSummaryDetail(metadata: Record<string, unknown>) {
+  const documentCount = readNumber(metadata, "documentCount");
+  const eventCount = readNumber(metadata, "eventCount");
+
+  if (documentCount === null || eventCount === null) {
+    return null;
+  }
+
+  return `${documentCount} evidence files and ${eventCount} timeline events reviewed`;
 }
 
 function formatFieldName(value: string) {

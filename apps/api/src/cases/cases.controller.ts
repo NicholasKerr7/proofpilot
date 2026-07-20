@@ -19,6 +19,7 @@ import { CreateCaseDto } from "./dto/create-case.dto.js";
 import { CreateTimelineEventDto } from "./dto/create-timeline-event.dto.js";
 import { ListCaseActivityQueryDto } from "./dto/list-case-activity-query.dto.js";
 import { ReorderTimelineEventsDto } from "./dto/reorder-timeline-events.dto.js";
+import { SaveStatementGuidanceDto } from "./dto/save-statement-guidance.dto.js";
 import { SaveStatementDto } from "./dto/save-statement.dto.js";
 import { UpdateCaseDto } from "./dto/update-case.dto.js";
 import { UpdateChecklistItemDto } from "./dto/update-checklist-item.dto.js";
@@ -136,9 +137,32 @@ export class CasesController {
     return this.casesService.saveStatement(user.id, id, input);
   }
 
+  @Put(":id/statement/guidance")
+  saveStatementGuidance(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Body() input: SaveStatementGuidanceDto
+  ) {
+    return this.casesService.saveStatementGuidance(user.id, id, input);
+  }
+
   @Post(":id/statement/generate")
   generateStatement(@CurrentUser() user: RequestUser, @Param("id") id: string) {
     return this.casesService.generateStatement(user.id, id);
+  }
+
+  @Post(":id/statement/versions/:versionId/restore")
+  restoreStatementVersion(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Param("versionId") versionId: string
+  ) {
+    return this.casesService.restoreStatementVersion(user.id, id, versionId);
+  }
+
+  @Post(":id/summary/generate")
+  generateSummary(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+    return this.casesService.generateSummary(user.id, id);
   }
 
   @Get(":id/packets")
