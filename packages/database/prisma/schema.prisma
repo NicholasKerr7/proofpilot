@@ -324,6 +324,7 @@ model Document {
   storageKey         String
   status             DocumentStatus          @default(UPLOADED)
   extractedText      String?
+  quarantinedAt      DateTime?
   createdAt          DateTime                @default(now())
   updatedAt          DateTime                @updatedAt
   versions           DocumentVersion[]

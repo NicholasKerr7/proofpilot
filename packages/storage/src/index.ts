@@ -1,4 +1,5 @@
 import {
+  CopyObjectCommand,
   CreateBucketCommand,
   DeleteObjectCommand,
   GetObjectCommand,
@@ -163,6 +164,25 @@ export async function deleteStoredObject(input: { key: string }) {
   await getStorageClient().send(command);
 }
 
+export async function copyStoredObject(input: {
+  destinationKey: string;
+  sourceEtag: string;
+  sourceKey: string;
+}) {
+  const config = getStorageConfig();
+  const command = new CopyObjectCommand({
+    Bucket: config.STORAGE_BUCKET,
+    CopySource: createCopySource(config.STORAGE_BUCKET, input.sourceKey),
+    CopySourceIfMatch: input.sourceEtag,
+    Key: input.destinationKey
+  });
+  const response = await getStorageClient().send(command);
+
+  return {
+    etag: response.CopyObjectResult?.ETag ?? null
+  };
+}
+
 export async function headStoredObject(input: { key: string }) {
   const config = getStorageConfig();
   const command = new HeadObjectCommand({
@@ -174,6 +194,7 @@ export async function headStoredObject(input: { key: string }) {
   return {
     byteSize: response.ContentLength ?? 0,
     contentType: response.ContentType ?? null,
+    etag: response.ETag ?? null,
     lastModified: response.LastModified ?? null
   };
 }
@@ -209,6 +230,33 @@ export async function readStoredObjectBytes(input: { key: string }) {
   return Buffer.from(await response.Body.transformToByteArray());
 }
 
+export async function readStoredObjectChunks(input: { key: string }) {
+  const config = getStorageConfig();
+  const command = new GetObjectCommand({
+    Bucket: config.STORAGE_BUCKET,
+    Key: input.key
+  });
+  const response = await getStorageClient().send(command);
+
+  if (!isAsyncByteIterable(response.Body)) {
+    throw new Error("Stored object body is not available as a byte stream.");
+  }
+
+  return {
+    chunks: response.Body,
+    etag: response.ETag ?? null
+  };
+}
+
+function isAsyncByteIterable(value: unknown): value is AsyncIterable<Uint8Array> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Symbol.asyncIterator in value &&
+    typeof (value as AsyncIterable<Uint8Array>)[Symbol.asyncIterator] === "function"
+  );
+}
+
 function isMissingBucketError(error: unknown) {
   if (!error || typeof error !== "object") {
     return false;
@@ -224,4 +272,9 @@ function isMissingBucketError(error: unknown) {
   const errorCode = errorWithMetadata.Code ?? errorWithMetadata.code ?? errorWithMetadata.name;
 
   return statusCode === 404 || errorCode === "NotFound" || errorCode === "NoSuchBucket";
+}
+
+function createCopySource(bucket: string, key: string) {
+  const encodedKey = key.split("/").map(encodeURIComponent).join("/");
+  return `${encodeURIComponent(bucket)}/${encodedKey}`;
 }

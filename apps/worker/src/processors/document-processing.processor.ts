@@ -50,6 +50,7 @@ export async function processUploadedDocument(job: Job<ProcessDocumentJobData>) 
       id: true,
       originalName: true,
       mimeType: true,
+      quarantinedAt: true,
       storageKey: true,
       case: {
         select: {
@@ -64,6 +65,18 @@ export async function processUploadedDocument(job: Job<ProcessDocumentJobData>) 
 
   if (!document) {
     throw new Error(`Document ${job.data.documentId} was not found.`);
+  }
+
+  if (document.quarantinedAt) {
+    await prisma.documentProcessingLog.create({
+      data: {
+        documentId: document.id,
+        step: "process_uploaded_document",
+        status: "skipped",
+        message: "Worker skipped a quarantined document."
+      }
+    });
+    return;
   }
 
   await prisma.document.update({

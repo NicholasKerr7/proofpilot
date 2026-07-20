@@ -24,4 +24,31 @@ describe("getApiEnv", () => {
 
     expect(env.TRUST_PROXY).toBe(true);
   });
+
+  it("requires ClamAV scanning in production", () => {
+    expect(() =>
+      getApiEnv({
+        ...baseEnv,
+        NODE_ENV: "production"
+      })
+    ).toThrow("VIRUS_SCAN_MODE must be clamav in production");
+  });
+
+  it("parses an enabled ClamAV configuration", () => {
+    const env = getApiEnv({
+      ...baseEnv,
+      NODE_ENV: "production",
+      VIRUS_SCAN_MODE: "clamav",
+      CLAMAV_HOST: "clamav.internal",
+      CLAMAV_PORT: "13310",
+      CLAMAV_TIMEOUT_MS: "90000"
+    });
+
+    expect(env).toMatchObject({
+      VIRUS_SCAN_MODE: "clamav",
+      CLAMAV_HOST: "clamav.internal",
+      CLAMAV_PORT: 13_310,
+      CLAMAV_TIMEOUT_MS: 90_000
+    });
+  });
 });

@@ -18,7 +18,7 @@ const booleanEnvSchema = z.preprocess((value) => {
   return value;
 }, z.boolean());
 
-const apiEnvSchema = z.object({
+const apiEnvObjectSchema = z.object({
   NODE_ENV: z.string().default("development"),
   PORT: z.coerce.number().int().positive().default(4000),
   WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
@@ -29,10 +29,24 @@ const apiEnvSchema = z.object({
   ERROR_MONITORING_WEBHOOK_URL: z.string().url().optional(),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(120),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
-  TRUST_PROXY: booleanEnvSchema.default(false)
+  TRUST_PROXY: booleanEnvSchema.default(false),
+  VIRUS_SCAN_MODE: z.enum(["disabled", "clamav"]).default("disabled"),
+  CLAMAV_HOST: z.string().min(1).default("127.0.0.1"),
+  CLAMAV_PORT: z.coerce.number().int().positive().max(65_535).default(3310),
+  CLAMAV_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(300_000).default(60_000)
 });
 
-const rateLimitEnvSchema = apiEnvSchema.pick({
+const apiEnvSchema = apiEnvObjectSchema.superRefine((env, context) => {
+  if (env.NODE_ENV === "production" && env.VIRUS_SCAN_MODE !== "clamav") {
+    context.addIssue({
+      code: "custom",
+      message: "VIRUS_SCAN_MODE must be clamav in production.",
+      path: ["VIRUS_SCAN_MODE"]
+    });
+  }
+});
+
+const rateLimitEnvSchema = apiEnvObjectSchema.pick({
   RATE_LIMIT_MAX: true,
   RATE_LIMIT_WINDOW_MS: true
 });

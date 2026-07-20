@@ -94,8 +94,14 @@ function getActivityPresentation(
       return activity("evidence", "Document removed", getDocumentName(metadata));
     case "document.upload_rejected":
       return activity("evidence", "Document upload rejected", getDocumentName(metadata));
-    case "document.virus_scan_placeholder":
-      return activity("evidence", "Upload safety check recorded", getDocumentName(metadata));
+    case "document.virus_scan_completed":
+      return activity("evidence", "Upload security scan passed", getDocumentName(metadata));
+    case "document.virus_scan_skipped":
+      return activity("evidence", "Upload security scan skipped", getDocumentName(metadata));
+    case "document.virus_scan_failed":
+      return activity("evidence", "Upload security check failed", getDocumentName(metadata));
+    case "document.virus_detected":
+      return activity("evidence", "Unsafe upload blocked", getDocumentName(metadata));
     case "document.processing_failed":
       return activity("evidence", "Document processing failed", getDocumentName(metadata));
     case "case.timeline_event_created":

@@ -19,6 +19,7 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 - PostgreSQL stores users, cases, assistant threads and messages, audit logs, connection metadata, billing metadata, evidence metadata, timelines, checklist data, statements, packet exports, packet shares, notifications, and jobs.
 - Redis backs BullMQ queues.
 - MinIO provides a local S3-compatible private storage target.
+- ClamAV can scan private uploads through an opt-in local security profile or a private production service.
 
 ## Security Baseline
 
@@ -34,6 +35,7 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 - Password changes update a dedicated `passwordChangedAt` timestamp.
 - Successful registration and login events store sanitized client context in owner-linked audit logs. User-agent and IP metadata are display context only and never authorization inputs.
 - Storage helpers generate signed upload/download URLs instead of exposing private object URLs.
+- The API streams completed uploads from private staging storage to ClamAV, then conditionally promotes the exact scanned ETag to a non-uploadable processing key before queueing work.
 - Assistant threads use a compound user-and-case key, and every assistant request resolves the case through the authenticated owner's ID before thread access.
 - Assistant audit events record IDs, response mode, intent, and prompt length without duplicating message content in audit metadata.
 - Collaboration management resolves every case through the authenticated owner ID. Audit metadata records collaborator IDs, roles, and changed setting names without storing invited email addresses.

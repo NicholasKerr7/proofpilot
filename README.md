@@ -10,6 +10,7 @@ ProofPilot turns messy evidence into professional appeal and dispute case packet
 - BullMQ worker in `apps/worker`
 - Prisma + PostgreSQL in `packages/database`
 - S3-compatible storage helpers in `packages/storage`
+- Optional ClamAV upload scanning through the `security` Compose profile
 
 ## Local Setup
 
@@ -36,6 +37,8 @@ Default URLs:
 - MinIO console: `http://localhost:9001`
 
 `pnpm storage:bootstrap` loads `.env` and `.env.local`, then verifies or creates the configured private storage bucket. Run it after MinIO is up locally and before first API or worker traffic in production.
+
+Local malware scanning is opt-in because ClamAV needs substantial memory. See [docs/operations.md](docs/operations.md#upload-security-runbook) before enabling `VIRUS_SCAN_MODE=clamav`.
 
 Local demo login after `pnpm db:seed`:
 

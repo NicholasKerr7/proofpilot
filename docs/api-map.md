@@ -73,6 +73,8 @@ Owner routes require an authenticated case-owner match and a ready packet export
 - `GET /documents/:documentId/processing-status`
 - `POST /documents/:documentId/reprocess`
 
+Upload completion validates the private staging object and performs a ClamAV stream scan before queueing work when scanning is enabled. The exact scanned ETag is conditionally promoted to a processing-only key. Production configuration requires scanning; infected objects are quarantined with storage deletion attempted, while scanner or promotion failures fail closed without queueing document processing.
+
 ## Notifications and Reminders
 
 - `GET /notifications`
@@ -138,7 +140,6 @@ Billing summaries and usage are scoped to the authenticated user. Invoice downlo
 
 ## Remaining Production Integrations
 
-- Replace the upload virus-scan placeholder with a real scanning provider.
 - Add provider-backed payments, OAuth connections, and model generation.
 - Add two-factor/WebAuthn enrollment and server-side session revocation.
 - Complete invitation acceptance and collaborator-session authorization.

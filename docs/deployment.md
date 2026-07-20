@@ -11,6 +11,7 @@ ProofPilot runs as three production services:
 - PostgreSQL
 - Redis
 - S3-compatible private storage, such as Cloudflare R2, AWS S3, or MinIO
+- A private ClamAV 1.4 LTS daemon reachable from the API
 
 ## Required Environment Variables
 
@@ -33,6 +34,10 @@ Set these for the API service:
 - `STORAGE_SECRET_ACCESS_KEY`
 - `STORAGE_ENDPOINT` when using S3-compatible storage outside AWS S3
 - `STORAGE_FORCE_PATH_STYLE=true` when using MinIO or another path-style provider
+- `VIRUS_SCAN_MODE=clamav`
+- `CLAMAV_HOST` private ClamAV hostname or IP
+- `CLAMAV_PORT=3310`
+- `CLAMAV_TIMEOUT_MS=60000`
 
 Set these for the worker service:
 
@@ -85,7 +90,11 @@ The command loads `.env` and `.env.local`, uses the same `STORAGE_*` variables a
 
 Evidence uploads are limited to PDF, PNG, JPG, JPEG, TXT, DOCX, EML, CSV, and XLSX files under 25 MB. The API validates the requested upload metadata before issuing a signed URL and validates the stored object size and content type before queueing document processing.
 
-Invalid completed uploads are marked `FAILED`, logged as `upload_validation`, and are not queued. A `virus_scan_placeholder` processing log is recorded after metadata validation; replace this placeholder with a real scanning provider before broad production uploads.
+Invalid completed uploads are marked `FAILED`, logged as `upload_validation`, and are not queued. The API never issues download URLs while a document remains `UPLOADED`. After metadata validation, it streams the private staging object to ClamAV using `INSTREAM`. A clean result is conditionally copied by ETag to a deterministic processing key before the staging object is deleted and work is queued. This keeps a still-valid upload URL from replacing the bytes accepted by the scanner. Detected threats are quarantined, denied download and reprocessing access, and deleted from storage. Scanner or promotion errors return `503` without queueing work so the upload can be retried.
+
+Configure a bucket lifecycle rule to expire objects under `users/*/cases/*/upload-staging/` after 24 hours. The API deletes staging objects after promotion, but the lifecycle rule removes abandoned reservations and objects recreated through unexpired signed URLs.
+
+Production API startup rejects disabled scanning. Keep the ClamAV TCP socket on a private network because the protocol has no transport encryption or authentication. Size the scanner separately from the API; the [official ClamAV container guidance](https://docs.clamav.net/manual/Installing/Docker.html) recommends 4 GB RAM for current signature databases.
 
 ## Container Builds
 

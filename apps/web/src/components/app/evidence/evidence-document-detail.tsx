@@ -58,7 +58,8 @@ export function EvidenceDocumentDetailPanel({
     );
   }
 
-  const canPreview = previewMimeTypes.has(selectedDocument.mimeType);
+  const isQuarantined = Boolean(selectedDocument.quarantinedAt);
+  const canPreview = !isQuarantined && previewMimeTypes.has(selectedDocument.mimeType);
   const isProcessing = isEvidenceProcessing(selectedDocument.status);
   const isPendingDelete = documentToDelete?.id === selectedDocument.id;
 
@@ -94,32 +95,44 @@ export function EvidenceDocumentDetailPanel({
         </p>
       ) : null}
 
+      {isQuarantined ? (
+        <p className="mt-4 rounded-md border border-red-300/30 bg-red-300/10 px-3 py-2 text-sm text-red-100">
+          This file was quarantined during upload security checks. It cannot be opened,
+          downloaded, or reprocessed.
+        </p>
+      ) : null}
+
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <Button asChild size="sm" variant="outline">
-          <a href={selectedDocument.downloadUrl} rel="noreferrer" target="_blank">
-            <ExternalLink className="h-4 w-4" aria-hidden="true" />
-            Open file
-          </a>
-        </Button>
-        <Button asChild size="sm" variant="secondary">
-          <a download href={selectedDocument.downloadUrl}>
-            <Download className="h-4 w-4" aria-hidden="true" />
-            Download
-          </a>
-        </Button>
+        {!isQuarantined && selectedDocument.downloadUrl ? (
+          <>
+            <Button asChild size="sm" variant="outline">
+              <a href={selectedDocument.downloadUrl} rel="noreferrer" target="_blank">
+                <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                Open file
+              </a>
+            </Button>
+            <Button asChild size="sm" variant="secondary">
+              <a download href={selectedDocument.downloadUrl}>
+                <Download className="h-4 w-4" aria-hidden="true" />
+                Download
+              </a>
+            </Button>
+            <Button
+              disabled={isReprocessing || isProcessing}
+              onClick={() => {
+                void onReprocess();
+              }}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              <RefreshCcw className="h-4 w-4" aria-hidden="true" />
+              {isReprocessing ? "Queueing..." : "Reprocess"}
+            </Button>
+          </>
+        ) : null}
         <Button
-          disabled={isReprocessing || isProcessing}
-          onClick={() => {
-            void onReprocess();
-          }}
-          size="sm"
-          type="button"
-          variant="ghost"
-        >
-          <RefreshCcw className="h-4 w-4" aria-hidden="true" />
-          {isReprocessing ? "Queueing..." : "Reprocess"}
-        </Button>
-        <Button
+          className={!selectedDocument.downloadUrl ? "col-span-2" : undefined}
           onClick={() => onRequestDelete(selectedDocument)}
           size="sm"
           type="button"
@@ -142,7 +155,7 @@ export function EvidenceDocumentDetailPanel({
       ) : null}
 
       <div className="mt-4 overflow-hidden rounded-md border border-border bg-background/60">
-        {canPreview ? (
+        {canPreview && selectedDocument.downloadUrl ? (
           <iframe
             className="h-64 w-full bg-background md:h-72"
             src={selectedDocument.downloadUrl}

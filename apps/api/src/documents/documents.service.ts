@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { DocumentStatus } from "@proofpilot/database";
 import {
+  copyStoredObject,
   createPresignedDownloadUrl,
   createPresignedUploadUrl,
   deleteStoredObject,
@@ -20,8 +21,15 @@ import {
 import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
 import { PrismaService } from "../prisma/prisma.service.js";
-import { DocumentProcessingQueueService } from "../queue/document-processing-queue.service.js";
+import {
+  DocumentProcessingQueueService,
+  processUploadedDocumentJobName
+} from "../queue/document-processing-queue.service.js";
 import type { CreateDocumentDto } from "./dto/create-document.dto.js";
+import {
+  VirusScannerService,
+  type VirusScanResult
+} from "./virus-scanner.service.js";
 
 interface CompletedUploadDocument {
   byteSize: number;
@@ -36,7 +44,8 @@ interface CompletedUploadDocument {
 export class DocumentsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly documentProcessingQueue: DocumentProcessingQueueService
+    private readonly documentProcessingQueue: DocumentProcessingQueueService,
+    private readonly virusScanner: VirusScannerService
   ) {}
 
   async create(ownerId: string, caseId: string, input: CreateDocumentDto) {
@@ -136,36 +145,64 @@ export class DocumentsService {
       throw new NotFoundException("Document not found.");
     }
 
-    await this.assertCompletedUploadAllowed(ownerId, document);
-    await this.recordVirusScanPlaceholder(ownerId, document);
+    if (document.status === DocumentStatus.FAILED) {
+      throw new BadRequestException(
+        "This upload has failed and cannot be completed. Upload the file again."
+      );
+    }
 
-    const job = await this.documentProcessingQueue.addProcessDocumentJob({
-      documentId: document.id,
-      caseId: document.caseId,
-      ownerId
-    });
-
-    await this.prisma.documentProcessingLog.create({
-      data: {
+    if (document.status !== DocumentStatus.UPLOADED) {
+      return {
         documentId: document.id,
-        step: "upload_completed",
-        status: "queued",
-        message: "Upload completed and processing job was queued."
-      }
-    });
-
-    await this.prisma.auditLog.create({
-      data: {
-        userId: ownerId,
-        caseId: document.caseId,
-        action: "document.upload_completed",
-        metadata: {
-          documentId: document.id,
-          originalName: document.originalName,
-          jobId: job.id ?? null
+        alreadyCompleted: true,
+        processingJob: {
+          id: document.id,
+          name: processUploadedDocumentJobName
         }
-      }
-    });
+      };
+    }
+
+    const objectMetadata = await this.assertCompletedUploadAllowed(ownerId, document);
+    await this.scanCompletedUpload(ownerId, document, objectMetadata.etag);
+
+    const job = await this.documentProcessingQueue.addProcessDocumentJob(
+      {
+        documentId: document.id,
+        caseId: document.caseId,
+        ownerId
+      },
+      { jobId: document.id }
+    );
+
+    await this.prisma.$transaction([
+      this.prisma.document.updateMany({
+        where: {
+          id: document.id,
+          status: DocumentStatus.UPLOADED
+        },
+        data: { status: DocumentStatus.PROCESSING }
+      }),
+      this.prisma.documentProcessingLog.create({
+        data: {
+          documentId: document.id,
+          step: "upload_completed",
+          status: "queued",
+          message: "Upload completed and processing job was queued."
+        }
+      }),
+      this.prisma.auditLog.create({
+        data: {
+          userId: ownerId,
+          caseId: document.caseId,
+          action: "document.upload_completed",
+          metadata: {
+            documentId: document.id,
+            originalName: document.originalName,
+            jobId: job.id ?? null
+          }
+        }
+      })
+    ]);
 
     return {
       documentId: document.id,
@@ -216,7 +253,12 @@ export class DocumentsService {
       select: {
         id: true,
         caseId: true,
-        originalName: true
+        byteSize: true,
+        mimeType: true,
+        originalName: true,
+        quarantinedAt: true,
+        storageKey: true,
+        updatedAt: true
       }
     });
 
@@ -224,14 +266,24 @@ export class DocumentsService {
       throw new NotFoundException("Document not found.");
     }
 
+    if (document.quarantinedAt) {
+      throw new BadRequestException("Quarantined uploads cannot be reprocessed.");
+    }
+
+    const objectMetadata = await this.assertCompletedUploadAllowed(ownerId, document);
+    await this.scanCompletedUpload(ownerId, document, objectMetadata.etag);
+
     const job = await this.documentProcessingQueue.addProcessDocumentJob({
       documentId: document.id,
       caseId: document.caseId,
       ownerId
     });
 
-    await this.prisma.document.update({
-      where: { id: document.id },
+    await this.prisma.document.updateMany({
+      where: {
+        id: document.id,
+        updatedAt: document.updatedAt
+      },
       data: { status: DocumentStatus.PROCESSING }
     });
 
@@ -298,6 +350,7 @@ export class DocumentsService {
         byteSize: true,
         status: true,
         extractedText: true,
+        quarantinedAt: true,
         storageKey: true,
         createdAt: true,
         updatedAt: true,
@@ -333,7 +386,9 @@ export class DocumentsService {
 
     return {
       ...publicDocument,
-      downloadUrl: await createPresignedDownloadUrl({ key: storageKey })
+      downloadUrl: document.quarantinedAt || document.status === DocumentStatus.UPLOADED
+        ? null
+        : await createPresignedDownloadUrl({ key: storageKey })
     };
   }
 
@@ -459,6 +514,8 @@ export class DocumentsService {
 
       throw new BadRequestException("Uploaded file type does not match the reserved upload.");
     }
+
+    return objectMetadata;
   }
 
   private async rejectCompletedUpload(
@@ -466,71 +523,253 @@ export class DocumentsService {
     document: CompletedUploadDocument,
     input: { deleteObject: boolean; message: string; reason: string }
   ) {
-    let objectDeleted = false;
-    let deleteError: string | null = null;
+    await this.quarantineUpload(document, {
+      message: input.message,
+      step: "upload_validation"
+    });
+    const deletion = input.deleteObject
+      ? await this.deleteUploadObject(document.storageKey)
+      : { deleteError: null, objectDeleted: false };
 
-    if (input.deleteObject) {
-      try {
-        await deleteStoredObject({ key: document.storageKey });
-        objectDeleted = true;
-      } catch (error) {
-        deleteError = error instanceof Error ? error.message : "Storage delete failed.";
+    await this.prisma.auditLog.create({
+      data: {
+        userId: ownerId,
+        caseId: document.caseId,
+        action: "document.upload_rejected",
+        metadata: {
+          ...deletion,
+          documentId: document.id,
+          originalName: document.originalName,
+          reason: input.reason
+        }
       }
-    }
+    });
+  }
 
+  private async quarantineUpload(
+    document: CompletedUploadDocument,
+    input: { message: string; step: string }
+  ) {
     await this.prisma.$transaction([
       this.prisma.document.update({
         where: { id: document.id },
-        data: { status: DocumentStatus.FAILED }
+        data: {
+          status: DocumentStatus.FAILED,
+          quarantinedAt: new Date()
+        }
       }),
       this.prisma.documentProcessingLog.create({
         data: {
           documentId: document.id,
-          step: "upload_validation",
+          step: input.step,
           status: "failed",
           message: input.message
+        }
+      })
+    ]);
+  }
+
+  private async scanCompletedUpload(
+    ownerId: string,
+    document: CompletedUploadDocument,
+    metadataEtag: string | null
+  ) {
+    let scan: Awaited<ReturnType<VirusScannerService["scanStoredObject"]>>;
+
+    try {
+      scan = await this.virusScanner.scanStoredObject({ key: document.storageKey });
+    } catch (error) {
+      await this.recordVirusScanFailure(ownerId, document, error);
+      throw new ServiceUnavailableException(
+        "Upload security scanning is temporarily unavailable. Try completing the upload again shortly."
+      );
+    }
+
+    const { result } = scan;
+
+    if (result.status === "infected") {
+      await this.rejectInfectedUpload(ownerId, document, result);
+      throw new BadRequestException(
+        "The uploaded file did not pass security scanning and was quarantined."
+      );
+    }
+
+    let promotion: Awaited<ReturnType<DocumentsService["promoteCompletedUpload"]>>;
+
+    try {
+      if (
+        result.status === "clean" &&
+        (!metadataEtag || !scan.sourceEtag || metadataEtag !== scan.sourceEtag)
+      ) {
+        throw Object.assign(
+          new Error("The uploaded object changed during security validation."),
+          { code: "UPLOAD_ETAG_CHANGED" }
+        );
+      }
+
+      promotion = await this.promoteCompletedUpload(
+        ownerId,
+        document,
+        scan.sourceEtag ?? metadataEtag
+      );
+    } catch (error) {
+      await this.recordVirusScanFailure(ownerId, document, error);
+      throw new ServiceUnavailableException(
+        "The scanned upload could not be secured for processing. Try completing the upload again."
+      );
+    }
+
+    const skipped = result.status === "skipped";
+    await this.prisma.$transaction([
+      this.prisma.documentProcessingLog.create({
+        data: {
+          documentId: document.id,
+          step: "virus_scan",
+          status: skipped ? "skipped" : "completed",
+          message: skipped
+            ? "Virus scanning is disabled in this non-production environment."
+            : "ClamAV found no known threats in the uploaded file."
         }
       }),
       this.prisma.auditLog.create({
         data: {
           userId: ownerId,
           caseId: document.caseId,
-          action: "document.upload_rejected",
+          action: skipped ? "document.virus_scan_skipped" : "document.virus_scan_completed",
           metadata: {
-            deleteError,
             documentId: document.id,
-            objectDeleted,
+            engine: result.engine,
             originalName: document.originalName,
-            reason: input.reason
+            promoted: promotion.promoted,
+            stagingDeleteError: promotion.deleteError,
+            stagingObjectDeleted: promotion.objectDeleted,
+            status: result.status
           }
         }
       })
     ]);
   }
 
-  private async recordVirusScanPlaceholder(ownerId: string, document: CompletedUploadDocument) {
-    await this.prisma.documentProcessingLog.create({
-      data: {
-        documentId: document.id,
-        step: "virus_scan_placeholder",
-        status: "skipped",
-        message:
-          "Virus scanning provider is not configured; upload metadata passed validation before processing."
-      }
+  private async promoteCompletedUpload(
+    ownerId: string,
+    document: CompletedUploadDocument,
+    sourceEtag: string | null
+  ) {
+    if (!isUploadStagingKey(document.storageKey)) {
+      return {
+        deleteError: null,
+        objectDeleted: false,
+        promoted: false
+      };
+    }
+
+    if (!sourceEtag) {
+      throw Object.assign(new Error("The scanned upload did not include an object ETag."), {
+        code: "MISSING_SOURCE_ETAG"
+      });
+    }
+
+    const destinationKey = this.createVerifiedStorageKey(ownerId, document);
+    await copyStoredObject({
+      destinationKey,
+      sourceEtag,
+      sourceKey: document.storageKey
     });
+
+    await this.prisma.$transaction([
+      this.prisma.document.updateMany({
+        where: {
+          id: document.id,
+          storageKey: document.storageKey
+        },
+        data: { storageKey: destinationKey }
+      }),
+      this.prisma.documentVersion.updateMany({
+        where: {
+          documentId: document.id,
+          storageKey: document.storageKey
+        },
+        data: { storageKey: destinationKey }
+      })
+    ]);
+
+    return {
+      ...(await this.deleteUploadObject(document.storageKey)),
+      promoted: true
+    };
+  }
+
+  private async rejectInfectedUpload(
+    ownerId: string,
+    document: CompletedUploadDocument,
+    result: Extract<VirusScanResult, { status: "infected" }>
+  ) {
+    await this.quarantineUpload(document, {
+      message: "The uploaded file was blocked because a known threat was detected.",
+      step: "virus_scan"
+    });
+    const deletion = await this.deleteUploadObject(document.storageKey);
 
     await this.prisma.auditLog.create({
       data: {
         userId: ownerId,
         caseId: document.caseId,
-        action: "document.virus_scan_placeholder",
+        action: "document.virus_detected",
         metadata: {
+          ...deletion,
           documentId: document.id,
+          engine: result.engine,
           originalName: document.originalName,
-          status: "skipped"
+          status: result.status,
+          threatName: result.threatName
         }
       }
     });
+  }
+
+  private async recordVirusScanFailure(
+    ownerId: string,
+    document: CompletedUploadDocument,
+    error: unknown
+  ) {
+    await this.prisma.$transaction([
+      this.prisma.documentProcessingLog.create({
+        data: {
+          documentId: document.id,
+          step: "virus_scan",
+          status: "failed",
+          message: "Upload security checks could not be completed; processing was not queued."
+        }
+      }),
+      this.prisma.auditLog.create({
+        data: {
+          userId: ownerId,
+          caseId: document.caseId,
+          action: "document.virus_scan_failed",
+          metadata: {
+            documentId: document.id,
+            errorCode: getErrorCode(error),
+            errorType: error instanceof Error ? error.name : "UnknownError",
+            originalName: document.originalName,
+            status: "failed"
+          }
+        }
+      })
+    ]);
+  }
+
+  private async deleteUploadObject(storageKey: string) {
+    let objectDeleted = false;
+    let deleteError: string | null = null;
+
+    try {
+      await deleteStoredObject({ key: storageKey });
+      objectDeleted = true;
+    } catch (error) {
+      deleteError = error instanceof Error ? error.message : "Storage delete failed.";
+    }
+
+    return { deleteError, objectDeleted };
   }
 
   private async assertCaseOwnership(ownerId: string, caseId: string) {
@@ -551,7 +790,13 @@ export class DocumentsService {
   private createStorageKey(ownerId: string, caseId: string, originalName: string) {
     const extension = extname(originalName).toLowerCase();
     const safeExtension = extension && extension.length <= 12 ? extension : "";
-    return `users/${ownerId}/cases/${caseId}/documents/${randomUUID()}${safeExtension}`;
+    return `users/${ownerId}/cases/${caseId}/upload-staging/${randomUUID()}${safeExtension}`;
+  }
+
+  private createVerifiedStorageKey(ownerId: string, document: CompletedUploadDocument) {
+    const extension = extname(document.originalName).toLowerCase();
+    const safeExtension = extension && extension.length <= 12 ? extension : "";
+    return `users/${ownerId}/cases/${document.caseId}/documents/${document.id}${safeExtension}`;
   }
 }
 
@@ -574,4 +819,16 @@ function isMissingStoredObjectError(error: unknown) {
 
 function normalizeContentType(contentType: string | null) {
   return contentType?.split(";")[0]?.trim().toLowerCase() ?? null;
+}
+
+function getErrorCode(error: unknown) {
+  if (!error || typeof error !== "object" || !("code" in error)) {
+    return null;
+  }
+
+  return typeof error.code === "string" ? error.code.slice(0, 80) : null;
+}
+
+function isUploadStagingKey(storageKey: string) {
+  return storageKey.includes("/upload-staging/");
 }

@@ -5,6 +5,7 @@ import { getQueueHealthSnapshot } from "./queue-health-snapshot.js";
 import { parseRedisConnection } from "./redis-connection.js";
 
 export const documentProcessingQueueName = "document-processing";
+export const processUploadedDocumentJobName = "process_uploaded_document";
 
 export interface ProcessDocumentJobData {
   documentId: string;
@@ -22,8 +23,8 @@ export class DocumentProcessingQueueService implements OnModuleDestroy {
     });
   }
 
-  async addProcessDocumentJob(data: ProcessDocumentJobData) {
-    return this.queue.add("process_uploaded_document", data, {
+  async addProcessDocumentJob(data: ProcessDocumentJobData, input: { jobId?: string } = {}) {
+    return this.queue.add(processUploadedDocumentJobName, data, {
       attempts: 3,
       backoff: {
         type: "exponential",
@@ -33,7 +34,8 @@ export class DocumentProcessingQueueService implements OnModuleDestroy {
         age: 60 * 60 * 24,
         count: 1000
       },
-      removeOnFail: false
+      removeOnFail: false,
+      ...(input.jobId ? { jobId: input.jobId } : {})
     });
   }
 

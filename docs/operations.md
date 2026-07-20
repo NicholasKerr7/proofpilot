@@ -28,11 +28,29 @@ If packet generation stays in `GENERATING`:
 
 If document processing stalls, follow the same checks for `document-processing`, then inspect the document processing logs in the document detail API response.
 
-## Upload Validation Runbook
+## Upload Security Runbook
 
 If an uploaded document moves to `FAILED` before processing starts, check the document processing logs for `upload_validation`. The API rejects completed uploads when the stored object is missing, larger than 25 MB, has a different byte size than the reserved upload, or has a mismatched content type.
 
-`virus_scan_placeholder` with status `skipped` means the upload passed metadata validation, but no external scanning provider is configured yet.
+The next processing log step is `virus_scan`:
+
+- `completed`: ClamAV found no known threat, the exact scanned ETag was promoted to an immutable processing key, and processing was queued.
+- `failed` with a blocked-upload message: a threat was detected, the document was quarantined and marked `FAILED`, and stored-object deletion was attempted. Quarantine denies signed downloads and reprocessing even if storage cleanup needs an operator retry.
+- `failed` with an unavailable message: the scanner or storage stream failed, nothing was queued, and the upload remains retryable.
+- `skipped`: scanning is disabled in a non-production environment. Production startup rejects this configuration.
+
+For an optional local scanner, allocate at least 3 GB RAM to Docker, then run:
+
+```bash
+docker compose --profile security up -d clamav
+printf 'zPING\0' | nc 127.0.0.1 3310
+```
+
+Wait for `PONG`, set `VIRUS_SCAN_MODE=clamav`, and restart the API. The profile uses the official `clamav/clamav:1.4` feature tag so supported 1.4 LTS patches and signature updates are received without opting into a new feature release. It binds port 3310 to loopback only; do not expose the unauthenticated, unencrypted ClamAV TCP protocol publicly.
+
+If scans report unavailable, inspect `docker compose logs clamav`, confirm `CLAMAV_HOST`, `CLAMAV_PORT`, and network policy, then retry the document completion call. An `UPLOAD_ETAG_CHANGED` audit error means the staging object changed between metadata validation and scanning; retry completion only after confirming the intended upload. The upload is intentionally not sent to BullMQ until a clean result is recorded and the scanned ETag is promoted.
+
+Apply a 24-hour storage lifecycle expiration to the `upload-staging/` key segment. This is a cleanup backstop for abandoned upload reservations and for a signed URL reused after its original object was promoted.
 
 ## Rate Limit Runbook
 

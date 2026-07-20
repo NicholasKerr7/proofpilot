@@ -97,7 +97,8 @@ export interface EvidenceProcessingLog {
 export interface EvidenceDocumentDetail extends EvidenceDocument {
   caseId: string;
   extractedText: string | null;
-  downloadUrl: string;
+  downloadUrl: string | null;
+  quarantinedAt: string | null;
   entities: EvidenceDocumentEntity[];
   processingLogs: EvidenceProcessingLog[];
 }
