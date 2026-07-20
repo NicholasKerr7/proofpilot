@@ -61,6 +61,67 @@ test.describe("ProofPilot responsive workspace", () => {
     await expect(homeButton).toHaveAttribute("aria-current", "page");
     await expectAccessible(page, "signed-in home workspace");
   });
+
+  test("demo user can add, edit, reorder, and delete a timeline event", async ({ page }) => {
+    await loginAsDemoUser(page);
+
+    await getPrimaryNavigation(page)
+      .getByRole("button", { exact: true, name: "Cases" })
+      .click();
+    await page
+      .getByRole("button", { name: /PayPal account closure appeal/ })
+      .first()
+      .click();
+    await expect(
+      page.getByRole("heading", { exact: true, name: "PayPal account closure appeal" })
+    ).toBeVisible();
+
+    const timeline = page.locator("#case-timeline");
+    const eventTitle = `Timeline verification ${Date.now()}`;
+    const updatedTitle = `${eventTitle} updated`;
+    await timeline.scrollIntoViewIfNeeded();
+    await timeline.getByRole("button", { exact: true, name: "Add event" }).first().click();
+
+    const addEditor = timeline.locator("#timeline-event-editor");
+    await addEditor.getByLabel("Date", { exact: true }).fill("2099-07-20");
+    await addEditor.getByLabel("Event", { exact: true }).fill(eventTitle);
+    await addEditor
+      .getByLabel("Details", { exact: true })
+      .fill("Created by the responsive timeline test.");
+    await addEditor.getByRole("button", { exact: true, name: "Add event" }).click();
+
+    await expect(timeline.getByText(eventTitle, { exact: true })).toBeVisible();
+    let eventRow = timeline.getByRole("listitem").filter({ hasText: eventTitle });
+    await eventRow.getByRole("button", { name: `Edit ${eventTitle}` }).click();
+
+    const editEditor = eventRow.locator("#timeline-event-editor");
+    await editEditor.getByLabel("Event", { exact: true }).fill(updatedTitle);
+    await editEditor.getByRole("button", { exact: true, name: "Save event" }).click();
+
+    await expect(timeline.getByText(updatedTitle, { exact: true })).toBeVisible();
+    eventRow = timeline.getByRole("listitem").filter({ hasText: updatedTitle });
+
+    const beforeMove = await timeline.getByRole("listitem").allTextContents();
+    const beforeIndex = beforeMove.findIndex((text) => text.includes(updatedTitle));
+    await eventRow.getByRole("button", { name: `Move ${updatedTitle} up` }).click();
+    await expect
+      .poll(async () => {
+        const afterMove = await timeline.getByRole("listitem").allTextContents();
+        return afterMove.findIndex((text) => text.includes(updatedTitle));
+      })
+      .toBe(beforeIndex - 1);
+
+    eventRow = timeline.getByRole("listitem").filter({ hasText: updatedTitle });
+    await eventRow.getByRole("button", { name: `Delete ${updatedTitle}` }).click();
+    const confirmation = eventRow.getByText("Delete this timeline event?", { exact: true });
+
+    if (await confirmation.isVisible().catch(() => false)) {
+      await eventRow.getByRole("button", { exact: true, name: "Delete" }).click();
+    }
+
+    await expect(timeline.getByText(updatedTitle, { exact: true })).toHaveCount(0);
+    await expectNoHorizontalOverflow(page);
+  });
 });
 
 async function loginAsDemoUser(page: Page) {

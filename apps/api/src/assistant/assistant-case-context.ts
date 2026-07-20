@@ -22,7 +22,7 @@ export const assistantCaseSelect = {
     }
   },
   events: {
-    orderBy: { occurredAt: "asc" },
+    orderBy: [{ sortOrder: "asc" }, { occurredAt: "asc" }, { id: "asc" }],
     take: 12,
     select: {
       id: true,

@@ -32,6 +32,9 @@
 - `GET /cases/:caseId/timeline`
 - `POST /cases/:caseId/timeline`
 - `POST /cases/:caseId/timeline/analyze`
+- `PUT /cases/:caseId/timeline/order`
+- `PATCH /cases/:caseId/timeline/:eventId`
+- `DELETE /cases/:caseId/timeline/:eventId`
 - `GET /cases/:caseId/statement`
 - `PUT /cases/:caseId/statement`
 - `POST /cases/:caseId/statement/generate`

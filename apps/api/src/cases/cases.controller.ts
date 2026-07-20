@@ -18,8 +18,10 @@ import { CasesService } from "./cases.service.js";
 import { CreateCaseDto } from "./dto/create-case.dto.js";
 import { CreateTimelineEventDto } from "./dto/create-timeline-event.dto.js";
 import { ListCaseActivityQueryDto } from "./dto/list-case-activity-query.dto.js";
+import { ReorderTimelineEventsDto } from "./dto/reorder-timeline-events.dto.js";
 import { SaveStatementDto } from "./dto/save-statement.dto.js";
 import { UpdateCaseDto } from "./dto/update-case.dto.js";
+import { UpdateTimelineEventDto } from "./dto/update-timeline-event.dto.js";
 
 @ApiTags("cases")
 @ApiBearerAuth()
@@ -69,6 +71,34 @@ export class CasesController {
   @Post(":id/timeline/analyze")
   analyzeTimeline(@CurrentUser() user: RequestUser, @Param("id") id: string) {
     return this.casesService.analyzeTimeline(user.id, id);
+  }
+
+  @Put(":id/timeline/order")
+  reorderTimeline(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Body() input: ReorderTimelineEventsDto
+  ) {
+    return this.casesService.reorderTimeline(user.id, id, input);
+  }
+
+  @Patch(":id/timeline/:eventId")
+  updateTimelineEvent(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Param("eventId") eventId: string,
+    @Body() input: UpdateTimelineEventDto
+  ) {
+    return this.casesService.updateTimelineEvent(user.id, id, eventId, input);
+  }
+
+  @Delete(":id/timeline/:eventId")
+  deleteTimelineEvent(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Param("eventId") eventId: string
+  ) {
+    return this.casesService.deleteTimelineEvent(user.id, id, eventId);
   }
 
   @Get(":id/checklist")

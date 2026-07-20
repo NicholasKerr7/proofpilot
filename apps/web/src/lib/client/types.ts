@@ -35,6 +35,7 @@ export interface CaseRecord {
 
 export interface CaseEvent {
   id: string;
+  sortOrder: number;
   occurredAt: string;
   title: string;
   description: string | null;
@@ -52,10 +53,11 @@ export interface CaseEventSource {
   };
 }
 
-export interface CreateTimelineEventPayload {
+export interface TimelineEventPayload {
   occurredAt: string;
   title: string;
-  description?: string;
+  description: string | null;
+  documentIds: string[];
 }
 
 export interface EvidenceDocument {

@@ -106,6 +106,12 @@ function getActivityPresentation(
       return activity("evidence", "Document processing failed", getDocumentName(metadata));
     case "case.timeline_event_created":
       return activity("timeline", "Timeline event added", readString(metadata, "title"));
+    case "case.timeline_event_updated":
+      return activity("timeline", "Timeline event updated", readString(metadata, "title"));
+    case "case.timeline_event_deleted":
+      return activity("timeline", "Timeline event removed", readString(metadata, "title"));
+    case "case.timeline_reordered":
+      return activity("timeline", "Timeline reordered", null);
     case "case.timeline_analyzed":
       return activity("timeline", "Timeline rebuilt", getTimelineAnalysisDetail(metadata));
     case "case.checklist_analyzed":

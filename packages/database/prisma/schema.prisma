@@ -373,6 +373,7 @@ model CaseEvent {
   id          String        @id @default(cuid())
   caseId      String
   case        Case          @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  sortOrder   Int           @default(0)
   occurredAt  DateTime
   title       String
   description String?
@@ -382,6 +383,7 @@ model CaseEvent {
   sources     EventSource[]
 
   @@index([caseId, occurredAt])
+  @@index([caseId, sortOrder])
 }
 
 model EventSource {

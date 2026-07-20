@@ -16,8 +16,10 @@ import { analyzeTimelineEvidence } from "./case-timeline-analysis.js";
 import type { CreateCaseDto } from "./dto/create-case.dto.js";
 import type { CreateTimelineEventDto } from "./dto/create-timeline-event.dto.js";
 import type { ListCaseActivityQueryDto } from "./dto/list-case-activity-query.dto.js";
+import type { ReorderTimelineEventsDto } from "./dto/reorder-timeline-events.dto.js";
 import type { SaveStatementDto } from "./dto/save-statement.dto.js";
 import type { UpdateCaseDto } from "./dto/update-case.dto.js";
+import type { UpdateTimelineEventDto } from "./dto/update-timeline-event.dto.js";
 
 interface PrivatePacketRecord {
   id: string;
@@ -226,19 +228,59 @@ export class CasesService {
 
     const title = input.title.trim();
     const description = input.description?.trim();
+    const documentIds = input.documentIds ?? [];
+    const occurredAt = new Date(input.occurredAt);
 
     if (!title) {
       throw new BadRequestException("Timeline event title is required.");
     }
 
+    await this.assertTimelineDocumentOwnership(ownerId, caseId, documentIds);
+
     return this.prisma.$transaction(async (tx) => {
+      const nextChronologicalEvent = await tx.caseEvent.findFirst({
+        where: {
+          caseId,
+          occurredAt: { gt: occurredAt }
+        },
+        orderBy: [{ sortOrder: "asc" }, { occurredAt: "asc" }, { id: "asc" }],
+        select: { sortOrder: true }
+      });
+      const latestOrder = nextChronologicalEvent
+        ? null
+        : await tx.caseEvent.aggregate({
+            where: { caseId },
+            _max: { sortOrder: true }
+          });
+      const sortOrder = nextChronologicalEvent?.sortOrder ?? (latestOrder?._max.sortOrder ?? -1) + 1;
+
+      if (nextChronologicalEvent) {
+        await tx.caseEvent.updateMany({
+          where: {
+            caseId,
+            sortOrder: { gte: sortOrder }
+          },
+          data: {
+            sortOrder: { increment: 1 }
+          }
+        });
+      }
+
       const event = await tx.caseEvent.create({
         data: {
           caseId,
-          occurredAt: new Date(input.occurredAt),
+          sortOrder,
+          occurredAt,
           title,
           ...(description ? { description } : {}),
-          confidence: null
+          confidence: null,
+          ...(documentIds.length
+            ? {
+                sources: {
+                  create: documentIds.map((documentId) => ({ documentId }))
+                }
+              }
+            : {})
         },
         select: this.getTimelineEventSelect()
       });
@@ -251,12 +293,203 @@ export class CasesService {
           metadata: {
             eventId: event.id,
             occurredAt: event.occurredAt.toISOString(),
+            sourceCount: documentIds.length,
             title
           }
         }
       });
 
       return event;
+    });
+  }
+
+  async updateTimelineEvent(
+    ownerId: string,
+    caseId: string,
+    eventId: string,
+    input: UpdateTimelineEventDto
+  ) {
+    const existingEvent = await this.prisma.caseEvent.findFirst({
+      where: {
+        id: eventId,
+        caseId,
+        case: {
+          ownerId,
+          archivedAt: null
+        }
+      },
+      select: {
+        id: true,
+        title: true
+      }
+    });
+
+    if (!existingEvent) {
+      throw new NotFoundException("Timeline event not found.");
+    }
+
+    const updatedFields = [
+      input.occurredAt !== undefined ? "occurredAt" : null,
+      input.title !== undefined ? "title" : null,
+      input.description !== undefined ? "description" : null,
+      input.documentIds !== undefined ? "sources" : null
+    ].filter((field): field is string => field !== null);
+
+    if (!updatedFields.length) {
+      throw new BadRequestException("Add at least one timeline event change.");
+    }
+
+    const title = input.title?.trim();
+    const description = input.description?.trim() || null;
+    const documentIds = input.documentIds ?? [];
+
+    if (input.title !== undefined && !title) {
+      throw new BadRequestException("Timeline event title is required.");
+    }
+
+    if (input.documentIds !== undefined) {
+      await this.assertTimelineDocumentOwnership(ownerId, caseId, documentIds);
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      if (
+        input.occurredAt !== undefined ||
+        input.title !== undefined ||
+        input.description !== undefined
+      ) {
+        const eventUpdate: Prisma.CaseEventUncheckedUpdateInput = {};
+
+        if (input.occurredAt !== undefined) {
+          eventUpdate.occurredAt = new Date(input.occurredAt);
+        }
+
+        if (input.title !== undefined) {
+          eventUpdate.title = input.title.trim();
+        }
+
+        if (input.description !== undefined) {
+          eventUpdate.description = description;
+        }
+
+        await tx.caseEvent.update({
+          where: { id: eventId },
+          data: eventUpdate
+        });
+      }
+
+      if (input.documentIds !== undefined) {
+        await tx.eventSource.deleteMany({ where: { eventId } });
+
+        if (documentIds.length) {
+          await tx.eventSource.createMany({
+            data: documentIds.map((documentId) => ({
+              eventId,
+              documentId
+            }))
+          });
+        }
+      }
+
+      const event = await tx.caseEvent.findUniqueOrThrow({
+        where: { id: eventId },
+        select: this.getTimelineEventSelect()
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: ownerId,
+          caseId,
+          action: "case.timeline_event_updated",
+          metadata: {
+            eventId,
+            title: event.title,
+            updatedFields
+          }
+        }
+      });
+
+      return event;
+    });
+  }
+
+  async deleteTimelineEvent(ownerId: string, caseId: string, eventId: string) {
+    const existingEvent = await this.prisma.caseEvent.findFirst({
+      where: {
+        id: eventId,
+        caseId,
+        case: {
+          ownerId,
+          archivedAt: null
+        }
+      },
+      select: {
+        id: true,
+        title: true
+      }
+    });
+
+    if (!existingEvent) {
+      throw new NotFoundException("Timeline event not found.");
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.caseEvent.delete({ where: { id: eventId } });
+      await tx.auditLog.create({
+        data: {
+          userId: ownerId,
+          caseId,
+          action: "case.timeline_event_deleted",
+          metadata: {
+            eventId,
+            title: existingEvent.title
+          }
+        }
+      });
+    });
+
+    return { id: eventId };
+  }
+
+  async reorderTimeline(ownerId: string, caseId: string, input: ReorderTimelineEventsDto) {
+    await this.assertCaseOwnership(ownerId, caseId);
+
+    const events = await this.prisma.caseEvent.findMany({
+      where: { caseId },
+      select: { id: true }
+    });
+    const ownedEventIds = new Set(events.map((event) => event.id));
+
+    if (
+      new Set(input.eventIds).size !== input.eventIds.length ||
+      input.eventIds.length !== events.length ||
+      input.eventIds.some((eventId) => !ownedEventIds.has(eventId))
+    ) {
+      throw new BadRequestException("Timeline order must include every event in this case once.");
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      for (const [sortOrder, eventId] of input.eventIds.entries()) {
+        await tx.caseEvent.update({
+          where: { id: eventId },
+          data: { sortOrder }
+        });
+      }
+
+      await tx.auditLog.create({
+        data: {
+          userId: ownerId,
+          caseId,
+          action: "case.timeline_reordered",
+          metadata: {
+            eventCount: input.eventIds.length
+          }
+        }
+      });
+
+      return tx.caseEvent.findMany({
+        where: { caseId },
+        ...this.getTimelineSelect()
+      });
     });
   }
 
@@ -295,29 +528,21 @@ export class CasesService {
       throw new NotFoundException("Case not found.");
     }
 
-    const documentIds = foundCase.documents.map((document) => document.id);
     const analyzedEvents = analyzeTimelineEvidence(foundCase.documents);
 
     await this.prisma.$transaction(async (tx) => {
-      if (documentIds.length) {
-        await tx.caseEvent.deleteMany({
-          where: {
-            caseId: foundCase.id,
-            sources: {
-              some: {
-                documentId: {
-                  in: documentIds
-                }
-              }
-            }
-          }
-        });
-      }
+      await tx.caseEvent.deleteMany({
+        where: {
+          caseId: foundCase.id,
+          confidence: { not: null }
+        }
+      });
 
       for (const event of analyzedEvents) {
         await tx.caseEvent.create({
           data: {
             caseId: foundCase.id,
+            sortOrder: 0,
             occurredAt: event.occurredAt,
             title: event.title,
             description: event.description,
@@ -328,6 +553,19 @@ export class CasesService {
               }
             }
           }
+        });
+      }
+
+      const chronologicalEvents = await tx.caseEvent.findMany({
+        where: { caseId: foundCase.id },
+        orderBy: [{ occurredAt: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+        select: { id: true }
+      });
+
+      for (const [sortOrder, event] of chronologicalEvents.entries()) {
+        await tx.caseEvent.update({
+          where: { id: event.id },
+          data: { sortOrder }
         });
       }
 
@@ -526,7 +764,7 @@ export class CasesService {
           }
         },
         events: {
-          orderBy: { occurredAt: "asc" },
+          orderBy: [{ sortOrder: "asc" }, { occurredAt: "asc" }, { id: "asc" }],
           select: {
             occurredAt: true,
             title: true,
@@ -723,6 +961,32 @@ export class CasesService {
     }
   }
 
+  private async assertTimelineDocumentOwnership(
+    ownerId: string,
+    caseId: string,
+    documentIds: string[]
+  ) {
+    if (!documentIds.length) {
+      return;
+    }
+
+    const documents = await this.prisma.document.findMany({
+      where: {
+        id: { in: documentIds },
+        caseId,
+        case: {
+          ownerId,
+          archivedAt: null
+        }
+      },
+      select: { id: true }
+    });
+
+    if (documents.length !== documentIds.length) {
+      throw new BadRequestException("Every timeline source must belong to this case.");
+    }
+  }
+
   private getAnalyzedCaseStatus(currentStatus: CaseStatus, missingCount: number) {
     if (
       currentStatus !== CaseStatus.COLLECTING_EVIDENCE &&
@@ -737,7 +1001,11 @@ export class CasesService {
 
   private getTimelineSelect() {
     return {
-      orderBy: { occurredAt: "asc" as const },
+      orderBy: [
+        { sortOrder: "asc" as const },
+        { occurredAt: "asc" as const },
+        { id: "asc" as const }
+      ],
       select: this.getTimelineEventSelect()
     };
   }
@@ -745,6 +1013,7 @@ export class CasesService {
   private getTimelineEventSelect() {
     return {
       id: true,
+      sortOrder: true,
       occurredAt: true,
       title: true,
       description: true,

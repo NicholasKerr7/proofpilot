@@ -89,7 +89,7 @@ export async function generateCasePacket(job: Job<GeneratePacketJobData>) {
               }
             },
             events: {
-              orderBy: { occurredAt: "asc" },
+              orderBy: [{ sortOrder: "asc" }, { occurredAt: "asc" }, { id: "asc" }],
               select: {
                 occurredAt: true,
                 title: true,

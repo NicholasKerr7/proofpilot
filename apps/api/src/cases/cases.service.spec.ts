@@ -1,4 +1,4 @@
-import { NotFoundException, ServiceUnavailableException } from "@nestjs/common";
+import { BadRequestException, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
 import { PacketStatus } from "@proofpilot/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service.js";
@@ -32,8 +32,8 @@ function basePacketRecord() {
 }
 
 function createPrismaMock() {
-  return {
-    $transaction: vi.fn(async (operations: Promise<unknown>[]) => Promise.all(operations)),
+  const prisma = {
+    $transaction: vi.fn(),
     auditLog: {
       count: vi.fn(),
       create: vi.fn().mockResolvedValue({}),
@@ -46,8 +46,36 @@ function createPrismaMock() {
       create: vi.fn(),
       findFirst: vi.fn(),
       update: vi.fn().mockResolvedValue({})
+    },
+    caseEvent: {
+      aggregate: vi.fn(),
+      create: vi.fn(),
+      delete: vi.fn(),
+      deleteMany: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn()
+    },
+    document: {
+      findMany: vi.fn()
+    },
+    eventSource: {
+      createMany: vi.fn(),
+      deleteMany: vi.fn()
     }
   };
+
+  prisma.$transaction.mockImplementation(async (transaction: unknown) => {
+    if (typeof transaction === "function") {
+      return (transaction as (tx: typeof prisma) => Promise<unknown>)(prisma);
+    }
+
+    return Promise.all(transaction as Promise<unknown>[]);
+  });
+
+  return prisma;
 }
 
 function createPacketQueueMock() {
@@ -272,5 +300,194 @@ describe("CasesService", () => {
 
     expect(prisma.auditLog.findMany).not.toHaveBeenCalled();
     expect(prisma.auditLog.count).not.toHaveBeenCalled();
+  });
+
+  it("creates an evidence-linked timeline event in chronological order", async () => {
+    const occurredAt = new Date("2026-05-12T12:00:00.000Z");
+    prisma.case.findFirst.mockResolvedValue({ id: caseId });
+    prisma.document.findMany.mockResolvedValue([{ id: "document-1" }]);
+    prisma.caseEvent.findFirst.mockResolvedValue({ sortOrder: 1 });
+    prisma.caseEvent.updateMany.mockResolvedValue({ count: 2 });
+    prisma.caseEvent.create.mockResolvedValue({
+      id: "event-1",
+      sortOrder: 1,
+      occurredAt,
+      title: "Appeal submitted",
+      description: "Submitted through the support portal.",
+      confidence: null,
+      createdAt: occurredAt,
+      updatedAt: occurredAt,
+      sources: [
+        {
+          id: "source-1",
+          document: {
+            id: "document-1",
+            originalName: "appeal-confirmation.pdf"
+          }
+        }
+      ]
+    });
+
+    const result = await service.createTimelineEvent(ownerId, caseId, {
+      occurredAt: occurredAt.toISOString(),
+      title: " Appeal submitted ",
+      description: " Submitted through the support portal. ",
+      documentIds: ["document-1"]
+    });
+
+    expect(prisma.document.findMany).toHaveBeenCalledWith({
+      where: {
+        id: { in: ["document-1"] },
+        caseId,
+        case: {
+          ownerId,
+          archivedAt: null
+        }
+      },
+      select: { id: true }
+    });
+    expect(prisma.caseEvent.updateMany).toHaveBeenCalledWith({
+      where: {
+        caseId,
+        sortOrder: { gte: 1 }
+      },
+      data: {
+        sortOrder: { increment: 1 }
+      }
+    });
+    expect(prisma.caseEvent.create).toHaveBeenCalledWith({
+      data: {
+        caseId,
+        sortOrder: 1,
+        occurredAt,
+        title: "Appeal submitted",
+        description: "Submitted through the support portal.",
+        confidence: null,
+        sources: {
+          create: [{ documentId: "document-1" }]
+        }
+      },
+      select: expect.any(Object)
+    });
+    expect(result.id).toBe("event-1");
+  });
+
+  it("rejects timeline sources that do not belong to the owned case", async () => {
+    prisma.case.findFirst.mockResolvedValue({ id: caseId });
+    prisma.document.findMany.mockResolvedValue([]);
+
+    await expect(
+      service.createTimelineEvent(ownerId, caseId, {
+        occurredAt: "2026-05-12T12:00:00.000Z",
+        title: "Appeal submitted",
+        documentIds: ["document-from-another-case"]
+      })
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(prisma.caseEvent.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects updates to timeline events outside the owned case", async () => {
+    prisma.caseEvent.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.updateTimelineEvent(ownerId, caseId, "foreign-event", {
+        title: "Changed title"
+      })
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(prisma.caseEvent.update).not.toHaveBeenCalled();
+    expect(prisma.eventSource.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("updates an owned timeline event and replaces its evidence links", async () => {
+    const occurredAt = new Date("2026-05-12T12:00:00.000Z");
+    const updatedEvent = {
+      id: "event-1",
+      sortOrder: 0,
+      occurredAt,
+      title: "Appeal submitted",
+      description: null,
+      confidence: null,
+      createdAt: occurredAt,
+      updatedAt: occurredAt,
+      sources: [
+        {
+          id: "source-2",
+          document: {
+            id: "document-2",
+            originalName: "appeal-email.eml"
+          }
+        }
+      ]
+    };
+    prisma.caseEvent.findFirst.mockResolvedValue({ id: "event-1", title: "Old title" });
+    prisma.document.findMany.mockResolvedValue([{ id: "document-2" }]);
+    prisma.caseEvent.update.mockResolvedValue({});
+    prisma.eventSource.deleteMany.mockResolvedValue({ count: 1 });
+    prisma.eventSource.createMany.mockResolvedValue({ count: 1 });
+    prisma.caseEvent.findUniqueOrThrow.mockResolvedValue(updatedEvent);
+
+    const result = await service.updateTimelineEvent(ownerId, caseId, "event-1", {
+      title: " Appeal submitted ",
+      description: null,
+      documentIds: ["document-2"]
+    });
+
+    expect(prisma.caseEvent.update).toHaveBeenCalledWith({
+      where: { id: "event-1" },
+      data: {
+        title: "Appeal submitted",
+        description: null
+      }
+    });
+    expect(prisma.eventSource.deleteMany).toHaveBeenCalledWith({
+      where: { eventId: "event-1" }
+    });
+    expect(prisma.eventSource.createMany).toHaveBeenCalledWith({
+      data: [{ eventId: "event-1", documentId: "document-2" }]
+    });
+    expect(result).toEqual(updatedEvent);
+  });
+
+  it("requires timeline reordering to include exactly the owned case events", async () => {
+    prisma.case.findFirst.mockResolvedValue({ id: caseId });
+    prisma.caseEvent.findMany.mockResolvedValue([{ id: "event-1" }, { id: "event-2" }]);
+
+    await expect(
+      service.reorderTimeline(ownerId, caseId, {
+        eventIds: ["event-1", "foreign-event"]
+      })
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(prisma.caseEvent.update).not.toHaveBeenCalled();
+  });
+
+  it("removes stale analyzed events when timeline analysis has no current documents", async () => {
+    prisma.case.findFirst
+      .mockResolvedValueOnce({ id: caseId, documents: [] })
+      .mockResolvedValueOnce({ id: caseId });
+    prisma.caseEvent.deleteMany.mockResolvedValue({ count: 2 });
+    prisma.caseEvent.findMany.mockResolvedValue([]);
+
+    await service.analyzeTimeline(ownerId, caseId);
+
+    expect(prisma.caseEvent.deleteMany).toHaveBeenCalledWith({
+      where: {
+        caseId,
+        confidence: { not: null }
+      }
+    });
+    expect(prisma.caseEvent.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects deletion of timeline events outside the owned case", async () => {
+    prisma.caseEvent.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.deleteTimelineEvent(ownerId, caseId, "foreign-event")
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(prisma.caseEvent.delete).not.toHaveBeenCalled();
   });
 });

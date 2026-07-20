@@ -393,13 +393,14 @@ async function main() {
     }
   ];
 
-  for (const event of demoEvents) {
+  for (const [sortOrder, event] of demoEvents.entries()) {
     await prisma.caseEvent.upsert({
       where: { id: event.id },
       update: {
         caseId: demoCase.id,
         description: event.description,
         occurredAt: event.occurredAt,
+        sortOrder,
         title: event.title
       },
       create: {
@@ -408,6 +409,7 @@ async function main() {
         confidence: null,
         description: event.description,
         occurredAt: event.occurredAt,
+        sortOrder,
         title: event.title
       }
     });

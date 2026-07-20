@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { ApiPropertyOptional } from "@nestjs/swagger";
 import {
   ArrayMaxSize,
   ArrayUnique,
@@ -10,16 +10,18 @@ import {
   MinLength
 } from "class-validator";
 
-export class CreateTimelineEventDto {
-  @ApiProperty({ example: "2026-07-02T12:00:00.000Z" })
+export class UpdateTimelineEventDto {
+  @ApiPropertyOptional({ example: "2026-07-02T12:00:00.000Z" })
+  @IsOptional()
   @IsDateString()
-  occurredAt!: string;
+  occurredAt?: string;
 
-  @ApiProperty({ example: "Account closure notice received" })
+  @ApiPropertyOptional({ example: "Account closure notice received" })
+  @IsOptional()
   @IsString()
   @MinLength(3)
   @MaxLength(160)
-  title!: string;
+  title?: string;
 
   @ApiPropertyOptional({
     example: "The platform sent a closure notice after an account review.",

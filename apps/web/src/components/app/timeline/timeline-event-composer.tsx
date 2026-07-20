@@ -1,27 +1,46 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
-import { CalendarPlus, X } from "lucide-react";
+import { CalendarPlus, FileText, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { CreateTimelineEventPayload } from "@/lib/client/types";
+import type {
+  CaseEvent,
+  EvidenceDocument,
+  TimelineEventPayload
+} from "@/lib/client/types";
 
 interface TimelineEventComposerProps {
+  documents: EvidenceDocument[];
+  event?: CaseEvent;
+  isLoadingDocuments: boolean;
   onCancel: () => void;
-  onSubmit: (payload: CreateTimelineEventPayload) => Promise<boolean>;
+  onSubmit: (payload: TimelineEventPayload) => Promise<boolean>;
 }
 
-export function TimelineEventComposer({ onCancel, onSubmit }: TimelineEventComposerProps) {
-  const [eventDate, setEventDate] = useState(() => getDateInputValue());
-  const [eventTitle, setEventTitle] = useState("");
-  const [eventDescription, setEventDescription] = useState("");
+export function TimelineEventComposer({
+  documents,
+  event,
+  isLoadingDocuments,
+  onCancel,
+  onSubmit
+}: TimelineEventComposerProps) {
+  const isEditing = Boolean(event);
+  const [eventDate, setEventDate] = useState(() =>
+    getDateInputValue(event ? new Date(event.occurredAt) : undefined)
+  );
+  const [eventTitle, setEventTitle] = useState(event?.title ?? "");
+  const [eventDescription, setEventDescription] = useState(event?.description ?? "");
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>(
+    () => event?.sources.map((source) => source.document.id) ?? []
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleSubmit(formEvent: FormEvent<HTMLFormElement>) {
+    formEvent.preventDefault();
     const title = eventTitle.trim();
     const description = eventDescription.trim();
 
@@ -41,37 +60,41 @@ export function TimelineEventComposer({ onCancel, onSubmit }: TimelineEventCompo
     const wasSaved = await onSubmit({
       occurredAt: toTimelineIsoDate(eventDate),
       title,
-      ...(description ? { description } : {})
+      description: description || null,
+      documentIds: selectedDocumentIds
     });
 
     setIsSubmitting(false);
 
     if (wasSaved) {
-      setEventDate(getDateInputValue());
-      setEventTitle("");
-      setEventDescription("");
       onCancel();
     }
+  }
+
+  function toggleDocument(documentId: string, checked: boolean) {
+    setSelectedDocumentIds((currentIds) =>
+      checked
+        ? [...currentIds, documentId]
+        : currentIds.filter((currentId) => currentId !== documentId)
+    );
   }
 
   return (
     <form
       className="grid gap-3 rounded-md border border-primary/30 bg-primary/10 p-3 md:p-4"
+      id="timeline-event-editor"
       onSubmit={handleSubmit}
     >
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-foreground">Add timeline event</p>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Record a date that will help explain the appeal chronology.
-          </p>
-        </div>
+        <p className="text-sm font-semibold text-foreground">
+          {isEditing ? "Edit timeline event" : "Add timeline event"}
+        </p>
         <Button
-          aria-label="Close event composer"
+          aria-label={isEditing ? "Close event editor" : "Close event composer"}
           disabled={isSubmitting}
           onClick={onCancel}
           size="icon"
-          title="Close event composer"
+          title={isEditing ? "Close event editor" : "Close event composer"}
           type="button"
           variant="ghost"
         >
@@ -90,21 +113,21 @@ export function TimelineEventComposer({ onCancel, onSubmit }: TimelineEventCompo
 
       <div className="grid gap-3 md:grid-cols-[minmax(10rem,0.4fr)_minmax(0,1fr)]">
         <div className="grid gap-1.5">
-          <Label htmlFor="timeline-event-date">Date</Label>
+          <Label htmlFor={`timeline-event-date-${event?.id ?? "new"}`}>Date</Label>
           <Input
-            id="timeline-event-date"
-            onChange={(event) => setEventDate(event.target.value)}
+            id={`timeline-event-date-${event?.id ?? "new"}`}
+            onChange={(inputEvent) => setEventDate(inputEvent.target.value)}
             required
             type="date"
             value={eventDate}
           />
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="timeline-event-title">Event</Label>
+          <Label htmlFor={`timeline-event-title-${event?.id ?? "new"}`}>Event</Label>
           <Input
-            id="timeline-event-title"
+            id={`timeline-event-title-${event?.id ?? "new"}`}
             maxLength={160}
-            onChange={(event) => setEventTitle(event.target.value)}
+            onChange={(inputEvent) => setEventTitle(inputEvent.target.value)}
             placeholder="Account closure notice received"
             required
             value={eventTitle}
@@ -113,23 +136,66 @@ export function TimelineEventComposer({ onCancel, onSubmit }: TimelineEventCompo
       </div>
 
       <div className="grid gap-1.5">
-        <Label htmlFor="timeline-event-description">Details</Label>
+        <Label htmlFor={`timeline-event-description-${event?.id ?? "new"}`}>Details</Label>
         <Textarea
-          id="timeline-event-description"
+          id={`timeline-event-description-${event?.id ?? "new"}`}
           maxLength={2000}
-          onChange={(event) => setEventDescription(event.target.value)}
+          onChange={(inputEvent) => setEventDescription(inputEvent.target.value)}
           placeholder="Add the context needed for the appeal packet."
           value={eventDescription}
         />
       </div>
+
+      <fieldset className="grid gap-2">
+        <legend className="text-sm font-medium text-foreground">Source evidence</legend>
+        {isLoadingDocuments ? (
+          <p className="rounded-md border border-border bg-background/35 px-3 py-3 text-sm text-muted-foreground" role="status">
+            Loading evidence...
+          </p>
+        ) : documents.length ? (
+          <div className="grid max-h-52 gap-1 overflow-y-auto rounded-md border border-border bg-background/35 p-1.5 sm:grid-cols-2">
+            {documents.map((document) => {
+              const isChecked = selectedDocumentIds.includes(document.id);
+
+              return (
+                <label
+                  key={document.id}
+                  className="grid min-h-11 cursor-pointer grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2 rounded-md px-2 py-2 text-sm text-foreground transition-colors hover:bg-secondary/60"
+                >
+                  <input
+                    checked={isChecked}
+                    className="h-4 w-4 accent-primary"
+                    onChange={(inputEvent) =>
+                      toggleDocument(document.id, inputEvent.target.checked)
+                    }
+                    type="checkbox"
+                  />
+                  <FileText className="h-4 w-4 text-primary" aria-hidden="true" />
+                  <span className="truncate" title={document.originalName}>
+                    {document.originalName}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="rounded-md border border-dashed border-border bg-background/35 px-3 py-3 text-sm text-muted-foreground">
+            No case evidence available.
+          </p>
+        )}
+      </fieldset>
 
       <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
         <Button disabled={isSubmitting} onClick={onCancel} type="button" variant="ghost">
           Cancel
         </Button>
         <Button disabled={isSubmitting} type="submit">
-          <CalendarPlus className="h-4 w-4" aria-hidden="true" />
-          {isSubmitting ? "Adding..." : "Add event"}
+          {isEditing ? (
+            <Save className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <CalendarPlus className="h-4 w-4" aria-hidden="true" />
+          )}
+          {isSubmitting ? "Saving..." : isEditing ? "Save event" : "Add event"}
         </Button>
       </div>
     </form>

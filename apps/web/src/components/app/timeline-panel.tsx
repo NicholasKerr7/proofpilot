@@ -8,7 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { apiRequest } from "@/lib/client/api";
-import type { CaseEvent, CaseRecord, CreateTimelineEventPayload } from "@/lib/client/types";
+import type {
+  CaseEvent,
+  CaseRecord,
+  EvidenceDocument,
+  TimelineEventPayload
+} from "@/lib/client/types";
 
 const timelineFilters = [
   { label: "All", value: "all" },
@@ -19,6 +24,7 @@ const timelineFilters = [
 type TimelineFilter = (typeof timelineFilters)[number]["value"];
 
 interface TimelinePanelProps {
+  confirmBeforeDelete: boolean;
   onCaseChanged: (caseId: string) => Promise<unknown>;
   selectedCase: CaseRecord;
 }
@@ -28,16 +34,28 @@ type TimelineNotice = {
   text: string;
 };
 
-export function TimelinePanel({ onCaseChanged, selectedCase }: TimelinePanelProps) {
+export function TimelinePanel({
+  confirmBeforeDelete,
+  onCaseChanged,
+  selectedCase
+}: TimelinePanelProps) {
   const [filter, setFilter] = useState<TimelineFilter>("all");
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [isAnalyzingTimeline, setIsAnalyzingTimeline] = useState(false);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  const [pendingDeleteEventId, setPendingDeleteEventId] = useState<string | null>(null);
+  const [busyEventId, setBusyEventId] = useState<string | null>(null);
+  const [documents, setDocuments] = useState<EvidenceDocument[]>([]);
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
   const [timelineNotice, setTimelineNotice] = useState<TimelineNotice | null>(null);
-  const timelineEvents = getSortedTimelineEvents(selectedCase.events ?? []);
+  const timelineEvents = getOrderedTimelineEvents(selectedCase.events ?? []);
   const filteredEvents = timelineEvents.filter((event) => matchesTimelineFilter(event, filter));
   const evidenceEventCount = timelineEvents.filter((event) => event.sources.length > 0).length;
+  const editingEvent =
+    timelineEvents.find((timelineEvent) => timelineEvent.id === editingEventId) ?? null;
 
-  async function handleAddTimelineEvent(payload: CreateTimelineEventPayload) {
+  async function handleAddTimelineEvent(payload: TimelineEventPayload) {
+    setBusyEventId("new");
     setTimelineNotice(null);
 
     try {
@@ -57,7 +75,147 @@ export function TimelinePanel({ onCaseChanged, selectedCase }: TimelinePanelProp
         text: error instanceof Error ? error.message : "Timeline event could not be added."
       });
       return false;
+    } finally {
+      setBusyEventId(null);
     }
+  }
+
+  async function handleUpdateTimelineEvent(payload: TimelineEventPayload) {
+    if (!editingEventId) {
+      return false;
+    }
+
+    setBusyEventId(editingEventId);
+    setTimelineNotice(null);
+
+    try {
+      await apiRequest(`/api/cases/${selectedCase.id}/timeline/${editingEventId}`, {
+        body: JSON.stringify(payload),
+        method: "PATCH"
+      });
+      await onCaseChanged(selectedCase.id);
+      setTimelineNotice({
+        tone: "success",
+        text: "Timeline event updated."
+      });
+      return true;
+    } catch (error) {
+      setTimelineNotice({
+        tone: "error",
+        text: error instanceof Error ? error.message : "Timeline event could not be updated."
+      });
+      return false;
+    } finally {
+      setBusyEventId(null);
+    }
+  }
+
+  async function handleDeleteTimelineEvent(eventId: string) {
+    setBusyEventId(eventId);
+    setTimelineNotice(null);
+
+    try {
+      await apiRequest(`/api/cases/${selectedCase.id}/timeline/${eventId}`, {
+        method: "DELETE"
+      });
+      await onCaseChanged(selectedCase.id);
+      setPendingDeleteEventId(null);
+      setEditingEventId((currentId) => (currentId === eventId ? null : currentId));
+      setTimelineNotice({
+        tone: "success",
+        text: "Timeline event deleted."
+      });
+    } catch (error) {
+      setTimelineNotice({
+        tone: "error",
+        text: error instanceof Error ? error.message : "Timeline event could not be deleted."
+      });
+    } finally {
+      setBusyEventId(null);
+    }
+  }
+
+  async function handleMoveTimelineEvent(eventId: string, direction: "up" | "down") {
+    const eventIds = timelineEvents.map((event) => event.id);
+    const currentIndex = eventIds.indexOf(eventId);
+    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= eventIds.length) {
+      return;
+    }
+
+    [eventIds[currentIndex], eventIds[targetIndex]] = [
+      eventIds[targetIndex],
+      eventIds[currentIndex]
+    ];
+    setBusyEventId(eventId);
+    setTimelineNotice(null);
+
+    try {
+      await apiRequest(`/api/cases/${selectedCase.id}/timeline/order`, {
+        body: JSON.stringify({ eventIds }),
+        method: "PUT"
+      });
+      await onCaseChanged(selectedCase.id);
+      setTimelineNotice({
+        tone: "success",
+        text: "Timeline order updated."
+      });
+    } catch (error) {
+      setTimelineNotice({
+        tone: "error",
+        text: error instanceof Error ? error.message : "Timeline order could not be updated."
+      });
+    } finally {
+      setBusyEventId(null);
+    }
+  }
+
+  async function loadTimelineDocuments() {
+    setIsLoadingDocuments(true);
+
+    try {
+      const nextDocuments = await apiRequest<EvidenceDocument[]>(
+        `/api/cases/${selectedCase.id}/documents`
+      );
+      setDocuments(nextDocuments);
+    } catch (error) {
+      setTimelineNotice({
+        tone: "error",
+        text: error instanceof Error ? error.message : "Case evidence could not be loaded."
+      });
+    } finally {
+      setIsLoadingDocuments(false);
+    }
+  }
+
+  function handleOpenComposer() {
+    const willOpen = !isComposerOpen;
+    setIsComposerOpen(willOpen);
+    setEditingEventId(null);
+    setPendingDeleteEventId(null);
+
+    if (willOpen) {
+      void loadTimelineDocuments();
+    }
+  }
+
+  function handleEditTimelineEvent(event: CaseEvent) {
+    setIsComposerOpen(false);
+    setEditingEventId(event.id);
+    setPendingDeleteEventId(null);
+    void loadTimelineDocuments();
+  }
+
+  function handleRequestDelete(event: CaseEvent) {
+    setEditingEventId(null);
+
+    if (confirmBeforeDelete) {
+      setPendingDeleteEventId(event.id);
+      return;
+    }
+
+    void handleDeleteTimelineEvent(event.id);
   }
 
   async function handleAnalyzeTimeline() {
@@ -65,6 +223,9 @@ export function TimelinePanel({ onCaseChanged, selectedCase }: TimelinePanelProp
     setTimelineNotice(null);
 
     try {
+      setIsComposerOpen(false);
+      setEditingEventId(null);
+      setPendingDeleteEventId(null);
       await apiRequest(`/api/cases/${selectedCase.id}/timeline/analyze`, {
         method: "POST"
       });
@@ -95,7 +256,7 @@ export function TimelinePanel({ onCaseChanged, selectedCase }: TimelinePanelProp
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex">
           <Button
-            disabled={isAnalyzingTimeline}
+            disabled={isAnalyzingTimeline || Boolean(busyEventId)}
             onClick={() => {
               void handleAnalyzeTimeline();
             }}
@@ -108,7 +269,8 @@ export function TimelinePanel({ onCaseChanged, selectedCase }: TimelinePanelProp
           </Button>
           <Button
             aria-expanded={isComposerOpen}
-            onClick={() => setIsComposerOpen((current) => !current)}
+            disabled={isAnalyzingTimeline || Boolean(busyEventId)}
+            onClick={handleOpenComposer}
             size="sm"
             type="button"
             variant={isComposerOpen ? "secondary" : "default"}
@@ -134,6 +296,9 @@ export function TimelinePanel({ onCaseChanged, selectedCase }: TimelinePanelProp
 
         {isComposerOpen ? (
           <TimelineEventComposer
+            documents={documents}
+            isLoadingDocuments={isLoadingDocuments}
+            key="new-timeline-event"
             onCancel={() => setIsComposerOpen(false)}
             onSubmit={handleAddTimelineEvent}
           />
@@ -157,7 +322,11 @@ export function TimelinePanel({ onCaseChanged, selectedCase }: TimelinePanelProp
                   <Button
                     key={item.value}
                     aria-pressed={filter === item.value}
-                    onClick={() => setFilter(item.value)}
+                    onClick={() => {
+                      setFilter(item.value);
+                      setEditingEventId(null);
+                      setPendingDeleteEventId(null);
+                    }}
                     size="sm"
                     type="button"
                     variant={filter === item.value ? "secondary" : "ghost"}
@@ -169,7 +338,29 @@ export function TimelinePanel({ onCaseChanged, selectedCase }: TimelinePanelProp
             </div>
 
             <TimelineEventList
+              busyEventId={isAnalyzingTimeline ? "timeline-analysis" : busyEventId}
+              canReorder={filter === "all"}
+              editingEventId={editingEventId}
+              editor={
+                editingEvent ? (
+                  <TimelineEventComposer
+                    documents={documents}
+                    event={editingEvent}
+                    isLoadingDocuments={isLoadingDocuments}
+                    key={editingEvent.id}
+                    onCancel={() => setEditingEventId(null)}
+                    onSubmit={handleUpdateTimelineEvent}
+                  />
+                ) : null
+              }
               events={filteredEvents}
+              onCancelDelete={() => setPendingDeleteEventId(null)}
+              onConfirmDelete={handleDeleteTimelineEvent}
+              onEdit={handleEditTimelineEvent}
+              onMove={handleMoveTimelineEvent}
+              onRequestDelete={handleRequestDelete}
+              orderedEventIds={timelineEvents.map((event) => event.id)}
+              pendingDeleteEventId={pendingDeleteEventId}
               showPlaceholders={timelineEvents.length === 0}
             />
           </div>
@@ -194,8 +385,12 @@ function TimelineSummary({
   evidenceEventCount: number;
   events: CaseEvent[];
 }) {
-  const firstEvent = events[0] ?? null;
-  const latestEvent = events.at(-1) ?? null;
+  const chronologicalEvents = [...events].sort(
+    (firstEvent, secondEvent) =>
+      new Date(firstEvent.occurredAt).getTime() - new Date(secondEvent.occurredAt).getTime()
+  );
+  const firstEvent = chronologicalEvents[0] ?? null;
+  const latestEvent = chronologicalEvents.at(-1) ?? null;
 
   return (
     <aside className="hidden gap-3 xl:grid" aria-label="Timeline summary">
@@ -269,9 +464,10 @@ function matchesTimelineFilter(event: CaseEvent, filter: TimelineFilter) {
   return filter === "evidence" ? event.sources.length > 0 : event.sources.length === 0;
 }
 
-function getSortedTimelineEvents(events: CaseEvent[]) {
+function getOrderedTimelineEvents(events: CaseEvent[]) {
   return [...events].sort(
     (firstEvent, secondEvent) =>
+      firstEvent.sortOrder - secondEvent.sortOrder ||
       new Date(firstEvent.occurredAt).getTime() - new Date(secondEvent.occurredAt).getTime()
   );
 }

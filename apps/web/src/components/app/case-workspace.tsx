@@ -169,6 +169,7 @@ export function CaseWorkspace({
         />
 
         <TimelinePanel
+          confirmBeforeDelete={confirmBeforeDelete}
           key={`timeline-${selectedCase.id}`}
           selectedCase={selectedCase}
           onCaseChanged={onCaseChanged}
