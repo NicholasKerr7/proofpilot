@@ -9,6 +9,9 @@ const databaseMocks = vi.hoisted(() => ({
   analyzeCaseChecklist: vi.fn(),
   analyzeCaseChecklistTransaction: vi.fn()
 }));
+const storageMocks = vi.hoisted(() => ({
+  createPresignedDownloadUrl: vi.fn()
+}));
 
 vi.mock("@proofpilot/database", async () => {
   const actual = await vi.importActual<typeof import("@proofpilot/database")>(
@@ -21,6 +24,10 @@ vi.mock("@proofpilot/database", async () => {
     analyzeCaseChecklistTransaction: databaseMocks.analyzeCaseChecklistTransaction
   };
 });
+
+vi.mock("@proofpilot/storage", () => ({
+  createPresignedDownloadUrl: storageMocks.createPresignedDownloadUrl
+}));
 
 type PrismaMock = ReturnType<typeof createPrismaMock>;
 type QueueMock = ReturnType<typeof createPacketQueueMock>;
@@ -41,10 +48,18 @@ function basePacketRecord() {
   return {
     id: "packet-1",
     caseId,
-    status: PacketStatus.GENERATING,
+    status: PacketStatus.GENERATING as PacketStatus,
     createdAt: packetCreatedAt,
     updatedAt: packetUpdatedAt,
-    exports: []
+    exports: [] as Array<{
+      id: string;
+      storageKey: string;
+      byteSize: number | null;
+      pageCount: number | null;
+      includedDocumentCount: number;
+      indexedDocumentCount: number;
+      createdAt: Date;
+    }>
   };
 }
 
@@ -63,6 +78,7 @@ function createPrismaMock() {
     casePacket: {
       create: vi.fn(),
       findFirst: vi.fn(),
+      findMany: vi.fn(),
       update: vi.fn().mockResolvedValue({})
     },
     caseChecklistItem: {
@@ -505,6 +521,70 @@ describe("CasesService", () => {
       createdAt: packetCreatedAt,
       updatedAt: packetUpdatedAt,
       exports: []
+    });
+  });
+
+  it("lists owned packet exports with separate preview and download URLs", async () => {
+    const packetExportCreatedAt = new Date("2026-01-01T12:02:00.000Z");
+    prisma.case.findFirst.mockResolvedValue({ id: caseId });
+    prisma.casePacket.findMany.mockResolvedValue([
+      createPacketRecord({
+        status: PacketStatus.READY,
+        exports: [
+          {
+            id: "export-1",
+            storageKey: "users/user-1/cases/case-1/packets/export.pdf",
+            byteSize: 8_192,
+            pageCount: 7,
+            includedDocumentCount: 2,
+            indexedDocumentCount: 3,
+            createdAt: packetExportCreatedAt
+          }
+        ]
+      })
+    ]);
+    storageMocks.createPresignedDownloadUrl.mockImplementation(
+      async (input: { disposition: "attachment" | "inline" }) =>
+        `https://storage.test/packet.pdf?disposition=${input.disposition}`
+    );
+
+    const result = await service.listPackets(ownerId, caseId);
+
+    expect(prisma.case.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: caseId,
+        ownerId,
+        archivedAt: null
+      },
+      select: { id: true }
+    });
+    expect(prisma.casePacket.findMany).toHaveBeenCalledWith({
+      where: { caseId },
+      orderBy: { createdAt: "desc" },
+      select: expect.any(Object)
+    });
+    expect(storageMocks.createPresignedDownloadUrl).toHaveBeenCalledTimes(2);
+    expect(storageMocks.createPresignedDownloadUrl).toHaveBeenCalledWith({
+      disposition: "attachment",
+      expiresInSeconds: 900,
+      fileName: "proofpilot-case-packet.pdf",
+      key: "users/user-1/cases/case-1/packets/export.pdf"
+    });
+    expect(storageMocks.createPresignedDownloadUrl).toHaveBeenCalledWith({
+      disposition: "inline",
+      expiresInSeconds: 900,
+      fileName: "proofpilot-case-packet.pdf",
+      key: "users/user-1/cases/case-1/packets/export.pdf"
+    });
+    expect(result[0]?.exports[0]).toEqual({
+      id: "export-1",
+      byteSize: 8_192,
+      pageCount: 7,
+      includedDocumentCount: 2,
+      indexedDocumentCount: 3,
+      createdAt: packetExportCreatedAt,
+      downloadUrl: "https://storage.test/packet.pdf?disposition=attachment",
+      previewUrl: "https://storage.test/packet.pdf?disposition=inline"
     });
   });
 

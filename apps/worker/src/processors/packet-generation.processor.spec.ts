@@ -7,12 +7,20 @@ type PrismaMock = ReturnType<typeof createPrismaMock>;
 const mocks = vi.hoisted(() => ({
   generateCasePacketPdf: vi.fn(),
   prisma: undefined as unknown,
+  readStoredObjectChunks: vi.fn(),
   writeStoredObjectBytes: vi.fn()
 }));
 
 vi.mock("@proofpilot/database", () => ({
   CaseStatus: {
     PACKET_GENERATED: "PACKET_GENERATED"
+  },
+  DocumentStatus: {
+    FAILED: "FAILED",
+    NEEDS_REVIEW: "NEEDS_REVIEW",
+    PROCESSED: "PROCESSED",
+    PROCESSING: "PROCESSING",
+    UPLOADED: "UPLOADED"
   },
   PacketStatus: {
     FAILED: "FAILED",
@@ -23,6 +31,7 @@ vi.mock("@proofpilot/database", () => ({
 }));
 
 vi.mock("@proofpilot/storage", () => ({
+  readStoredObjectChunks: mocks.readStoredObjectChunks,
   writeStoredObjectBytes: mocks.writeStoredObjectBytes
 }));
 
@@ -87,7 +96,16 @@ function basePacketRecord() {
         name: "Account Ban / Appeal Builder"
       },
       checklist: [],
-      documents: [],
+      documents: [] as Array<{
+        originalName: string;
+        mimeType: string;
+        byteSize: number;
+        status: string;
+        createdAt: Date;
+        extractedText: string | null;
+        quarantinedAt: Date | null;
+        storageKey: string;
+      }>,
       events: [],
       statements: []
     }
@@ -125,8 +143,14 @@ describe("packet generation worker processor", () => {
     const prisma = createPrismaMock();
     const packet = createPacketRecord();
     const pdfBytes = Buffer.from("proofpilot-pdf");
+    const pdf = {
+      bytes: pdfBytes,
+      includedDocumentCount: 2,
+      indexedDocumentCount: 3,
+      pageCount: 9
+    };
     prisma.casePacket.findFirst.mockResolvedValue(packet);
-    mocks.generateCasePacketPdf.mockResolvedValue(pdfBytes);
+    mocks.generateCasePacketPdf.mockResolvedValue(pdf);
     mocks.writeStoredObjectBytes.mockResolvedValue(undefined);
 
     const generateCasePacket = await loadGenerateCasePacket(prisma);
@@ -156,7 +180,10 @@ describe("packet generation worker processor", () => {
     expect(prisma.packetExport.create).toHaveBeenCalledWith({
       data: {
         byteSize: pdfBytes.byteLength,
+        includedDocumentCount: 2,
+        indexedDocumentCount: 3,
         packetId,
+        pageCount: 9,
         storageKey: expect.stringMatching(new RegExp(`^users/${ownerId}/cases/${caseId}/packets/.+\\.pdf$`))
       }
     });
@@ -175,6 +202,9 @@ describe("packet generation worker processor", () => {
         action: "case.packet_generated",
         metadata: {
           byteSize: pdfBytes.byteLength,
+          includedDocumentCount: 2,
+          indexedDocumentCount: 3,
+          pageCount: 9,
           packetId
         }
       }
@@ -191,6 +221,132 @@ describe("packet generation worker processor", () => {
     expect(result).toEqual({
       packetId,
       status: "READY"
+    });
+  });
+
+  it("loads only bounded, processed visual evidence before rendering", async () => {
+    const prisma = createPrismaMock();
+    const timestamp = new Date("2026-01-01T12:00:00.000Z");
+    const packet = createPacketRecord();
+    packet.case.documents = [
+      {
+        originalName: "notice.pdf",
+        mimeType: "application/pdf",
+        byteSize: 24,
+        status: "PROCESSED",
+        createdAt: timestamp,
+        extractedText: "Account limitation notice",
+        quarantinedAt: null,
+        storageKey: "users/user-1/cases/case-1/notice.pdf"
+      },
+      {
+        originalName: "quarantined.png",
+        mimeType: "image/png",
+        byteSize: 24,
+        status: "PROCESSED",
+        createdAt: timestamp,
+        extractedText: "Unsafe content",
+        quarantinedAt: timestamp,
+        storageKey: "users/user-1/cases/case-1/quarantined.png"
+      },
+      {
+        originalName: "support.docx",
+        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        byteSize: 48,
+        status: "NEEDS_REVIEW",
+        createdAt: timestamp,
+        extractedText: "Support confirmed receipt.",
+        quarantinedAt: null,
+        storageKey: "users/user-1/cases/case-1/support.docx"
+      }
+    ];
+    const sourceBytes = Buffer.from("source-pdf");
+    prisma.casePacket.findFirst.mockResolvedValue(packet);
+    mocks.readStoredObjectChunks.mockResolvedValue({
+      chunks: createByteStream(sourceBytes),
+      etag: null
+    });
+    mocks.generateCasePacketPdf.mockResolvedValue({
+      bytes: Buffer.from("packet-pdf"),
+      includedDocumentCount: 2,
+      indexedDocumentCount: 3,
+      pageCount: 7
+    });
+
+    const generateCasePacket = await loadGenerateCasePacket(prisma);
+    await generateCasePacket(createJob());
+
+    expect(mocks.readStoredObjectChunks).toHaveBeenCalledTimes(1);
+    expect(mocks.readStoredObjectChunks).toHaveBeenCalledWith({
+      key: "users/user-1/cases/case-1/notice.pdf"
+    });
+    expect(mocks.generateCasePacketPdf).toHaveBeenCalledWith({
+      ...packet.case,
+      documents: [
+        expect.objectContaining({
+          originalName: "notice.pdf",
+          extractedText: "Account limitation notice",
+          supportingContent: {
+            bytes: new Uint8Array(sourceBytes),
+            kind: "pdf"
+          }
+        }),
+        expect.objectContaining({
+          originalName: "quarantined.png",
+          extractedText: null,
+          supportingContent: null,
+          supportingNote: expect.stringContaining("quarantined")
+        }),
+        expect.objectContaining({
+          originalName: "support.docx",
+          extractedText: "Support confirmed receipt.",
+          supportingContent: null,
+          supportingNote: expect.stringContaining("extracted text")
+        })
+      ]
+    });
+  });
+
+  it("stops a stored evidence stream when its recorded size is stale", async () => {
+    const prisma = createPrismaMock();
+    const packet = createPacketRecord();
+    packet.case.documents = [
+      {
+        originalName: "oversized.pdf",
+        mimeType: "application/pdf",
+        byteSize: 24,
+        status: "PROCESSED",
+        createdAt: new Date("2026-01-01T12:00:00.000Z"),
+        extractedText: "Fallback text",
+        quarantinedAt: null,
+        storageKey: "users/user-1/cases/case-1/oversized.pdf"
+      }
+    ];
+    prisma.casePacket.findFirst.mockResolvedValue(packet);
+    mocks.readStoredObjectChunks.mockResolvedValue({
+      chunks: createDeclaredSizeStream(12 * 1024 * 1024 + 1),
+      etag: null
+    });
+    mocks.generateCasePacketPdf.mockResolvedValue({
+      bytes: Buffer.from("packet-pdf"),
+      includedDocumentCount: 1,
+      indexedDocumentCount: 1,
+      pageCount: 4
+    });
+
+    const generateCasePacket = await loadGenerateCasePacket(prisma);
+    await generateCasePacket(createJob());
+
+    expect(mocks.generateCasePacketPdf).toHaveBeenCalledWith({
+      ...packet.case,
+      documents: [
+        expect.objectContaining({
+          extractedText: "Fallback text",
+          originalName: "oversized.pdf",
+          supportingContent: null,
+          supportingNote: expect.stringContaining("evidence limit")
+        })
+      ]
     });
   });
 
@@ -250,3 +406,11 @@ describe("packet generation worker processor", () => {
     });
   });
 });
+
+async function* createByteStream(bytes: Buffer) {
+  yield bytes;
+}
+
+async function* createDeclaredSizeStream(byteLength: number) {
+  yield { byteLength } as Uint8Array;
+}

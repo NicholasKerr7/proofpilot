@@ -41,6 +41,9 @@ interface PrivatePacketRecord {
     id: string;
     storageKey: string;
     byteSize: number | null;
+    pageCount: number | null;
+    includedDocumentCount: number;
+    indexedDocumentCount: number;
     createdAt: Date;
   }[];
 }
@@ -1286,6 +1289,9 @@ export class CasesService {
           id: true,
           storageKey: true,
           byteSize: true,
+          pageCount: true,
+          includedDocumentCount: true,
+          indexedDocumentCount: true,
           createdAt: true
         }
       }
@@ -1300,15 +1306,33 @@ export class CasesService {
       createdAt: packet.createdAt,
       updatedAt: packet.updatedAt,
       exports: await Promise.all(
-        packet.exports.map(async (packetExport) => ({
-          id: packetExport.id,
-          byteSize: packetExport.byteSize,
-          createdAt: packetExport.createdAt,
-          downloadUrl: await createPresignedDownloadUrl({
-            expiresInSeconds: 900,
-            key: packetExport.storageKey
-          })
-        }))
+        packet.exports.map(async (packetExport) => {
+          const [downloadUrl, previewUrl] = await Promise.all([
+            createPresignedDownloadUrl({
+              disposition: "attachment",
+              expiresInSeconds: 900,
+              fileName: "proofpilot-case-packet.pdf",
+              key: packetExport.storageKey
+            }),
+            createPresignedDownloadUrl({
+              disposition: "inline",
+              expiresInSeconds: 900,
+              fileName: "proofpilot-case-packet.pdf",
+              key: packetExport.storageKey
+            })
+          ]);
+
+          return {
+            id: packetExport.id,
+            byteSize: packetExport.byteSize,
+            pageCount: packetExport.pageCount,
+            includedDocumentCount: packetExport.includedDocumentCount,
+            indexedDocumentCount: packetExport.indexedDocumentCount,
+            createdAt: packetExport.createdAt,
+            downloadUrl,
+            previewUrl
+          };
+        })
       )
     };
   }

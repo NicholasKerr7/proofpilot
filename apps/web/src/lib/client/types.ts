@@ -168,8 +168,12 @@ export interface CaseStatementResponse {
 export interface CasePacketExport {
   id: string;
   byteSize: number | null;
+  pageCount: number | null;
+  includedDocumentCount: number;
+  indexedDocumentCount: number;
   createdAt: string;
   downloadUrl: string;
+  previewUrl: string;
 }
 
 export interface CasePacket {

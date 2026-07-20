@@ -1,0 +1,4 @@
+ALTER TABLE "PacketExport"
+ADD COLUMN "pageCount" INTEGER,
+ADD COLUMN "includedDocumentCount" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN "indexedDocumentCount" INTEGER NOT NULL DEFAULT 0;

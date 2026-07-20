@@ -1,9 +1,18 @@
 import type { Job } from "bullmq";
-import { CaseStatus, getPrismaClient, PacketStatus } from "@proofpilot/database";
-import { writeStoredObjectBytes } from "@proofpilot/storage";
+import {
+  CaseStatus,
+  DocumentStatus,
+  getPrismaClient,
+  PacketStatus
+} from "@proofpilot/database";
+import { readStoredObjectChunks, writeStoredObjectBytes } from "@proofpilot/storage";
 import { randomUUID } from "node:crypto";
 import type { GeneratePacketJobData } from "../queues/packet-generation.queue.js";
-import { generateCasePacketPdf } from "./case-packet-pdf.js";
+import {
+  generateCasePacketPdf,
+  type PacketPdfDocument,
+  type PacketSupportingContentKind
+} from "./case-packet-pdf.js";
 
 const prisma = getPrismaClient();
 
@@ -14,6 +23,23 @@ interface PacketFailureContext {
   platform: string;
   title: string;
 }
+
+interface PacketEvidenceRecord {
+  originalName: string;
+  mimeType: string;
+  byteSize: number;
+  status: DocumentStatus;
+  createdAt: Date;
+  extractedText: string | null;
+  quarantinedAt: Date | null;
+  storageKey: string;
+}
+
+const maxEmbeddedDocumentCount = 12;
+const maxEmbeddedDocumentBytes = 12 * 1024 * 1024;
+const maxEmbeddedTotalBytes = 40 * 1024 * 1024;
+
+class EvidenceReadLimitError extends Error {}
 
 export async function generateCasePacket(job: Job<GeneratePacketJobData>) {
   let failureContext: PacketFailureContext | null = null;
@@ -85,7 +111,10 @@ export async function generateCasePacket(job: Job<GeneratePacketJobData>) {
                 mimeType: true,
                 byteSize: true,
                 status: true,
-                createdAt: true
+                createdAt: true,
+                extractedText: true,
+                quarantinedAt: true,
+                storageKey: true
               }
             },
             events: {
@@ -143,11 +172,15 @@ export async function generateCasePacket(job: Job<GeneratePacketJobData>) {
       data: { status: PacketStatus.GENERATING }
     });
 
-    const pdfBytes = await generateCasePacketPdf(packet.case);
+    const documents = await loadSupportingEvidence(packet.case.documents);
+    const pdf = await generateCasePacketPdf({
+      ...packet.case,
+      documents
+    });
     const storageKey = createPacketStorageKey(packet.case.ownerId, packet.case.id);
 
     await writeStoredObjectBytes({
-      body: pdfBytes,
+      body: pdf.bytes,
       contentType: "application/pdf",
       key: storageKey
     });
@@ -155,8 +188,11 @@ export async function generateCasePacket(job: Job<GeneratePacketJobData>) {
     await prisma.$transaction([
       prisma.packetExport.create({
         data: {
-          byteSize: pdfBytes.byteLength,
+          byteSize: pdf.bytes.byteLength,
+          includedDocumentCount: pdf.includedDocumentCount,
+          indexedDocumentCount: pdf.indexedDocumentCount,
           packetId: packet.id,
+          pageCount: pdf.pageCount,
           storageKey
         }
       }),
@@ -174,7 +210,10 @@ export async function generateCasePacket(job: Job<GeneratePacketJobData>) {
           caseId: packet.case.id,
           action: "case.packet_generated",
           metadata: {
-            byteSize: pdfBytes.byteLength,
+            byteSize: pdf.bytes.byteLength,
+            includedDocumentCount: pdf.includedDocumentCount,
+            indexedDocumentCount: pdf.indexedDocumentCount,
+            pageCount: pdf.pageCount,
             packetId: packet.id
           }
         }
@@ -228,6 +267,163 @@ export async function generateCasePacket(job: Job<GeneratePacketJobData>) {
 
     throw error;
   }
+}
+
+async function loadSupportingEvidence(
+  documents: PacketEvidenceRecord[]
+): Promise<PacketPdfDocument[]> {
+  const packetDocuments: PacketPdfDocument[] = [];
+  let embeddedDocumentCount = 0;
+  let embeddedByteCount = 0;
+
+  for (const document of documents) {
+    const packetDocument: PacketPdfDocument = {
+      originalName: document.originalName,
+      mimeType: document.mimeType,
+      byteSize: document.byteSize,
+      status: document.status,
+      createdAt: document.createdAt,
+      extractedText: null,
+      supportingContent: null,
+      supportingNote: null
+    };
+    const canIncludeProcessedContent =
+      !document.quarantinedAt &&
+      (document.status === DocumentStatus.PROCESSED ||
+        document.status === DocumentStatus.NEEDS_REVIEW);
+
+    if (!canIncludeProcessedContent) {
+      packetDocuments.push({
+        ...packetDocument,
+        supportingNote: document.quarantinedAt
+          ? "Original content was excluded because this file is quarantined."
+          : `Original content was excluded while the document status is ${formatStatus(document.status)}.`
+      });
+      continue;
+    }
+
+    const kind = getSupportingContentKind(document.mimeType);
+    packetDocument.extractedText = document.extractedText;
+
+    if (!kind) {
+      packetDocuments.push({
+        ...packetDocument,
+        supportingNote:
+          "This file format is represented by extracted text when available; the original remains indexed."
+      });
+      continue;
+    }
+
+    const skipReason = getEvidenceReadSkipReason({
+      byteSize: document.byteSize,
+      embeddedByteCount,
+      embeddedDocumentCount
+    });
+
+    if (skipReason) {
+      packetDocuments.push({
+        ...packetDocument,
+        supportingNote: skipReason
+      });
+      continue;
+    }
+
+    try {
+      const maximumReadBytes = Math.min(
+        maxEmbeddedDocumentBytes,
+        maxEmbeddedTotalBytes - embeddedByteCount
+      );
+      const bytes = await readEvidenceBytes(document.storageKey, maximumReadBytes);
+
+      embeddedDocumentCount += 1;
+      embeddedByteCount += bytes.byteLength;
+      packetDocuments.push({
+        ...packetDocument,
+        supportingContent: {
+          bytes: new Uint8Array(bytes),
+          kind
+        }
+      });
+    } catch (error) {
+      packetDocuments.push({
+        ...packetDocument,
+        supportingNote:
+          error instanceof EvidenceReadLimitError
+            ? "The original file exceeded the remaining packet evidence limit while being read."
+            : "The original file could not be read from storage; extracted text is included when available."
+      });
+    }
+  }
+
+  return packetDocuments;
+}
+
+async function readEvidenceBytes(storageKey: string, maximumBytes: number) {
+  const { chunks } = await readStoredObjectChunks({ key: storageKey });
+  const buffers: Buffer[] = [];
+  let byteCount = 0;
+
+  for await (const chunk of chunks) {
+    byteCount += chunk.byteLength;
+
+    if (byteCount > maximumBytes) {
+      throw new EvidenceReadLimitError("Stored evidence exceeded its packet read limit.");
+    }
+
+    buffers.push(Buffer.from(chunk));
+  }
+
+  return Buffer.concat(buffers, byteCount);
+}
+
+function getSupportingContentKind(mimeType: string): PacketSupportingContentKind | null {
+  const normalizedMimeType = mimeType.toLowerCase();
+
+  if (normalizedMimeType === "application/pdf") {
+    return "pdf";
+  }
+
+  if (normalizedMimeType === "image/png") {
+    return "png";
+  }
+
+  if (normalizedMimeType === "image/jpeg" || normalizedMimeType === "image/jpg") {
+    return "jpeg";
+  }
+
+  return null;
+}
+
+function getEvidenceReadSkipReason(input: {
+  byteSize: number;
+  embeddedByteCount: number;
+  embeddedDocumentCount: number;
+}) {
+  if (input.embeddedDocumentCount >= maxEmbeddedDocumentCount) {
+    return `The original file was not appended because the ${maxEmbeddedDocumentCount}-file packet limit was reached.`;
+  }
+
+  if (input.byteSize > maxEmbeddedDocumentBytes) {
+    return `The original file exceeds the ${formatBytes(maxEmbeddedDocumentBytes)} per-file packet limit.`;
+  }
+
+  if (input.embeddedByteCount + input.byteSize > maxEmbeddedTotalBytes) {
+    return `The original file was not appended because the ${formatBytes(maxEmbeddedTotalBytes)} packet evidence limit would be exceeded.`;
+  }
+
+  return null;
+}
+
+function formatStatus(status: string) {
+  return status
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function formatBytes(value: number) {
+  return `${Math.round(value / (1024 * 1024))} MB`;
 }
 
 function createPacketStorageKey(ownerId: string, caseId: string) {

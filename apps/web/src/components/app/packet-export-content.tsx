@@ -11,6 +11,7 @@ import {
   Flag,
   FolderOpen,
   ListChecks,
+  Paperclip,
   PenLine,
   RefreshCcw,
   Share2,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PacketDocumentPreview } from "@/components/app/packet-document-preview";
 import { Progress } from "@/components/ui/progress";
 import type { CasePacket, CasePacketExport, CaseRecord } from "@/lib/client/types";
 
@@ -72,6 +74,8 @@ export function PacketExportContent({
         readinessState={readinessState}
         sections={sections}
       />
+
+      {latestExport ? <PacketDocumentPreview packetExport={latestExport} /> : null}
 
       <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_18rem]">
         <PacketSectionManifest sections={sections} />
@@ -249,6 +253,18 @@ function PacketExportActions({
               {formatDateTime(latestReadyPacket.createdAt)}
             </dd>
           </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-muted-foreground">Pages</dt>
+            <dd className="font-medium text-foreground">
+              {latestExport.pageCount ?? "Not recorded"}
+            </dd>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-muted-foreground">Supporting files</dt>
+            <dd className="font-medium text-foreground">
+              {latestExport.includedDocumentCount}/{latestExport.indexedDocumentCount}
+            </dd>
+          </div>
         </dl>
       ) : null}
     </section>
@@ -378,6 +394,13 @@ function getPacketSections(caseRecord: CaseRecord): PacketSection[] {
       status: `${documentCount} files`
     },
     {
+      description: "Original evidence pages and extracted text assembled with the report.",
+      icon: Paperclip,
+      label: "Supporting documents",
+      ready: documentCount > 0,
+      status: documentCount ? `${documentCount} files` : "Draft"
+    },
+    {
       description: "Submission, recordkeeping, and follow-up guidance.",
       icon: Flag,
       label: "Next steps",
@@ -411,8 +434,15 @@ function formatDateTime(value: string) {
 function getPacketHistoryLabel(packet: CasePacket) {
   const packetExport = packet.exports[0];
 
-  if (typeof packetExport?.byteSize === "number") {
-    return formatBytes(packetExport.byteSize);
+  if (packetExport) {
+    return [
+      typeof packetExport.pageCount === "number"
+        ? `${packetExport.pageCount} ${packetExport.pageCount === 1 ? "page" : "pages"}`
+        : null,
+      typeof packetExport.byteSize === "number" ? formatBytes(packetExport.byteSize) : null
+    ]
+      .filter((value): value is string => Boolean(value))
+      .join(" | ") || "PDF export";
   }
 
   if (packet.status === "GENERATING") {

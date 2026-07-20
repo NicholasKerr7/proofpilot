@@ -538,13 +538,16 @@ model CasePacket {
 }
 
 model PacketExport {
-  id         String        @id @default(cuid())
-  packetId   String
-  packet     CasePacket    @relation(fields: [packetId], references: [id], onDelete: Cascade)
-  storageKey String
-  byteSize   Int?
-  createdAt  DateTime      @default(now())
-  shares     PacketShare[]
+  id                    String        @id @default(cuid())
+  packetId              String
+  packet                CasePacket    @relation(fields: [packetId], references: [id], onDelete: Cascade)
+  storageKey            String
+  byteSize              Int?
+  pageCount             Int?
+  includedDocumentCount Int           @default(0)
+  indexedDocumentCount  Int           @default(0)
+  createdAt             DateTime      @default(now())
+  shares                PacketShare[]
 }
 
 model PacketShare {

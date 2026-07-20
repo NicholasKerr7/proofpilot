@@ -199,6 +199,11 @@ test.describe("ProofPilot responsive workspace", () => {
       statementBuilder.getByText("Statement version restored as the current version.")
     ).toBeVisible();
 
+    const packetExport = page.locator("#packet-export");
+    await packetExport.scrollIntoViewIfNeeded();
+    await expect(packetExport.getByText("8 section manifest")).toBeVisible();
+    await expect(packetExport.getByText("Supporting documents", { exact: true })).toBeVisible();
+
     await expectNoHorizontalOverflow(page);
     await expectAccessible(page, "statement builder workspace");
   });
