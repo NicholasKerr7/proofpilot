@@ -358,6 +358,7 @@ async function main() {
         caseId: demoCase.id,
         description: requirement.description,
         label: requirement.label,
+        manuallyCompletedAt: null,
         requirementId: `account-ban-${requirement.sortOrder}`,
         status: getDemoChecklistStatus(requirement.sortOrder)
       },
@@ -366,6 +367,7 @@ async function main() {
         caseId: demoCase.id,
         description: requirement.description,
         label: requirement.label,
+        manuallyCompletedAt: null,
         requirementId: `account-ban-${requirement.sortOrder}`,
         status: getDemoChecklistStatus(requirement.sortOrder)
       }

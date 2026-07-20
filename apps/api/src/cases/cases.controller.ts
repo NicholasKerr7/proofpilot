@@ -21,6 +21,7 @@ import { ListCaseActivityQueryDto } from "./dto/list-case-activity-query.dto.js"
 import { ReorderTimelineEventsDto } from "./dto/reorder-timeline-events.dto.js";
 import { SaveStatementDto } from "./dto/save-statement.dto.js";
 import { UpdateCaseDto } from "./dto/update-case.dto.js";
+import { UpdateChecklistItemDto } from "./dto/update-checklist-item.dto.js";
 import { UpdateTimelineEventDto } from "./dto/update-timeline-event.dto.js";
 
 @ApiTags("cases")
@@ -109,6 +110,16 @@ export class CasesController {
   @Post(":id/checklist/analyze")
   analyzeChecklist(@CurrentUser() user: RequestUser, @Param("id") id: string) {
     return this.casesService.analyzeChecklist(user.id, id);
+  }
+
+  @Patch(":id/checklist/:itemId")
+  updateChecklistItem(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Param("itemId") itemId: string,
+    @Body() input: UpdateChecklistItemDto
+  ) {
+    return this.casesService.updateChecklistItem(user.id, id, itemId, input);
   }
 
   @Get(":id/statement")

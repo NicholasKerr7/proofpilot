@@ -4,12 +4,19 @@ import {
   NotFoundException,
   ServiceUnavailableException
 } from "@nestjs/common";
-import { CaseStatus, ChecklistStatus, DocumentStatus, PacketStatus, Prisma } from "@proofpilot/database";
+import {
+  analyzeCaseChecklist,
+  analyzeCaseChecklistTransaction,
+  CaseStatus,
+  ChecklistStatus,
+  DocumentStatus,
+  PacketStatus,
+  Prisma
+} from "@proofpilot/database";
 import { createPresignedDownloadUrl } from "@proofpilot/storage";
 import type { CaseActivityResponse } from "@proofpilot/types";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { PacketGenerationQueueService } from "../queue/packet-generation-queue.service.js";
-import { analyzeChecklistEvidence } from "./case-checklist-analysis.js";
 import { getCaseActivityActionFilter, toCaseActivityItem } from "./case-activity.js";
 import { generateAppealStatement } from "./case-statement-generation.js";
 import { analyzeTimelineEvidence } from "./case-timeline-analysis.js";
@@ -19,6 +26,7 @@ import type { ListCaseActivityQueryDto } from "./dto/list-case-activity-query.dt
 import type { ReorderTimelineEventsDto } from "./dto/reorder-timeline-events.dto.js";
 import type { SaveStatementDto } from "./dto/save-statement.dto.js";
 import type { UpdateCaseDto } from "./dto/update-case.dto.js";
+import type { UpdateChecklistItemDto } from "./dto/update-checklist-item.dto.js";
 import type { UpdateTimelineEventDto } from "./dto/update-timeline-event.dto.js";
 
 interface PrivatePacketRecord {
@@ -595,125 +603,83 @@ export class CasesService {
   }
 
   async analyzeChecklist(ownerId: string, caseId: string) {
-    const foundCase = await this.prisma.case.findFirst({
-      where: {
-        id: caseId,
-        ownerId,
-        archivedAt: null
-      },
-      select: {
-        id: true,
-        summary: true,
-        status: true,
-        checklist: {
-          orderBy: { createdAt: "asc" },
-          select: {
-            id: true,
-            label: true,
-            description: true,
-            requirementId: true,
-            status: true
-          }
-        },
-        documents: {
-          where: {
-            status: {
-              in: [DocumentStatus.PROCESSED, DocumentStatus.NEEDS_REVIEW]
-            }
-          },
-          select: {
-            id: true,
-            originalName: true,
-            mimeType: true,
-            extractedText: true,
-            entities: {
-              select: {
-                type: true,
-                value: true
-              }
-            }
-          }
-        }
-      }
+    const analysis = await analyzeCaseChecklist(this.prisma, {
+      caseId,
+      ownerId
     });
 
-    if (!foundCase) {
+    if (!analysis) {
       throw new NotFoundException("Case not found.");
     }
 
-    const analysis = analyzeChecklistEvidence({
-      caseSummary: foundCase.summary,
-      checklist: foundCase.checklist,
-      documents: foundCase.documents
-    });
-    const checklistItemIds = foundCase.checklist.map((item) => item.id);
-    const matchData = analysis.flatMap((item) => {
-      if (!item.match || !item.requirementId) {
-        return [];
-      }
+    return this.get(ownerId, caseId);
+  }
 
-      return [
-        {
-          checklistItemId: item.checklistItemId,
-          confidence: item.match.confidence,
-          documentId: item.match.documentId,
-          rationale: item.match.rationale,
-          requirementId: item.requirementId
-        }
-      ];
-    });
-    const foundCount = analysis.filter(
-      (item) => item.status === ChecklistStatus.FOUND || item.status === ChecklistStatus.COMPLETE
-    ).length;
-    const missingCount = analysis.filter((item) => item.status === ChecklistStatus.MISSING).length;
-    const nextCaseStatus = foundCase.checklist.length
-      ? this.getAnalyzedCaseStatus(foundCase.status, missingCount)
-      : foundCase.status;
-
+  async updateChecklistItem(
+    ownerId: string,
+    caseId: string,
+    itemId: string,
+    input: UpdateChecklistItemDto
+  ) {
     await this.prisma.$transaction(async (tx) => {
-      if (checklistItemIds.length) {
-        await tx.caseRequirementMatch.deleteMany({
-          where: {
-            checklistItemId: {
-              in: checklistItemIds
-            }
+      const checklistItem = await tx.caseChecklistItem.findFirst({
+        where: {
+          id: itemId,
+          caseId,
+          case: {
+            ownerId,
+            archivedAt: null
           }
-        });
-      }
-
-      for (const item of analysis) {
-        await tx.caseChecklistItem.update({
-          where: { id: item.checklistItemId },
-          data: { status: item.status }
-        });
-      }
-
-      if (matchData.length) {
-        await tx.caseRequirementMatch.createMany({
-          data: matchData
-        });
-      }
-
-      await tx.case.update({
-        where: { id: foundCase.id },
-        data: {
-          status: nextCaseStatus
+        },
+        select: {
+          id: true,
+          label: true,
+          requirement: {
+            select: { required: true }
+          }
         }
       });
 
+      if (!checklistItem) {
+        throw new NotFoundException("Checklist item not found.");
+      }
+
+      const fallbackStatus =
+        checklistItem.requirement?.required === false
+          ? ChecklistStatus.OPTIONAL
+          : ChecklistStatus.MISSING;
+      const manuallyCompletedAt = input.completed ? new Date() : null;
+
+      await tx.caseChecklistItem.update({
+        where: { id: checklistItem.id },
+        data: {
+          manuallyCompletedAt,
+          status: input.completed ? ChecklistStatus.COMPLETE : fallbackStatus
+        }
+      });
       await tx.auditLog.create({
         data: {
           userId: ownerId,
-          caseId: foundCase.id,
-          action: "case.checklist_analyzed",
+          caseId,
+          action: input.completed
+            ? "case.checklist_item_completed"
+            : "case.checklist_item_reopened",
           metadata: {
-            documentsAnalyzed: foundCase.documents.length,
-            foundCount,
-            missingCount,
-            matchCount: matchData.length
+            checklistItemId: checklistItem.id,
+            label: checklistItem.label
           }
         }
       });
+
+      const analysis = await analyzeCaseChecklistTransaction(tx, {
+        auditAction: null,
+        caseId,
+        ownerId
+      });
+
+      if (!analysis) {
+        throw new NotFoundException("Case not found.");
+      }
     });
 
     return this.get(ownerId, caseId);
@@ -987,18 +953,6 @@ export class CasesService {
     }
   }
 
-  private getAnalyzedCaseStatus(currentStatus: CaseStatus, missingCount: number) {
-    if (
-      currentStatus !== CaseStatus.COLLECTING_EVIDENCE &&
-      currentStatus !== CaseStatus.NEEDS_MORE_EVIDENCE &&
-      currentStatus !== CaseStatus.READY_FOR_REVIEW
-    ) {
-      return currentStatus;
-    }
-
-    return missingCount === 0 ? CaseStatus.READY_FOR_REVIEW : CaseStatus.NEEDS_MORE_EVIDENCE;
-  }
-
   private getTimelineSelect() {
     return {
       orderBy: [
@@ -1047,6 +1001,7 @@ export class CasesService {
       label: true,
       description: true,
       status: true,
+      manuallyCompletedAt: true,
       updatedAt: true,
       matches: {
         orderBy: { confidence: "desc" as const },

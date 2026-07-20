@@ -1,5 +1,9 @@
 import type { Job } from "bullmq";
-import { DocumentStatus, getPrismaClient } from "@proofpilot/database";
+import {
+  analyzeCaseChecklist,
+  DocumentStatus,
+  getPrismaClient
+} from "@proofpilot/database";
 import { readStoredObjectBytes } from "@proofpilot/storage";
 import {
   csvMimeType,
@@ -139,6 +143,42 @@ export async function processUploadedDocument(job: Job<ProcessDocumentJobData>) 
         }
       })
     ]);
+
+    try {
+      const checklistAnalysis = await analyzeCaseChecklist(prisma, {
+        auditAction: "case.checklist_auto_analyzed",
+        caseId: document.case.id,
+        ownerId: document.case.ownerId,
+        triggerDocumentId: document.id
+      });
+
+      if (!checklistAnalysis) {
+        throw new Error("The case was unavailable for checklist refresh.");
+      }
+
+      await prisma.documentProcessingLog.create({
+        data: {
+          documentId: document.id,
+          step: "refresh_case_checklist",
+          status: "completed",
+          message: `Checklist refreshed with ${checklistAnalysis.foundCount} ready and ${checklistAnalysis.missingCount} missing item(s).`
+        }
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Checklist refresh failed after processing.";
+
+      await prisma.documentProcessingLog
+        .create({
+          data: {
+            documentId: document.id,
+            step: "refresh_case_checklist",
+            status: "failed",
+            message: truncateMessage(message)
+          }
+        })
+        .catch(() => undefined);
+    }
 
     return {
       documentId: document.id,

@@ -1,10 +1,11 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
   ServiceUnavailableException
 } from "@nestjs/common";
-import { DocumentStatus } from "@proofpilot/database";
+import { analyzeCaseChecklist, DocumentStatus } from "@proofpilot/database";
 import {
   copyStoredObject,
   createPresignedDownloadUrl,
@@ -42,6 +43,8 @@ interface CompletedUploadDocument {
 
 @Injectable()
 export class DocumentsService {
+  private readonly logger = new Logger(DocumentsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly documentProcessingQueue: DocumentProcessingQueueService,
@@ -433,6 +436,19 @@ export class DocumentsService {
         }
       }
     });
+
+    try {
+      await analyzeCaseChecklist(this.prisma, {
+        auditAction: "case.checklist_auto_analyzed",
+        caseId: document.caseId,
+        ownerId,
+        triggerDocumentId: document.id
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Checklist refresh failed after deletion.";
+      this.logger.warn(`Checklist refresh failed after deleting ${document.id}: ${message}`);
+    }
 
     return { id: document.id, deleted: true };
   }

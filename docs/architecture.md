@@ -11,7 +11,7 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 ## Packages
 
 - `packages/types`: Shared case, assistant, auth, settings, security, connection, billing, packet-sharing, and API schemas.
-- `packages/database`: Prisma schema, client export, and seed data.
+- `packages/database`: Prisma schema, client export, shared checklist analysis, and seed data.
 - `packages/storage`: S3-compatible private evidence storage helpers.
 
 ## Local Services

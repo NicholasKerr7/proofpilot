@@ -6,6 +6,7 @@ let prisma: PrismaClient | null = null;
 let pool: Pool | null = null;
 
 export * from "@prisma/client";
+export * from "./checklist-analysis.js";
 
 export function getPrismaClient() {
   const databaseUrl = process.env.DATABASE_URL;

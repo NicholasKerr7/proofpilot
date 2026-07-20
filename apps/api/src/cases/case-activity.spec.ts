@@ -106,6 +106,28 @@ describe("case activity presentation", () => {
     expect(item).not.toHaveProperty("metadata");
   });
 
+  it("presents manual checklist completion without exposing internal item IDs", () => {
+    const item = toCaseActivityItem({
+      id: "activity-checklist",
+      action: "case.checklist_item_completed",
+      metadata: {
+        checklistItemId: "checklist-private",
+        label: "Account ownership proof"
+      },
+      createdAt
+    });
+
+    expect(item).toEqual({
+      id: "activity-checklist",
+      action: "case.checklist_item_completed",
+      category: "checklist",
+      title: "Checklist item completed",
+      detail: "Account ownership proof",
+      createdAt: createdAt.toISOString()
+    });
+    expect(item).not.toHaveProperty("metadata");
+  });
+
   it("presents a selected-case support request without exposing its message", () => {
     const item = toCaseActivityItem({
       id: "activity-4",

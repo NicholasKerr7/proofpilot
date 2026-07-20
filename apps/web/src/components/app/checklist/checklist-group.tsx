@@ -29,14 +29,18 @@ interface ChecklistGroupProps {
   expandedItemId: string | null;
   group: ChecklistGroupKey;
   items: ChecklistItem[];
+  onSetCompleted: (itemId: string, completed: boolean) => Promise<void>;
   onToggleItem: (itemId: string) => void;
+  updatingItemId: string | null;
 }
 
 export function ChecklistGroup({
   expandedItemId,
   group,
   items,
-  onToggleItem
+  onSetCompleted,
+  onToggleItem,
+  updatingItemId
 }: ChecklistGroupProps) {
   if (!items.length) {
     return null;
@@ -79,6 +83,8 @@ export function ChecklistGroup({
             key={item.id}
             isExpanded={expandedItemId === item.id}
             item={item}
+            isUpdating={updatingItemId === item.id}
+            onSetCompleted={(completed) => onSetCompleted(item.id, completed)}
             onToggle={() => onToggleItem(item.id)}
           />
         ))}

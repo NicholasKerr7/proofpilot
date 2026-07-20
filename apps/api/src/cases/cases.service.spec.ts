@@ -5,6 +5,23 @@ import type { PrismaService } from "../prisma/prisma.service.js";
 import type { PacketGenerationQueueService } from "../queue/packet-generation-queue.service.js";
 import { CasesService } from "./cases.service.js";
 
+const databaseMocks = vi.hoisted(() => ({
+  analyzeCaseChecklist: vi.fn(),
+  analyzeCaseChecklistTransaction: vi.fn()
+}));
+
+vi.mock("@proofpilot/database", async () => {
+  const actual = await vi.importActual<typeof import("@proofpilot/database")>(
+    "@proofpilot/database"
+  );
+
+  return {
+    ...actual,
+    analyzeCaseChecklist: databaseMocks.analyzeCaseChecklist,
+    analyzeCaseChecklistTransaction: databaseMocks.analyzeCaseChecklistTransaction
+  };
+});
+
 type PrismaMock = ReturnType<typeof createPrismaMock>;
 type QueueMock = ReturnType<typeof createPacketQueueMock>;
 
@@ -44,6 +61,10 @@ function createPrismaMock() {
     },
     casePacket: {
       create: vi.fn(),
+      findFirst: vi.fn(),
+      update: vi.fn().mockResolvedValue({})
+    },
+    caseChecklistItem: {
       findFirst: vi.fn(),
       update: vi.fn().mockResolvedValue({})
     },
@@ -97,9 +118,114 @@ describe("CasesService", () => {
   let service: CasesService;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     prisma = createPrismaMock();
     queue = createPacketQueueMock();
     service = createService(prisma, queue);
+    databaseMocks.analyzeCaseChecklist.mockResolvedValue({
+      documentsAnalyzed: 0,
+      foundCount: 1,
+      matchCount: 0,
+      missingCount: 0,
+      status: "READY_FOR_REVIEW"
+    });
+    databaseMocks.analyzeCaseChecklistTransaction.mockResolvedValue({
+      documentsAnalyzed: 0,
+      foundCount: 1,
+      matchCount: 0,
+      missingCount: 0,
+      status: "READY_FOR_REVIEW"
+    });
+  });
+
+  it("manually completes an owned checklist item and refreshes case readiness", async () => {
+    const caseRecord = { id: caseId, checklist: [] };
+    prisma.caseChecklistItem.findFirst.mockResolvedValue({
+      id: "item-1",
+      label: "Support conversation",
+      requirement: { required: true }
+    });
+    prisma.case.findFirst.mockResolvedValue(caseRecord);
+
+    const result = await service.updateChecklistItem(ownerId, caseId, "item-1", {
+      completed: true
+    });
+
+    expect(prisma.caseChecklistItem.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "item-1",
+        caseId,
+        case: {
+          ownerId,
+          archivedAt: null
+        }
+      },
+      select: {
+        id: true,
+        label: true,
+        requirement: {
+          select: { required: true }
+        }
+      }
+    });
+    expect(prisma.caseChecklistItem.update).toHaveBeenCalledWith({
+      where: { id: "item-1" },
+      data: {
+        manuallyCompletedAt: expect.any(Date),
+        status: "COMPLETE"
+      }
+    });
+    expect(databaseMocks.analyzeCaseChecklistTransaction).toHaveBeenCalledWith(prisma, {
+      auditAction: null,
+      caseId,
+      ownerId
+    });
+    expect(result).toEqual(caseRecord);
+  });
+
+  it("reopens an optional checklist item without making it required", async () => {
+    prisma.caseChecklistItem.findFirst.mockResolvedValue({
+      id: "item-1",
+      label: "Additional context",
+      requirement: { required: false }
+    });
+    prisma.case.findFirst.mockResolvedValue({ id: caseId, checklist: [] });
+
+    await service.updateChecklistItem(ownerId, caseId, "item-1", {
+      completed: false
+    });
+
+    expect(prisma.caseChecklistItem.update).toHaveBeenCalledWith({
+      where: { id: "item-1" },
+      data: {
+        manuallyCompletedAt: null,
+        status: "OPTIONAL"
+      }
+    });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: {
+        userId: ownerId,
+        caseId,
+        action: "case.checklist_item_reopened",
+        metadata: {
+          checklistItemId: "item-1",
+          label: "Additional context"
+        }
+      }
+    });
+  });
+
+  it("rejects checklist updates for items outside the owned case", async () => {
+    prisma.caseChecklistItem.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.updateChecklistItem(ownerId, caseId, "foreign-item", {
+        completed: true
+      })
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(prisma.caseChecklistItem.update).not.toHaveBeenCalled();
+    expect(databaseMocks.analyzeCaseChecklistTransaction).not.toHaveBeenCalled();
   });
 
   it("creates a generating packet and enqueues packet generation", async () => {

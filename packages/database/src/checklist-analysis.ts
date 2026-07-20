@@ -1,4 +1,10 @@
-import { ChecklistStatus } from "@proofpilot/database";
+import {
+  CaseStatus,
+  ChecklistStatus,
+  DocumentStatus,
+  type Prisma,
+  type PrismaClient
+} from "@prisma/client";
 
 interface ChecklistEvidenceDocument {
   id: string;
@@ -17,6 +23,8 @@ interface ChecklistEvidenceItem {
   description: string;
   requirementId: string | null;
   status: ChecklistStatus;
+  manuallyCompletedAt: Date | string | null;
+  required: boolean;
 }
 
 interface AnalyzeChecklistInput {
@@ -36,6 +44,21 @@ export interface ChecklistAnalysisMatch {
   documentId: string;
   confidence: number;
   rationale: string;
+}
+
+export interface AnalyzeCaseChecklistOptions {
+  auditAction?: "case.checklist_analyzed" | "case.checklist_auto_analyzed" | null;
+  caseId: string;
+  ownerId: string;
+  triggerDocumentId?: string;
+}
+
+export interface CaseChecklistAnalysisSummary {
+  documentsAnalyzed: number;
+  foundCount: number;
+  matchCount: number;
+  missingCount: number;
+  status: CaseStatus;
 }
 
 interface RequirementRule {
@@ -93,7 +116,15 @@ const requirementRules: RequirementRule[] = [
   {
     name: "user explanation",
     appliesTo: (text) => includesAny(text, ["user explanation", "statement", "explaining"]),
-    keywords: ["i believe", "my account", "i was", "i did", "explanation", "statement", "requested outcome"],
+    keywords: [
+      "i believe",
+      "my account",
+      "i was",
+      "i did",
+      "explanation",
+      "statement",
+      "requested outcome"
+    ],
     threshold: 0.55,
     summaryCanComplete: true
   },
@@ -118,7 +149,16 @@ const requirementRules: RequirementRule[] = [
   {
     name: "account ownership proof",
     appliesTo: (text) => includesAny(text, ["ownership", "account ownership", "profile"]),
-    keywords: ["account email", "profile", "username", "login", "owner", "ownership", "verification", "identity"],
+    keywords: [
+      "account email",
+      "profile",
+      "username",
+      "login",
+      "owner",
+      "ownership",
+      "verification",
+      "identity"
+    ],
     entityTypes: ["EMAIL"],
     threshold: 0.5
   },
@@ -131,6 +171,161 @@ const requirementRules: RequirementRule[] = [
   }
 ];
 
+export async function analyzeCaseChecklist(
+  prisma: PrismaClient,
+  options: AnalyzeCaseChecklistOptions
+): Promise<CaseChecklistAnalysisSummary | null> {
+  return prisma.$transaction((tx) => analyzeCaseChecklistTransaction(tx, options));
+}
+
+export async function analyzeCaseChecklistTransaction(
+  prisma: Prisma.TransactionClient,
+  {
+    auditAction = "case.checklist_analyzed",
+    caseId,
+    ownerId,
+    triggerDocumentId
+  }: AnalyzeCaseChecklistOptions
+): Promise<CaseChecklistAnalysisSummary | null> {
+  const foundCase = await prisma.case.findFirst({
+    where: {
+      id: caseId,
+      ownerId,
+      archivedAt: null
+    },
+    select: {
+      id: true,
+      summary: true,
+      status: true,
+      checklist: {
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          label: true,
+          description: true,
+          requirementId: true,
+          status: true,
+          manuallyCompletedAt: true,
+          requirement: {
+            select: { required: true }
+          }
+        }
+      },
+      documents: {
+        where: {
+          status: {
+            in: [DocumentStatus.PROCESSED, DocumentStatus.NEEDS_REVIEW]
+          }
+        },
+        select: {
+          id: true,
+          originalName: true,
+          mimeType: true,
+          extractedText: true,
+          entities: {
+            select: {
+              type: true,
+              value: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!foundCase) {
+    return null;
+  }
+
+  const analysis = analyzeChecklistEvidence({
+    caseSummary: foundCase.summary,
+    checklist: foundCase.checklist.map((item) => ({
+      ...item,
+      required: item.requirement?.required ?? item.status !== ChecklistStatus.OPTIONAL
+    })),
+    documents: foundCase.documents
+  });
+  const checklistItemIds = foundCase.checklist.map((item) => item.id);
+  const matchData = analysis.flatMap((item) => {
+    if (!item.match || !item.requirementId) {
+      return [];
+    }
+
+    return [
+      {
+        checklistItemId: item.checklistItemId,
+        confidence: item.match.confidence,
+        documentId: item.match.documentId,
+        rationale: item.match.rationale,
+        requirementId: item.requirementId
+      }
+    ];
+  });
+  const foundCount = analysis.filter(
+    (item) =>
+      item.status === ChecklistStatus.FOUND || item.status === ChecklistStatus.COMPLETE
+  ).length;
+  const missingCount = analysis.filter(
+    (item) => item.status === ChecklistStatus.MISSING
+  ).length;
+  const nextCaseStatus = foundCase.checklist.length
+    ? getAnalyzedCaseStatus(foundCase.status, missingCount)
+    : foundCase.status;
+
+  if (checklistItemIds.length) {
+    await prisma.caseRequirementMatch.deleteMany({
+      where: {
+        checklistItemId: {
+          in: checklistItemIds
+        }
+      }
+    });
+  }
+
+  for (const item of analysis) {
+    await prisma.caseChecklistItem.update({
+      where: { id: item.checklistItemId },
+      data: { status: item.status }
+    });
+  }
+
+  if (matchData.length) {
+    await prisma.caseRequirementMatch.createMany({
+      data: matchData
+    });
+  }
+
+  await prisma.case.update({
+    where: { id: foundCase.id },
+    data: { status: nextCaseStatus }
+  });
+
+  if (auditAction) {
+    await prisma.auditLog.create({
+      data: {
+        userId: ownerId,
+        caseId: foundCase.id,
+        action: auditAction,
+        metadata: {
+          documentsAnalyzed: foundCase.documents.length,
+          foundCount,
+          missingCount,
+          matchCount: matchData.length,
+          ...(triggerDocumentId ? { triggerDocumentId } : {})
+        }
+      }
+    });
+  }
+
+  return {
+    documentsAnalyzed: foundCase.documents.length,
+    foundCount,
+    matchCount: matchData.length,
+    missingCount,
+    status: nextCaseStatus
+  };
+}
+
 export function analyzeChecklistEvidence({
   caseSummary,
   checklist,
@@ -139,24 +334,27 @@ export function analyzeChecklistEvidence({
   return checklist.map((item) => {
     const itemText = `${item.label} ${item.description}`.toLowerCase();
     const rule = requirementRules.find((candidate) => candidate.appliesTo(itemText));
-
-    if (rule?.summaryCanComplete && hasMeaningfulSummary(caseSummary)) {
-      return {
-        checklistItemId: item.id,
-        requirementId: item.requirementId,
-        status: ChecklistStatus.COMPLETE,
-        match: null
-      };
-    }
-
     const match = rule
       ? findBestRuleMatch(documents, rule)
       : findBestFallbackMatch(documents, tokenizeRequirement(itemText));
+    let status: ChecklistStatus = match
+      ? ChecklistStatus.FOUND
+      : item.required
+        ? ChecklistStatus.MISSING
+        : ChecklistStatus.OPTIONAL;
+
+    if (rule?.summaryCanComplete && hasMeaningfulSummary(caseSummary)) {
+      status = ChecklistStatus.COMPLETE;
+    }
+
+    if (item.manuallyCompletedAt) {
+      status = ChecklistStatus.COMPLETE;
+    }
 
     return {
       checklistItemId: item.id,
       requirementId: item.requirementId,
-      status: match ? ChecklistStatus.FOUND : getMissingStatus(item.status),
+      status,
       match
     };
   });
@@ -248,10 +446,6 @@ function createRationale(ruleName: string, originalName: string, hits: string[])
   return `Matched ${ruleName} evidence in ${originalName}: ${uniqueHits.join(", ")}.`;
 }
 
-function getMissingStatus(currentStatus: ChecklistStatus) {
-  return currentStatus === ChecklistStatus.OPTIONAL ? ChecklistStatus.OPTIONAL : ChecklistStatus.MISSING;
-}
-
 function isLikelyScreenshotEvidence(document: ChecklistEvidenceDocument) {
   const name = document.originalName.toLowerCase();
   return (
@@ -282,4 +476,16 @@ function hasMeaningfulSummary(value: string | null) {
 
 function clampConfidence(value: number) {
   return Math.min(0.96, Math.max(0, Number(value.toFixed(2))));
+}
+
+function getAnalyzedCaseStatus(currentStatus: CaseStatus, missingCount: number) {
+  if (
+    currentStatus !== CaseStatus.COLLECTING_EVIDENCE &&
+    currentStatus !== CaseStatus.NEEDS_MORE_EVIDENCE &&
+    currentStatus !== CaseStatus.READY_FOR_REVIEW
+  ) {
+    return currentStatus;
+  }
+
+  return missingCount === 0 ? CaseStatus.READY_FOR_REVIEW : CaseStatus.NEEDS_MORE_EVIDENCE;
 }

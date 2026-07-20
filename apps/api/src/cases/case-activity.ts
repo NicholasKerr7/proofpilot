@@ -116,6 +116,12 @@ function getActivityPresentation(
       return activity("timeline", "Timeline rebuilt", getTimelineAnalysisDetail(metadata));
     case "case.checklist_analyzed":
       return activity("checklist", "Evidence checklist analyzed", getChecklistDetail(metadata));
+    case "case.checklist_auto_analyzed":
+      return activity("checklist", "Evidence checklist refreshed", getChecklistDetail(metadata));
+    case "case.checklist_item_completed":
+      return activity("checklist", "Checklist item completed", readString(metadata, "label"));
+    case "case.checklist_item_reopened":
+      return activity("checklist", "Checklist item reopened", readString(metadata, "label"));
     case "case.statement_generated":
       return activity("statement", "Statement draft generated", getVersionDetail(metadata));
     case "case.statement_saved":

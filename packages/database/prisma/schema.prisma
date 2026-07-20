@@ -421,17 +421,18 @@ model TemplateRequirement {
 }
 
 model CaseChecklistItem {
-  id            String                 @id @default(cuid())
-  caseId        String
-  case          Case                   @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  requirementId String?
-  requirement   TemplateRequirement?   @relation(fields: [requirementId], references: [id])
-  label         String
-  description   String
-  status        ChecklistStatus        @default(MISSING)
-  createdAt     DateTime               @default(now())
-  updatedAt     DateTime               @updatedAt
-  matches       CaseRequirementMatch[]
+  id                  String                 @id @default(cuid())
+  caseId              String
+  case                Case                   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  requirementId       String?
+  requirement         TemplateRequirement?   @relation(fields: [requirementId], references: [id])
+  label               String
+  description         String
+  status              ChecklistStatus        @default(MISSING)
+  manuallyCompletedAt DateTime?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  matches             CaseRequirementMatch[]
 
   @@index([caseId, status])
 }

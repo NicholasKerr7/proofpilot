@@ -3,11 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProcessDocumentJobData } from "../queues/document-processing.queue.js";
 
 const mocks = vi.hoisted(() => ({
+  analyzeCaseChecklist: vi.fn(),
   prisma: undefined as unknown,
   readStoredObjectBytes: vi.fn()
 }));
 
 vi.mock("@proofpilot/database", () => ({
+  analyzeCaseChecklist: mocks.analyzeCaseChecklist,
   DocumentStatus: {
     FAILED: "FAILED",
     NEEDS_REVIEW: "NEEDS_REVIEW",
@@ -22,15 +24,26 @@ vi.mock("@proofpilot/storage", () => ({
 }));
 
 function createPrismaMock() {
-  return {
+  const prisma = {
+    $transaction: vi.fn(),
     document: {
       findUnique: vi.fn(),
       update: vi.fn().mockResolvedValue({})
     },
     documentProcessingLog: {
       create: vi.fn().mockResolvedValue({})
+    },
+    documentEntity: {
+      createMany: vi.fn().mockResolvedValue({ count: 0 }),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 })
     }
   };
+
+  prisma.$transaction.mockImplementation(async (operations: Promise<unknown>[]) =>
+    Promise.all(operations)
+  );
+
+  return prisma;
 }
 
 function createJob(): Job<ProcessDocumentJobData> {
@@ -49,6 +62,13 @@ describe("document processing worker", () => {
     vi.clearAllMocks();
     process.env.DATABASE_URL =
       "postgresql://proofpilot:proofpilot@localhost:5432/proofpilot?schema=public";
+    mocks.analyzeCaseChecklist.mockResolvedValue({
+      documentsAnalyzed: 1,
+      foundCount: 2,
+      matchCount: 1,
+      missingCount: 3,
+      status: "NEEDS_MORE_EVIDENCE"
+    });
   });
 
   it("skips quarantined documents before reading storage", async () => {
@@ -83,4 +103,81 @@ describe("document processing worker", () => {
       }
     });
   });
+
+  it("refreshes the checklist after successful document processing", async () => {
+    const prisma = createPrismaMock();
+    prisma.document.findUnique.mockResolvedValue(createDocument());
+    mocks.prisma = prisma;
+    mocks.readStoredObjectBytes.mockResolvedValue(
+      Buffer.from("Your account is permanently limited. Support ticket 1234.")
+    );
+    vi.resetModules();
+    const { processUploadedDocument } = await import("./document-processing.processor.js");
+
+    const result = await processUploadedDocument(createJob());
+
+    expect(mocks.analyzeCaseChecklist).toHaveBeenCalledWith(prisma, {
+      auditAction: "case.checklist_auto_analyzed",
+      caseId: "case-1",
+      ownerId: "user-1",
+      triggerDocumentId: "document-1"
+    });
+    expect(prisma.documentProcessingLog.create).toHaveBeenCalledWith({
+      data: {
+        documentId: "document-1",
+        step: "refresh_case_checklist",
+        status: "completed",
+        message: "Checklist refreshed with 2 ready and 3 missing item(s)."
+      }
+    });
+    expect(result).toEqual({
+      documentId: "document-1",
+      status: "PROCESSED"
+    });
+  });
+
+  it("keeps a processed document successful when checklist refresh fails", async () => {
+    const prisma = createPrismaMock();
+    prisma.document.findUnique.mockResolvedValue(createDocument());
+    mocks.prisma = prisma;
+    mocks.readStoredObjectBytes.mockResolvedValue(Buffer.from("Support ticket response."));
+    mocks.analyzeCaseChecklist.mockRejectedValue(new Error("Checklist database timeout"));
+    vi.resetModules();
+    const { processUploadedDocument } = await import("./document-processing.processor.js");
+
+    const result = await processUploadedDocument(createJob());
+
+    expect(result).toEqual({
+      documentId: "document-1",
+      status: "PROCESSED"
+    });
+    expect(prisma.document.update).not.toHaveBeenCalledWith({
+      where: { id: "document-1" },
+      data: { status: "FAILED" }
+    });
+    expect(prisma.documentProcessingLog.create).toHaveBeenCalledWith({
+      data: {
+        documentId: "document-1",
+        step: "refresh_case_checklist",
+        status: "failed",
+        message: "Checklist database timeout"
+      }
+    });
+  });
 });
+
+function createDocument() {
+  return {
+    id: "document-1",
+    mimeType: "text/plain",
+    originalName: "support-ticket.txt",
+    quarantinedAt: null,
+    storageKey: "users/user-1/cases/case-1/documents/document-1.txt",
+    case: {
+      id: "case-1",
+      ownerId: "user-1",
+      platform: "PayPal",
+      title: "PayPal appeal"
+    }
+  };
+}

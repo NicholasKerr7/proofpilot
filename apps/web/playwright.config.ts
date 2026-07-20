@@ -5,6 +5,7 @@ const repoRoot = resolve(__dirname, "../..");
 const baseURL = process.env.PROOFPILOT_E2E_WEB_URL ?? "http://localhost:3000";
 const apiHealthURL =
   process.env.PROOFPILOT_E2E_API_URL ?? "http://localhost:4000/health";
+const e2eRateLimitMax = process.env.PROOFPILOT_E2E_RATE_LIMIT_MAX ?? "1000";
 
 export default defineConfig({
   expect: {
@@ -58,6 +59,10 @@ export default defineConfig({
         {
           command: "exec node apps/api/dist/main.js",
           cwd: repoRoot,
+          env: {
+            ...process.env,
+            RATE_LIMIT_MAX: e2eRateLimitMax
+          },
           reuseExistingServer: false,
           timeout: 120_000,
           url: apiHealthURL

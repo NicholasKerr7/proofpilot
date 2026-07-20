@@ -19,6 +19,21 @@ const storageMocks = vi.hoisted(() => ({
   headStoredObject: vi.fn()
 }));
 
+const databaseMocks = vi.hoisted(() => ({
+  analyzeCaseChecklist: vi.fn()
+}));
+
+vi.mock("@proofpilot/database", async () => {
+  const actual = await vi.importActual<typeof import("@proofpilot/database")>(
+    "@proofpilot/database"
+  );
+
+  return {
+    ...actual,
+    analyzeCaseChecklist: databaseMocks.analyzeCaseChecklist
+  };
+});
+
 vi.mock("@proofpilot/storage", () => storageMocks);
 
 const ownerId = "user-1";
@@ -106,6 +121,13 @@ describe("DocumentsService upload hardening", () => {
     storageMocks.createPresignedUploadUrl.mockResolvedValue("https://storage.test/upload");
     storageMocks.copyStoredObject.mockResolvedValue({ etag: '"verified-etag"' });
     storageMocks.deleteStoredObject.mockResolvedValue(undefined);
+    databaseMocks.analyzeCaseChecklist.mockResolvedValue({
+      documentsAnalyzed: 0,
+      foundCount: 0,
+      matchCount: 0,
+      missingCount: 4,
+      status: "NEEDS_MORE_EVIDENCE"
+    });
     scanner.scanStoredObject.mockResolvedValue({
       result: { engine: "clamav", status: "clean" },
       sourceEtag: '"source-etag"'
@@ -505,5 +527,33 @@ describe("DocumentsService upload hardening", () => {
     expect(storageMocks.headStoredObject).not.toHaveBeenCalled();
     expect(scanner.scanStoredObject).not.toHaveBeenCalled();
     expect(queue.addProcessDocumentJob).not.toHaveBeenCalled();
+  });
+
+  it("refreshes checklist matches after an owned document is deleted", async () => {
+    prisma.document.findFirst.mockResolvedValue({
+      id: documentId,
+      caseId,
+      originalName: "proof.png",
+      storageKey,
+      versions: [{ storageKey: `${storageKey}.previous` }]
+    });
+    prisma.document.delete.mockResolvedValue({});
+
+    const result = await service.remove(ownerId, documentId);
+
+    expect(prisma.document.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: documentId,
+        case: { ownerId }
+      },
+      select: expect.any(Object)
+    });
+    expect(databaseMocks.analyzeCaseChecklist).toHaveBeenCalledWith(prisma, {
+      auditAction: "case.checklist_auto_analyzed",
+      caseId,
+      ownerId,
+      triggerDocumentId: documentId
+    });
+    expect(result).toEqual({ id: documentId, deleted: true });
   });
 });

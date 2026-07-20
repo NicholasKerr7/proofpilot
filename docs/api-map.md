@@ -29,6 +29,7 @@
 - `GET /cases/:caseId/documents`
 - `GET /cases/:caseId/checklist`
 - `POST /cases/:caseId/checklist/analyze`
+- `PATCH /cases/:caseId/checklist/:itemId`
 - `GET /cases/:caseId/timeline`
 - `POST /cases/:caseId/timeline`
 - `POST /cases/:caseId/timeline/analyze`
@@ -77,6 +78,8 @@ Owner routes require an authenticated case-owner match and a ready packet export
 - `POST /documents/:documentId/reprocess`
 
 Upload completion validates the private staging object and performs a ClamAV stream scan before queueing work when scanning is enabled. The exact scanned ETag is conditionally promoted to a processing-only key. Production configuration requires scanning; infected objects are quarantined with storage deletion attempted, while scanner or promotion failures fail closed without queueing document processing.
+
+Processed and deleted documents automatically refresh checklist matches. Users can explicitly complete or reopen owned checklist items; manual completions remain stable when evidence is re-analyzed.
 
 ## Notifications and Reminders
 

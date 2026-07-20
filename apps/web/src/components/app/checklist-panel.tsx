@@ -41,6 +41,7 @@ export function ChecklistPanel({ onCaseChanged, selectedCase }: ChecklistPanelPr
   );
   const [isLoadingChecklist, setIsLoadingChecklist] = useState(false);
   const [isAnalyzingChecklist, setIsAnalyzingChecklist] = useState(false);
+  const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
   const [checklistNotice, setChecklistNotice] = useState<ChecklistNotice | null>(null);
   const checklistItems =
     loadedChecklist?.caseId === selectedCaseId &&
@@ -130,6 +131,39 @@ export function ChecklistPanel({ onCaseChanged, selectedCase }: ChecklistPanelPr
     }
   }
 
+  async function handleSetCompleted(itemId: string, completed: boolean) {
+    setUpdatingItemId(itemId);
+    setChecklistNotice(null);
+
+    try {
+      const updatedCase = await apiRequest<CaseRecord>(
+        `/api/cases/${selectedCase.id}/checklist/${itemId}`,
+        {
+          body: JSON.stringify({ completed }),
+          method: "PATCH"
+        }
+      );
+      const nextItems = getChecklistItems(updatedCase);
+      setLoadedChecklist({
+        caseId: selectedCaseId,
+        items: nextItems,
+        revision: getChecklistRevision(updatedCase.checklist ?? [])
+      });
+      await onCaseChanged(selectedCase.id);
+      setChecklistNotice({
+        tone: "success",
+        text: completed ? "Checklist item marked complete." : "Checklist item reopened."
+      });
+    } catch (error) {
+      setChecklistNotice({
+        tone: "error",
+        text: error instanceof Error ? error.message : "Checklist item could not be updated."
+      });
+    } finally {
+      setUpdatingItemId(null);
+    }
+  }
+
   return (
     <Card id="evidence-checklist" className="scroll-mt-28 lg:scroll-mt-24">
       <CardHeader className="md:grid-cols-[minmax(0,1fr)_auto] md:items-start md:gap-4">
@@ -173,9 +207,11 @@ export function ChecklistPanel({ onCaseChanged, selectedCase }: ChecklistPanelPr
         <ChecklistWorkspace
           expandedItemId={expandedItemId}
           items={checklistItems}
+          onSetCompleted={handleSetCompleted}
           onToggleItem={(itemId) =>
             setExpandedItemId((currentId) => (currentId === itemId ? null : itemId))
           }
+          updatingItemId={updatingItemId}
         />
       </CardContent>
     </Card>
@@ -191,6 +227,8 @@ function getPlaceholderChecklistItems(): ChecklistItem[] {
     id: label,
     label,
     description: "Upload and process evidence to analyze this requirement.",
+    isPlaceholder: true,
+    manuallyCompletedAt: null,
     matches: [],
     status: "MISSING",
     updatedAt: new Date().toISOString()
@@ -207,6 +245,9 @@ function getDefaultExpandedItemId(items: ChecklistItem[]) {
 
 function getChecklistRevision(items: ChecklistItem[]) {
   return items
-    .map((item) => `${item.id}:${item.status}:${item.updatedAt}:${item.matches?.length ?? 0}`)
+    .map(
+      (item) =>
+        `${item.id}:${item.status}:${item.manuallyCompletedAt ?? ""}:${item.updatedAt}:${item.matches?.length ?? 0}`
+    )
     .join("|");
 }

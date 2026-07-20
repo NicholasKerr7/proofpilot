@@ -122,6 +122,37 @@ test.describe("ProofPilot responsive workspace", () => {
     await expect(timeline.getByText(updatedTitle, { exact: true })).toHaveCount(0);
     await expectNoHorizontalOverflow(page);
   });
+
+  test("demo user can complete and reopen a checklist item", async ({ page }) => {
+    await loginAsDemoUser(page);
+
+    await getPrimaryNavigation(page)
+      .getByRole("button", { exact: true, name: "Cases" })
+      .click();
+    await page
+      .getByRole("button", { name: /PayPal account closure appeal/ })
+      .first()
+      .click();
+
+    const checklist = page.locator("#evidence-checklist");
+    await checklist.scrollIntoViewIfNeeded();
+    await checklist
+      .getByRole("button", { name: /Account ownership proof/ })
+      .click();
+
+    await checklist.getByRole("button", { exact: true, name: "Mark complete" }).click();
+    await expect(checklist.getByText("Checklist item marked complete.")).toBeVisible();
+    await expect(
+      checklist.getByRole("button", { exact: true, name: "Reopen item" })
+    ).toBeVisible();
+
+    await checklist.getByRole("button", { exact: true, name: "Reopen item" }).click();
+    await expect(checklist.getByText("Checklist item reopened.")).toBeVisible();
+    await expect(
+      checklist.getByRole("button", { exact: true, name: "Mark complete" })
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  });
 });
 
 async function loginAsDemoUser(page: Page) {

@@ -193,7 +193,9 @@ export interface ChecklistItem {
   id: string;
   label: string;
   description: string;
+  isPlaceholder?: boolean;
   status: string;
+  manuallyCompletedAt: string | null;
   updatedAt: string;
   matches?: ChecklistMatch[];
 }

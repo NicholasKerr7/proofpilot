@@ -4,6 +4,7 @@ import {
   ChevronDown,
   CircleDashed,
   Clock3,
+  RotateCcw,
   UploadCloud
 } from "lucide-react";
 import {
@@ -19,14 +20,24 @@ import { cn } from "@/lib/utils";
 
 interface ChecklistItemRowProps {
   isExpanded: boolean;
+  isUpdating: boolean;
   item: ChecklistItem;
+  onSetCompleted: (completed: boolean) => Promise<void>;
   onToggle: () => void;
 }
 
-export function ChecklistItemRow({ isExpanded, item, onToggle }: ChecklistItemRowProps) {
+export function ChecklistItemRow({
+  isExpanded,
+  isUpdating,
+  item,
+  onSetCompleted,
+  onToggle
+}: ChecklistItemRowProps) {
   const firstMatch = item.matches?.[0];
   const isReady = isChecklistReady(item.status);
   const isMissing = item.status === "MISSING";
+  const isManuallyCompleted = Boolean(item.manuallyCompletedAt);
+  const canSetManualCompletion = !item.isPlaceholder && (isManuallyCompleted || !isReady);
 
   return (
     <div
@@ -112,10 +123,12 @@ export function ChecklistItemRow({ isExpanded, item, onToggle }: ChecklistItemRo
               className="grid content-start gap-2"
             >
               <p className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
-                Next action
+                {isManuallyCompleted ? "Completion" : "Next action"}
               </p>
               <p className="text-sm leading-6 text-muted-foreground">
-                {item.status === "OPTIONAL"
+                {isManuallyCompleted
+                  ? "This item was marked complete manually. Reopen it if more support is still needed."
+                  : item.status === "OPTIONAL"
                   ? "This item can strengthen the packet but is not required."
                   : "Add supporting evidence, then run Analyze evidence to check the requirement again."}
               </p>
@@ -130,9 +143,37 @@ export function ChecklistItemRow({ isExpanded, item, onToggle }: ChecklistItemRo
             </section>
           )}
 
+          {canSetManualCompletion ? (
+            <div className="flex border-t border-border pt-3 md:col-span-2">
+              <Button
+                className="w-full sm:w-fit"
+                disabled={isUpdating}
+                onClick={() => {
+                  void onSetCompleted(!isManuallyCompleted);
+                }}
+                size="sm"
+                type="button"
+                variant={isManuallyCompleted ? "outline" : "secondary"}
+              >
+                {isManuallyCompleted ? (
+                  <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                )}
+                {isUpdating
+                  ? "Updating..."
+                  : isManuallyCompleted
+                    ? "Reopen item"
+                    : "Mark complete"}
+              </Button>
+            </div>
+          ) : null}
+
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted-foreground md:col-span-2">
             <span>
-              {item.status === "OPTIONAL"
+              {isManuallyCompleted
+                ? "Completed manually"
+                : item.status === "OPTIONAL"
                 ? "Optional supporting item"
                 : isReady
                   ? "Ready for packet review"

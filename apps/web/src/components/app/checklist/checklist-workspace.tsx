@@ -26,13 +26,17 @@ const checklistFilters: Array<{ label: string; value: ChecklistFilter }> = [
 interface ChecklistWorkspaceProps {
   expandedItemId: string | null;
   items: ChecklistItem[];
+  onSetCompleted: (itemId: string, completed: boolean) => Promise<void>;
   onToggleItem: (itemId: string) => void;
+  updatingItemId: string | null;
 }
 
 export function ChecklistWorkspace({
   expandedItemId,
   items,
-  onToggleItem
+  onSetCompleted,
+  onToggleItem,
+  updatingItemId
 }: ChecklistWorkspaceProps) {
   const [filter, setFilter] = useState<ChecklistFilter>("all");
   const groupedItems = groupChecklistItems(items);
@@ -131,7 +135,9 @@ export function ChecklistWorkspace({
                   expandedItemId={expandedItemId}
                   group={group}
                   items={groupedItems[group]}
+                  onSetCompleted={onSetCompleted}
                   onToggleItem={onToggleItem}
+                  updatingItemId={updatingItemId}
                 />
               ))}
             </div>
