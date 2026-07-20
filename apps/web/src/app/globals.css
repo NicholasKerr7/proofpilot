@@ -1,22 +1,22 @@
 @import "tailwindcss";
 
 :root {
-  --background: oklch(0.12 0.012 68);
-  --foreground: oklch(0.96 0.01 78);
-  --card: oklch(0.17 0.014 70 / 0.88);
-  --card-foreground: oklch(0.96 0.01 78);
-  --primary: oklch(0.66 0.13 48);
-  --primary-foreground: oklch(0.12 0.016 55);
-  --secondary: oklch(0.23 0.014 70 / 0.86);
-  --secondary-foreground: oklch(0.92 0.012 74);
-  --muted: oklch(0.27 0.012 70);
-  --muted-foreground: oklch(0.72 0.028 78);
-  --accent: oklch(0.86 0.045 83);
-  --accent-foreground: oklch(0.14 0.014 62);
+  --background: #02070c;
+  --foreground: #f5f6f7;
+  --card: rgb(4 13 20 / 0.92);
+  --card-foreground: #f5f6f7;
+  --primary: #ff6b16;
+  --primary-foreground: #090f14;
+  --secondary: rgb(13 25 34 / 0.9);
+  --secondary-foreground: #e6e9ec;
+  --muted: #17242d;
+  --muted-foreground: #929ba5;
+  --accent: #e9bd7b;
+  --accent-foreground: #090f14;
   --destructive: oklch(0.55 0.16 26);
-  --border: oklch(0.33 0.018 72 / 0.75);
-  --input: oklch(0.2 0.014 70 / 0.9);
-  --ring: oklch(0.72 0.12 48);
+  --border: rgb(49 64 75 / 0.78);
+  --input: rgb(7 17 25 / 0.95);
+  --ring: #ff8a32;
   --radius: 0.5rem;
 }
 
@@ -26,22 +26,22 @@
 
 .light {
   color-scheme: light;
-  --background: oklch(0.97 0.008 78);
-  --foreground: oklch(0.2 0.018 62);
-  --card: oklch(1 0 0 / 0.94);
-  --card-foreground: oklch(0.2 0.018 62);
-  --primary: oklch(0.58 0.14 48);
-  --primary-foreground: oklch(0.99 0.004 78);
-  --secondary: oklch(0.91 0.012 72 / 0.9);
-  --secondary-foreground: oklch(0.24 0.018 62);
-  --muted: oklch(0.88 0.012 72);
-  --muted-foreground: oklch(0.46 0.026 68);
-  --accent: oklch(0.73 0.08 76);
-  --accent-foreground: oklch(0.18 0.016 62);
+  --background: #f4f6f8;
+  --foreground: #20272d;
+  --card: rgb(255 255 255 / 0.96);
+  --card-foreground: #20272d;
+  --primary: #c2410c;
+  --primary-foreground: #ffffff;
+  --secondary: rgb(229 233 237 / 0.92);
+  --secondary-foreground: #2b343c;
+  --muted: #dce2e7;
+  --muted-foreground: #5d6670;
+  --accent: #d49a4a;
+  --accent-foreground: #1c2329;
   --destructive: oklch(0.52 0.18 26);
-  --border: oklch(0.78 0.018 72 / 0.9);
-  --input: oklch(0.94 0.01 72 / 0.96);
-  --ring: oklch(0.58 0.14 48);
+  --border: rgb(180 191 200 / 0.88);
+  --input: rgb(238 242 245 / 0.96);
+  --ring: #c2410c;
 }
 
 .accent-champagne {
@@ -137,23 +137,23 @@ textarea {
   background:
     radial-gradient(
       ellipse at 50% 0%,
-      color-mix(in oklch, var(--primary) 52%, white 48%) 0%,
-      color-mix(in oklch, var(--primary) 88%, transparent) 28%,
+      color-mix(in oklch, var(--primary) 68%, white 32%) 0%,
+      color-mix(in oklch, var(--primary) 82%, transparent) 30%,
       transparent 58%
     ),
     linear-gradient(
       180deg,
-      color-mix(in oklch, var(--primary) 88%, white 12%) 0%,
+      color-mix(in oklch, var(--primary) 92%, white 8%) 0%,
       var(--primary) 48%,
-      color-mix(in oklch, var(--primary) 76%, black 24%) 100%
+      color-mix(in oklch, var(--primary) 72%, black 28%) 100%
     );
   box-shadow:
     0 0 0 1px color-mix(in oklch, var(--primary) 24%, transparent),
     0 9px 20px rgb(0 0 0 / 0.34),
     0 0 18px color-mix(in oklch, var(--primary) 24%, transparent),
-    inset 0 1px 0 rgb(255 244 218 / 0.38),
-    inset 0 -2px 0 rgb(55 12 4 / 0.24);
-  text-shadow: 0 1px 1px rgb(0 0 0 / 0.38);
+    inset 0 1px 0 rgb(255 229 191 / 0.42),
+    inset 0 -2px 0 rgb(72 16 3 / 0.34);
+  text-shadow: 0 1px 0 rgb(255 255 255 / 0.18);
 }
 
 .proof-button-primary:not(:disabled):hover {
@@ -162,8 +162,8 @@ textarea {
     0 0 0 1px color-mix(in oklch, var(--primary) 32%, transparent),
     0 10px 24px rgb(0 0 0 / 0.38),
     0 0 24px color-mix(in oklch, var(--primary) 28%, transparent),
-    inset 0 1px 0 rgb(255 246 224 / 0.44),
-    inset 0 -2px 0 rgb(55 12 4 / 0.27);
+    inset 0 1px 0 rgb(255 235 204 / 0.48),
+    inset 0 -2px 0 rgb(72 16 3 / 0.38);
 }
 
 .proof-button-primary:not(:disabled):active {
