@@ -136,6 +136,10 @@ Billing summaries and usage are scoped to the authenticated user. Invoice downlo
 
 - `GET /search`
 
-## Next Sprints
+## Remaining Production Integrations
 
-- Desktop visual reference integration when assets arrive
+- Replace the upload virus-scan placeholder with a real scanning provider.
+- Add provider-backed payments, OAuth connections, and model generation.
+- Add two-factor/WebAuthn enrollment and server-side session revocation.
+- Complete invitation acceptance and collaborator-session authorization.
+- Add packet email delivery, recipient email verification, and PDF watermarking.

@@ -48,6 +48,15 @@ Run the authenticated packet flow smoke check after `pnpm dev` is running:
 pnpm smoke:packet
 ```
 
+Run responsive and accessibility browser checks after PostgreSQL and Redis are running, the demo database is seeded, and `pnpm dev` is active:
+
+```bash
+pnpm --filter @proofpilot/web exec playwright install chromium
+pnpm test:e2e
+```
+
+The browser install is a one-time setup per Playwright version. The runner covers public authentication and the signed-in demo shell at mobile, tablet, and desktop viewports. CI provisions and starts its own isolated web/API stack.
+
 ## MVP Scope
 
 The first product slice is Account Ban / Appeal Builder:

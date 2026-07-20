@@ -10,6 +10,18 @@ ProofPilot is mobile-first, with tablet and desktop layouts layered on top of th
 - Dashboard filter buttons expose pressed state.
 - Auth and upload errors use alert/status semantics.
 - Decorative Lucide icons are hidden from assistive technology where nearby text already names the control.
+- Playwright and axe-core cover public authentication and the signed-in demo shell at mobile, tablet, and desktop widths.
+
+## Automated Checks
+
+With PostgreSQL and Redis running, the demo database seeded, and `pnpm dev` active, run:
+
+```bash
+pnpm --filter @proofpilot/web exec playwright install chromium
+pnpm test:e2e
+```
+
+The browser install is needed once per Playwright version. The runner checks WCAG A/AA rules, horizontal overflow, 44 px primary navigation targets, account identity, and Home/Cases navigation at `390 x 844`, `768 x 1024`, and `1280 x 900`. CI provisions and starts its own isolated web/API stack.
 
 ## Manual Viewports
 

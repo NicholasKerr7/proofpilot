@@ -14,6 +14,7 @@
     "storage:bootstrap": "pnpm --filter @proofpilot/storage storage:bootstrap",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
+    "test:e2e": "pnpm --filter @proofpilot/web test:e2e",
     "clean": "turbo clean",
     "db:generate": "pnpm --filter @proofpilot/database db:generate",
     "db:deploy": "pnpm --filter @proofpilot/database db:deploy",

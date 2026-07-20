@@ -139,7 +139,7 @@ export function AuthPanel({
                   aria-controls="auth-mode-panel"
                   aria-selected={isLogin}
                   className={cn(
-                    "min-h-10 rounded-sm px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+                    "min-h-10 rounded-sm px-3 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
                     isLogin
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground"
@@ -156,7 +156,7 @@ export function AuthPanel({
                   aria-controls="auth-mode-panel"
                   aria-selected={!isLogin}
                   className={cn(
-                    "min-h-10 rounded-sm px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+                    "min-h-10 rounded-sm px-3 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
                     !isLogin
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground"
