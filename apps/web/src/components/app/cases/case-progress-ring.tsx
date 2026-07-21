@@ -1,5 +1,8 @@
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import styles from "./case-progress-ring.module.css";
+
+const orbParticles = [0, 1, 2, 3, 4, 5, 6, 7, 8] as const;
 
 interface CaseProgressRingProps {
   className?: string;
@@ -26,11 +29,18 @@ export function CaseProgressRing({
       className={cn(
         "proof-progress-orb relative isolate grid shrink-0 place-items-center",
         isComplete ? "proof-progress-orb-complete" : null,
-        size === "compact" ? "h-16 w-16" : "h-24 w-24 sm:h-32 sm:w-32 md:h-36 md:w-36",
+        size === "compact"
+          ? cn(styles.compact, "h-16 w-16")
+          : "h-24 w-24 sm:h-32 sm:w-32 md:h-36 md:w-36",
         className
       )}
       role="progressbar"
     >
+      <span className={styles.particles} aria-hidden="true">
+        {orbParticles.map((particle) => (
+          <span className={styles.particle} key={particle} />
+        ))}
+      </span>
       <svg
         className="absolute inset-0 h-full w-full -rotate-90 overflow-visible"
         viewBox="0 0 100 100"
@@ -91,7 +101,7 @@ export function CaseProgressRing({
           strokeWidth="1"
         />
       </svg>
-      <span className="absolute inset-0 flex flex-col items-center justify-center text-center">
+      <span className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center">
         {isComplete ? (
           <Check
             className={cn(
