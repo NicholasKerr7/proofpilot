@@ -61,6 +61,8 @@ pnpm test:e2e
 
 The API integration suite starts an isolated Nest listener against the configured test database, creates a second authenticated user plus temporary foreign resources, verifies cross-user reads and mutations are denied, and removes its fixtures. The browser install is a one-time setup per Playwright version. The browser runner covers public authentication and the signed-in demo shell at mobile, tablet, and desktop viewports. CI provisions and starts its own isolated web/API stack.
 
+CI also runs the authenticated packet smoke check against compiled API and worker services with isolated PostgreSQL, Redis, and MinIO dependencies. That gate creates a temporary case, queues a packet, waits for the worker-generated PDF, verifies its signed download, and archives the case.
+
 ## MVP Scope
 
 The first product slice is Account Ban / Appeal Builder:

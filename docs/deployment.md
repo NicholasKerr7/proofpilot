@@ -183,3 +183,5 @@ pnpm smoke:packet
 ```
 
 The smoke check uses `PROOFPILOT_API_URL=http://localhost:4000` by default. Override `PROOFPILOT_SMOKE_EMAIL`, `PROOFPILOT_SMOKE_PASSWORD`, `PROOFPILOT_SMOKE_TIMEOUT_MS`, `PROOFPILOT_SMOKE_KEEP_CASE=1`, or `PROOFPILOT_SMOKE_SKIP_DOWNLOAD=1` when needed.
+
+CI runs this smoke check against compiled API and worker services with an isolated private MinIO bucket. A release candidate should not pass when packet queueing, worker execution, object storage, PDF rendering, or signed downloads are broken.

@@ -150,3 +150,151 @@ jobs:
           name: playwright-report
           path: apps/web/playwright-report
           retention-days: 7
+
+  packet-flow:
+    name: Full Packet Flow
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: true
+      NODE_ENV: development
+      TURBO_TELEMETRY_DISABLED: 1
+      PORT: 4000
+      WEB_ORIGIN: http://localhost:3000
+      JWT_SECRET: proofpilot-ci-only-secret-with-at-least-32-characters
+      DATABASE_URL: postgresql://proofpilot:proofpilot@localhost:5432/proofpilot?schema=public
+      REDIS_URL: redis://localhost:6379
+      RATE_LIMIT_MAX: 500
+      RATE_LIMIT_WINDOW_MS: 60000
+      TRUST_PROXY: false
+      ERROR_MONITORING_ENVIRONMENT: test
+      OCR_LANGUAGES: eng
+      OCR_CACHE_PATH: /tmp/proofpilot-ocr
+      STORAGE_ENDPOINT: http://localhost:9000
+      STORAGE_REGION: us-east-1
+      STORAGE_BUCKET: proofpilot-evidence
+      STORAGE_ACCESS_KEY_ID: proofpilot
+      STORAGE_SECRET_ACCESS_KEY: proofpilot-secret
+      STORAGE_FORCE_PATH_STYLE: true
+      PROOFPILOT_SMOKE_TIMEOUT_MS: 120000
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: proofpilot
+          POSTGRES_PASSWORD: proofpilot
+          POSTGRES_USER: proofpilot
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U proofpilot -d proofpilot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Start private object storage
+        run: |
+          docker run --detach --name proofpilot-minio \
+            --publish 9000:9000 \
+            --env MINIO_ROOT_USER="$STORAGE_ACCESS_KEY_ID" \
+            --env MINIO_ROOT_PASSWORD="$STORAGE_SECRET_ACCESS_KEY" \
+            minio/minio:RELEASE.2025-04-22T22-12-26Z server /data
+
+          for attempt in {1..30}; do
+            if curl --fail --silent http://localhost:9000/minio/health/ready > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          docker logs proofpilot-minio
+          exit 1
+
+      - name: Prepare packet-flow dependencies
+        run: |
+          pnpm db:generate
+          pnpm db:deploy
+          pnpm db:seed
+          pnpm storage:bootstrap
+          pnpm exec turbo build --filter=@proofpilot/api --filter=@proofpilot/worker
+
+      - name: Run authenticated packet smoke check
+        run: |
+          node apps/api/dist/main.js > /tmp/proofpilot-api.log 2>&1 &
+          echo $! > /tmp/proofpilot-api.pid
+          node apps/worker/dist/main.js > /tmp/proofpilot-worker.log 2>&1 &
+          echo $! > /tmp/proofpilot-worker.pid
+
+          cleanup() {
+            kill "$(cat /tmp/proofpilot-api.pid)" 2>/dev/null || true
+            kill "$(cat /tmp/proofpilot-worker.pid)" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          api_ready=false
+          for attempt in {1..60}; do
+            if ! kill -0 "$(cat /tmp/proofpilot-api.pid)" 2>/dev/null; then
+              cat /tmp/proofpilot-api.log
+              exit 1
+            fi
+
+            if ! kill -0 "$(cat /tmp/proofpilot-worker.pid)" 2>/dev/null; then
+              cat /tmp/proofpilot-worker.log
+              exit 1
+            fi
+
+            if curl --fail --silent http://localhost:4000/health/ready > /dev/null; then
+              api_ready=true
+              break
+            fi
+
+            sleep 2
+          done
+
+          if [[ "$api_ready" != "true" ]]; then
+            cat /tmp/proofpilot-api.log
+            cat /tmp/proofpilot-worker.log
+            exit 1
+          fi
+
+          pnpm smoke:packet
+
+      - name: Upload service logs
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          if-no-files-found: ignore
+          name: packet-flow-service-logs
+          path: |
+            /tmp/proofpilot-api.log
+            /tmp/proofpilot-worker.log
+          retention-days: 7
