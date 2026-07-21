@@ -55,6 +55,37 @@ test.describe("ProofPilot responsive workspace", () => {
     await expectAccessible(page, "public authentication");
   });
 
+  test("password recovery is responsive and does not reveal account existence", async ({
+    page
+  }) => {
+    await waitForApi(page);
+    await page.goto("/");
+    await page.getByRole("button", { exact: true, name: "Sign in" }).first().click();
+    await page.getByRole("button", { name: "Forgot password?" }).click();
+
+    await expect(page.getByRole("heading", { name: "Reset your password" })).toBeVisible();
+    await page.getByLabel("Email address").fill(`unknown-${Date.now()}@example.com`);
+    await page.getByRole("button", { name: "Send reset link" }).click();
+    await expect(
+      page.getByText(
+        "If an account exists for that email, a password reset link has been sent."
+      )
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await expectTouchTargets(page, "password recovery request");
+    await expectAccessible(page, "password recovery request");
+
+    await page.getByRole("button", { name: "Back to sign in" }).click();
+    await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+
+    await page.goto(`/?resetToken=${"A".repeat(43)}`);
+    await expect(page.getByRole("heading", { name: "Choose a new password" })).toBeVisible();
+    await expect(page.getByLabel("New password", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("Confirm new password", { exact: true })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await expectAccessible(page, "password reset form");
+  });
+
   test("demo user can navigate the signed-in shell", async ({ page }) => {
     await loginAsDemoUser(page);
 
@@ -168,6 +199,18 @@ test.describe("ProofPilot responsive workspace", () => {
 
     await expectNoHorizontalOverflow(page);
     await expectAccessible(page, "reports analytics workspace");
+
+    await primaryNavigation.getByRole("button", { exact: true, name: "More" }).click();
+    await page.getByRole("button", { name: /^Security & privacy/ }).click();
+    await expect(
+      page.getByRole("heading", { exact: true, name: "Security & Privacy" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { exact: true, name: "Active sessions" })
+    ).toBeVisible();
+    await expect(page.getByText("Current", { exact: true })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await expectAccessible(page, "security and active sessions workspace");
   });
 
   test("demo user can capture and review a document scan", async ({ page }) => {

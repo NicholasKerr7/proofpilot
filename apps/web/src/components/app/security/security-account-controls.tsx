@@ -6,7 +6,9 @@ import {
   Download,
   Fingerprint,
   KeyRound,
+  LoaderCircle,
   LockKeyhole,
+  LogOut,
   PanelsTopLeft,
   ShieldCheck,
   TriangleAlert,
@@ -22,17 +24,22 @@ interface SecurityAccountControlsProps {
   onOpenReports: () => void;
   onPasswordChanged: (passwordChangedAt: string) => void;
   onReviewActivity: () => void;
+  onSignOutOtherSessions: () => void;
   overview: SecurityOverview;
+  revokingOtherSessions: boolean;
 }
 
 export function SecurityAccountControls({
   onOpenReports,
   onPasswordChanged,
   onReviewActivity,
-  overview
+  onSignOutOtherSessions,
+  overview,
+  revokingOtherSessions
 }: SecurityAccountControlsProps) {
   const [isPasswordEditorOpen, setIsPasswordEditorOpen] = useState(false);
   const [twoFactorNotice, setTwoFactorNotice] = useState<string | null>(null);
+  const otherSessionCount = overview.sessions.filter((session) => !session.isCurrent).length;
 
   return (
     <div className="grid gap-3">
@@ -112,17 +119,28 @@ export function SecurityAccountControls({
       <SecurityControlSection title="Session management">
         <ControlRow
           action={
-            <Button onClick={onReviewActivity} type="button" variant="outline">
-              Review activity
-            </Button>
+            <div className="grid gap-2">
+              <Button onClick={onReviewActivity} type="button" variant="outline">
+                Review sessions
+              </Button>
+              <Button
+                disabled={!otherSessionCount || revokingOtherSessions}
+                onClick={onSignOutOtherSessions}
+                type="button"
+                variant="outline"
+              >
+                {revokingOtherSessions ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <LogOut className="h-4 w-4" aria-hidden="true" />
+                )}
+                Sign out others
+              </Button>
+            </div>
           }
-          description="Review successful account sign-ins and the devices that reported them."
+          description="Review active devices and end sessions you no longer recognize."
           icon={PanelsTopLeft}
-          meta={
-            overview.capabilities.sessionRevocation
-              ? "Session controls available"
-              : "Session revocation not configured"
-          }
+          meta={`${otherSessionCount} other ${otherSessionCount === 1 ? "session" : "sessions"}`}
         />
       </SecurityControlSection>
 

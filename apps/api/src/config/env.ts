@@ -25,6 +25,12 @@ const apiEnvObjectSchema = z.object({
   DATABASE_URL: z.string().min(1),
   JWT_SECRET: z.string().min(24),
   REDIS_URL: z.string().url().default("redis://localhost:6379"),
+  AUTH_SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(30).default(7),
+  PASSWORD_RESET_DELIVERY_MODE: z.enum(["log", "resend"]).default("log"),
+  PASSWORD_RESET_TOKEN_TTL_MINUTES: z.coerce.number().int().min(5).max(120).default(30),
+  PASSWORD_RESET_REQUEST_COOLDOWN_SECONDS: z.coerce.number().int().min(30).max(3600).default(60),
+  RESEND_API_KEY: z.string().min(1).optional(),
+  AUTH_EMAIL_FROM: z.string().min(3).max(254).optional(),
   ERROR_MONITORING_ENVIRONMENT: z.string().min(1).optional(),
   ERROR_MONITORING_WEBHOOK_URL: z.string().url().optional(),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(120),
@@ -42,6 +48,30 @@ const apiEnvSchema = apiEnvObjectSchema.superRefine((env, context) => {
       code: "custom",
       message: "VIRUS_SCAN_MODE must be clamav in production.",
       path: ["VIRUS_SCAN_MODE"]
+    });
+  }
+
+  if (env.NODE_ENV === "production" && env.PASSWORD_RESET_DELIVERY_MODE !== "resend") {
+    context.addIssue({
+      code: "custom",
+      message: "PASSWORD_RESET_DELIVERY_MODE must be resend in production.",
+      path: ["PASSWORD_RESET_DELIVERY_MODE"]
+    });
+  }
+
+  if (env.PASSWORD_RESET_DELIVERY_MODE === "resend" && !env.RESEND_API_KEY) {
+    context.addIssue({
+      code: "custom",
+      message: "RESEND_API_KEY is required when password reset delivery uses Resend.",
+      path: ["RESEND_API_KEY"]
+    });
+  }
+
+  if (env.PASSWORD_RESET_DELIVERY_MODE === "resend" && !env.AUTH_EMAIL_FROM) {
+    context.addIssue({
+      code: "custom",
+      message: "AUTH_EMAIL_FROM is required when password reset delivery uses Resend.",
+      path: ["AUTH_EMAIL_FROM"]
     });
   }
 });

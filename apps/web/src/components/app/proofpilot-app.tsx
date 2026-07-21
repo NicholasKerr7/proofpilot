@@ -59,6 +59,7 @@ export function ProofPilotApp() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [publicView, setPublicView] = useState<"landing" | "auth">("landing");
   const [publicAuthMode, setPublicAuthMode] = useState<AuthMode>("login");
+  const [passwordResetToken, setPasswordResetToken] = useState<string | null>(null);
   const [cases, setCases] = useState<CaseRecord[]>([]);
   const [caseTypes, setCaseTypes] = useState<CaseType[]>(fallbackCaseTypes);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
@@ -185,6 +186,18 @@ export function ProofPilotApp() {
     let isMounted = true;
 
     async function boot() {
+      const resetToken = new URL(window.location.href).searchParams.get("resetToken");
+
+      if (resetToken) {
+        if (isMounted) {
+          setPasswordResetToken(resetToken);
+          setPublicAuthMode("login");
+          setPublicView("auth");
+          setIsBooting(false);
+        }
+        return;
+      }
+
       try {
         const currentUser = await apiRequest<AuthUser>("/api/auth/me");
         if (!isMounted) {
@@ -257,6 +270,13 @@ export function ProofPilotApp() {
     setActiveCaseDestinationId("case-overview");
     setUnreadNotificationCount(0);
     setPublicView("landing");
+  }
+
+  function clearPasswordResetToken() {
+    setPasswordResetToken(null);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("resetToken");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
   }
 
   async function handleCreateCase(payload: CreateCasePayload) {
@@ -466,14 +486,17 @@ export function ProofPilotApp() {
       <AuthPanel
         error={message}
         initialMode={publicAuthMode}
+        initialResetToken={passwordResetToken}
         isSubmitting={isSubmitting}
-        key={publicAuthMode}
+        key={`${publicAuthMode}:${passwordResetToken ?? ""}`}
         onBack={() => {
           setMessage(null);
+          clearPasswordResetToken();
           setPublicView("landing");
           scrollToPageTop();
         }}
         onClearError={() => setMessage(null)}
+        onClearResetToken={clearPasswordResetToken}
         onDemoLogin={() => authenticate("/api/auth/demo", {})}
         onLogin={(input) => authenticate("/api/auth/login", input)}
         onRegister={(input) => authenticate("/api/auth/register", input)}

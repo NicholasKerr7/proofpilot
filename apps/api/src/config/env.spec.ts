@@ -41,7 +41,10 @@ describe("getApiEnv", () => {
       VIRUS_SCAN_MODE: "clamav",
       CLAMAV_HOST: "clamav.internal",
       CLAMAV_PORT: "13310",
-      CLAMAV_TIMEOUT_MS: "90000"
+      CLAMAV_TIMEOUT_MS: "90000",
+      PASSWORD_RESET_DELIVERY_MODE: "resend",
+      RESEND_API_KEY: "re_test_key",
+      AUTH_EMAIL_FROM: "ProofPilot <security@proofpilot.test>"
     });
 
     expect(env).toMatchObject({
@@ -50,5 +53,24 @@ describe("getApiEnv", () => {
       CLAMAV_PORT: 13_310,
       CLAMAV_TIMEOUT_MS: 90_000
     });
+  });
+
+  it("requires production password reset email delivery", () => {
+    expect(() =>
+      getApiEnv({
+        ...baseEnv,
+        NODE_ENV: "production",
+        VIRUS_SCAN_MODE: "clamav"
+      })
+    ).toThrow("PASSWORD_RESET_DELIVERY_MODE must be resend in production");
+  });
+
+  it("requires Resend credentials when email delivery is enabled", () => {
+    expect(() =>
+      getApiEnv({
+        ...baseEnv,
+        PASSWORD_RESET_DELIVERY_MODE: "resend"
+      })
+    ).toThrow("RESEND_API_KEY is required");
   });
 });

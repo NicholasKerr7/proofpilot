@@ -1,34 +1,37 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import type { SecurityLoginActivity, SecurityOverview } from "@proofpilot/types";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import type {
+  SecurityOverview,
+  SecuritySession,
+  SessionRevocationResponse
+} from "@proofpilot/types";
 import { PrismaService } from "../prisma/prisma.service.js";
-
-const securityActivityActions = ["auth.logged_in", "auth.registered"];
 
 @Injectable()
 export class SecurityService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getOverview(userId: string): Promise<SecurityOverview> {
-    const [user, activity] = await Promise.all([
+  async getOverview(userId: string, currentSessionId: string): Promise<SecurityOverview> {
+    const now = new Date();
+    const [user, sessions] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
         select: { passwordChangedAt: true }
       }),
-      this.prisma.auditLog.findMany({
+      this.prisma.authSession.findMany({
         where: {
           userId,
-          action: { in: securityActivityActions },
-          metadata: {
-            path: ["securityActivity"],
-            equals: true
-          }
+          revokedAt: null,
+          expiresAt: { gt: now }
         },
-        orderBy: { createdAt: "desc" },
-        take: 5,
+        orderBy: { lastSeenAt: "desc" },
+        take: 10,
         select: {
           createdAt: true,
+          expiresAt: true,
           id: true,
-          metadata: true
+          ipAddress: true,
+          lastSeenAt: true,
+          userAgent: true
         }
       })
     ]);
@@ -41,44 +44,99 @@ export class SecurityService {
       biometricEnabled: false,
       capabilities: {
         biometricEnrollment: false,
-        sessionRevocation: false,
+        sessionRevocation: true,
         twoFactorEnrollment: false
       },
-      loginActivity: activity.map((entry, index) => this.toLoginActivity(entry, index === 0)),
       passwordChangedAt: user.passwordChangedAt.toISOString(),
+      sessions: sessions.map((session) => this.toSecuritySession(session, currentSessionId)),
       twoFactorEnabled: false
     };
   }
 
-  private toLoginActivity(
-    entry: { createdAt: Date; id: string; metadata: unknown },
-    isLatest: boolean
-  ): SecurityLoginActivity {
-    const metadata = getMetadata(entry.metadata);
-    const userAgent = getMetadataString(metadata, "userAgent");
+  async revokeSession(
+    userId: string,
+    currentSessionId: string,
+    sessionId: string
+  ): Promise<SessionRevocationResponse> {
+    if (sessionId === currentSessionId) {
+      throw new BadRequestException("Use sign out to end the current session.");
+    }
+
+    const revokedAt = new Date();
+    const result = await this.prisma.authSession.updateMany({
+      where: {
+        id: sessionId,
+        userId,
+        revokedAt: null,
+        expiresAt: { gt: revokedAt }
+      },
+      data: { revokedAt }
+    });
+
+    if (!result.count) {
+      throw new NotFoundException("Session not found.");
+    }
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId,
+        action: "auth.session_revoked",
+        metadata: { sessionId }
+      }
+    });
+
+    return { ok: true, revokedCount: result.count };
+  }
+
+  async revokeOtherSessions(
+    userId: string,
+    currentSessionId: string
+  ): Promise<SessionRevocationResponse> {
+    const revokedAt = new Date();
+    const result = await this.prisma.authSession.updateMany({
+      where: {
+        userId,
+        id: { not: currentSessionId },
+        revokedAt: null,
+        expiresAt: { gt: revokedAt }
+      },
+      data: { revokedAt }
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId,
+        action: "auth.other_sessions_revoked",
+        metadata: { revokedCount: result.count }
+      }
+    });
+
+    return { ok: true, revokedCount: result.count };
+  }
+
+  private toSecuritySession(
+    session: {
+      createdAt: Date;
+      expiresAt: Date;
+      id: string;
+      ipAddress: string | null;
+      lastSeenAt: Date;
+      userAgent: string | null;
+    },
+    currentSessionId: string
+  ): SecuritySession {
+    const userAgent = session.userAgent;
 
     return {
-      deviceLabel:
-        getMetadataString(metadata, "deviceLabel") ?? getDeviceLabel(userAgent),
-      id: entry.id,
-      isLatest,
-      locationLabel:
-        getMetadataString(metadata, "locationLabel") ??
-        getLocationLabel(getMetadataString(metadata, "ipAddress")),
-      occurredAt: entry.createdAt.toISOString()
+      createdAt: session.createdAt.toISOString(),
+      deviceLabel: getDeviceLabel(userAgent),
+      expiresAt: session.expiresAt.toISOString(),
+      id: session.id,
+      isCurrent: session.id === currentSessionId,
+      lastSeenAt: session.lastSeenAt.toISOString(),
+      locationLabel: getLocationLabel(session.ipAddress)
     };
   }
-}
-
-function getMetadata(value: unknown): Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
-
-function getMetadataString(metadata: Record<string, unknown>, key: string) {
-  const value = metadata[key];
-  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 function getDeviceLabel(userAgent: string | null) {

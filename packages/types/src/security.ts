@@ -1,9 +1,11 @@
-export interface SecurityLoginActivity {
+export interface SecuritySession {
+  createdAt: string;
   deviceLabel: string;
+  expiresAt: string;
   id: string;
-  isLatest: boolean;
+  isCurrent: boolean;
+  lastSeenAt: string;
   locationLabel: string;
-  occurredAt: string;
 }
 
 export interface SecurityCapabilities {
@@ -15,7 +17,12 @@ export interface SecurityCapabilities {
 export interface SecurityOverview {
   biometricEnabled: boolean;
   capabilities: SecurityCapabilities;
-  loginActivity: SecurityLoginActivity[];
   passwordChangedAt: string;
+  sessions: SecuritySession[];
   twoFactorEnabled: boolean;
+}
+
+export interface SessionRevocationResponse {
+  ok: true;
+  revokedCount: number;
 }

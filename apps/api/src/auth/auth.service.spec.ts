@@ -1,8 +1,10 @@
 import { BadRequestException, UnauthorizedException } from "@nestjs/common";
 import type { JwtService } from "@nestjs/jwt";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service.js";
 import { AuthService } from "./auth.service.js";
+import type { PasswordResetMailerService } from "./password-reset-mailer.service.js";
 
 const bcryptMocks = vi.hoisted(() => ({
   compare: vi.fn(),
@@ -12,21 +14,42 @@ const bcryptMocks = vi.hoisted(() => ({
 vi.mock("bcryptjs", () => bcryptMocks);
 
 const userId = "user-1";
+const currentSessionId = "session-current";
 const createdAt = new Date("2026-05-04T12:00:00.000Z");
 
 function createPrismaMock() {
-  return {
-    $transaction: vi.fn(async (operations: Promise<unknown>[]) => Promise.all(operations)),
+  const prisma = {
     auditLog: {
       create: vi.fn().mockResolvedValue({})
+    },
+    authSession: {
+      create: vi.fn().mockResolvedValue({ id: currentSessionId }),
+      updateMany: vi.fn().mockResolvedValue({ count: 0 })
+    },
+    passwordResetToken: {
+      create: vi.fn(),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+      findFirst: vi.fn().mockResolvedValue(null),
+      findUnique: vi.fn(),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 })
     },
     user: {
       create: vi.fn(),
       findUnique: vi.fn(),
       findUniqueOrThrow: vi.fn(),
       update: vi.fn()
-    }
+    },
+    $transaction: vi.fn()
   };
+
+  prisma.$transaction.mockImplementation(async (operation) => {
+    if (typeof operation === "function") {
+      return operation(prisma);
+    }
+    return Promise.all(operation);
+  });
+
+  return prisma;
 }
 
 function createJwtServiceMock() {
@@ -35,26 +58,49 @@ function createJwtServiceMock() {
   };
 }
 
+function createPasswordResetMailerMock() {
+  return {
+    send: vi.fn().mockResolvedValue(undefined)
+  };
+}
+
 type PrismaMock = ReturnType<typeof createPrismaMock>;
 type JwtServiceMock = ReturnType<typeof createJwtServiceMock>;
+type PasswordResetMailerMock = ReturnType<typeof createPasswordResetMailerMock>;
 
-function createService(prisma: PrismaMock, jwtService: JwtServiceMock) {
+function createService(
+  prisma: PrismaMock,
+  jwtService: JwtServiceMock,
+  passwordResetMailer: PasswordResetMailerMock
+) {
   return new AuthService(
     prisma as unknown as PrismaService,
-    jwtService as unknown as JwtService
+    jwtService as unknown as JwtService,
+    passwordResetMailer as unknown as PasswordResetMailerService
   );
 }
 
 describe("AuthService account management", () => {
   let prisma: PrismaMock;
   let jwtService: JwtServiceMock;
+  let passwordResetMailer: PasswordResetMailerMock;
   let service: AuthService;
 
   beforeEach(() => {
+    vi.stubEnv(
+      "DATABASE_URL",
+      "postgresql://proofpilot:proofpilot@localhost:5432/proofpilot"
+    );
+    vi.stubEnv("JWT_SECRET", "a-secure-test-secret-with-enough-length");
     prisma = createPrismaMock();
     jwtService = createJwtServiceMock();
-    service = createService(prisma, jwtService);
+    passwordResetMailer = createPasswordResetMailerMock();
+    service = createService(prisma, jwtService, passwordResetMailer);
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("trims and audits a profile name update", async () => {
@@ -96,7 +142,7 @@ describe("AuthService account management", () => {
     expect(prisma.auditLog.create).not.toHaveBeenCalled();
   });
 
-  it("records sanitized client context for owner-visible login activity", async () => {
+  it("creates a server-side session with sanitized client context", async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: userId,
       email: "nicholas.kerr@proofpilot.test",
@@ -129,9 +175,19 @@ describe("AuthService account management", () => {
         }
       }
     });
+    expect(prisma.authSession.create).toHaveBeenCalledWith({
+      data: {
+        userId,
+        expiresAt: expect.any(Date),
+        ipAddress: "127.0.0.1",
+        userAgent: "ProofPilot Browser"
+      },
+      select: { id: true }
+    });
     expect(jwtService.signAsync).toHaveBeenCalledWith({
       sub: userId,
-      email: "nicholas.kerr@proofpilot.test"
+      email: "nicholas.kerr@proofpilot.test",
+      sid: currentSessionId
     });
   });
 
@@ -140,7 +196,7 @@ describe("AuthService account management", () => {
     bcryptMocks.compare.mockResolvedValue(false);
 
     await expect(
-      service.changePassword(userId, {
+      service.changePassword(userId, currentSessionId, {
         currentPassword: "incorrect-password",
         newPassword: "new-secure-password"
       })
@@ -155,7 +211,7 @@ describe("AuthService account management", () => {
     bcryptMocks.compare.mockResolvedValue(true);
 
     await expect(
-      service.changePassword(userId, {
+      service.changePassword(userId, currentSessionId, {
         currentPassword: "same-password",
         newPassword: "same-password"
       })
@@ -165,24 +221,25 @@ describe("AuthService account management", () => {
     expect(prisma.user.update).not.toHaveBeenCalled();
   });
 
-  it("hashes and audits a password change without logging password data", async () => {
+  it("changes the password and revokes every other session", async () => {
     prisma.user.findUnique.mockResolvedValue({ id: userId, passwordHash: "current-hash" });
     prisma.user.update.mockResolvedValue({ id: userId });
     bcryptMocks.compare.mockResolvedValue(true);
     bcryptMocks.hash.mockResolvedValue("new-password-hash");
 
-    const result = await service.changePassword(userId, {
+    const result = await service.changePassword(userId, currentSessionId, {
       currentPassword: "current-password",
       newPassword: "new-secure-password"
     });
 
     expect(bcryptMocks.hash).toHaveBeenCalledWith("new-secure-password", 12);
-    expect(prisma.user.update).toHaveBeenCalledWith({
-      where: { id: userId },
-      data: {
-        passwordChangedAt: expect.any(Date),
-        passwordHash: "new-password-hash"
-      }
+    expect(prisma.authSession.updateMany).toHaveBeenCalledWith({
+      where: {
+        userId,
+        id: { not: currentSessionId },
+        revokedAt: null
+      },
+      data: { revokedAt: expect.any(Date) }
     });
     expect(prisma.auditLog.create).toHaveBeenCalledWith({
       data: {
@@ -194,5 +251,106 @@ describe("AuthService account management", () => {
       ok: true,
       passwordChangedAt: expect.any(String)
     });
+  });
+
+  it("returns the same reset acknowledgement for an unknown email", async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+
+    const response = await service.requestPasswordReset({ email: "unknown@example.com" });
+
+    expect(response).toEqual({
+      ok: true,
+      message: "If an account exists for that email, a password reset link has been sent."
+    });
+    expect(prisma.passwordResetToken.create).not.toHaveBeenCalled();
+    expect(passwordResetMailer.send).not.toHaveBeenCalled();
+  });
+
+  it("stores only a reset token hash and sends the raw token in a time-limited link", async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      email: "nicholas.kerr@proofpilot.test",
+      id: userId
+    });
+    prisma.passwordResetToken.create.mockResolvedValue({ id: "reset-1" });
+
+    await service.requestPasswordReset({ email: "NICHOLAS.KERR@PROOFPILOT.TEST" });
+
+    const resetUrl = new URL(passwordResetMailer.send.mock.calls[0]?.[0].resetUrl);
+    const rawToken = resetUrl.searchParams.get("resetToken");
+    const storedHash = prisma.passwordResetToken.create.mock.calls[0]?.[0].data.tokenHash;
+
+    expect(rawToken).toMatch(/^[A-Za-z0-9_-]{32,128}$/);
+    expect(storedHash).toBe(
+      createHash("sha256").update(rawToken ?? "").digest("hex")
+    );
+    expect(storedHash).not.toBe(rawToken);
+    expect(passwordResetMailer.send).toHaveBeenCalledWith({
+      resetUrl: expect.stringContaining("resetToken="),
+      to: "nicholas.kerr@proofpilot.test"
+    });
+  });
+
+  it("atomically redeems a reset token and revokes all sessions", async () => {
+    prisma.passwordResetToken.findUnique.mockResolvedValue({
+      expiresAt: new Date(Date.now() + 60_000),
+      id: "reset-1",
+      usedAt: null,
+      user: {
+        id: userId,
+        passwordHash: "current-hash"
+      },
+      userId
+    });
+    bcryptMocks.compare.mockResolvedValue(false);
+    bcryptMocks.hash.mockResolvedValue("new-password-hash");
+
+    const result = await service.resetPassword({
+      token: "A".repeat(43),
+      newPassword: "new-secure-password"
+    });
+
+    expect(prisma.passwordResetToken.updateMany).toHaveBeenNthCalledWith(1, {
+      where: {
+        id: "reset-1",
+        usedAt: null,
+        expiresAt: { gt: expect.any(Date) }
+      },
+      data: { usedAt: expect.any(Date) }
+    });
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: userId },
+      data: {
+        passwordChangedAt: expect.any(Date),
+        passwordHash: "new-password-hash"
+      }
+    });
+    expect(prisma.authSession.updateMany).toHaveBeenCalledWith({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: expect.any(Date) }
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it("rejects an expired reset token before changing credentials", async () => {
+    prisma.passwordResetToken.findUnique.mockResolvedValue({
+      expiresAt: new Date(Date.now() - 60_000),
+      id: "reset-1",
+      usedAt: null,
+      user: {
+        id: userId,
+        passwordHash: "current-hash"
+      },
+      userId
+    });
+
+    await expect(
+      service.resetPassword({
+        token: "A".repeat(43),
+        newPassword: "new-secure-password"
+      })
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(prisma.authSession.updateMany).not.toHaveBeenCalled();
   });
 });

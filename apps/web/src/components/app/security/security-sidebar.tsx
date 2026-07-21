@@ -1,9 +1,11 @@
-import type { SecurityLoginActivity, SecurityOverview } from "@proofpilot/types";
+import type { SecurityOverview, SecuritySession } from "@proofpilot/types";
 import {
   CheckCircle2,
   CircleAlert,
   Globe2,
   Laptop,
+  LoaderCircle,
+  LogOut,
   ShieldCheck,
   Smartphone,
   Sparkles,
@@ -11,11 +13,26 @@ import {
 } from "lucide-react";
 import { formatSecurityActivityDate, formatSecurityDate } from "@/components/app/security/security-utils";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
-export function SecuritySidebar({ overview }: { overview: SecurityOverview }) {
+interface SecuritySidebarProps {
+  onRevokeSession: (sessionId: string) => void;
+  overview: SecurityOverview;
+  revokingSessionId: string | null;
+}
+
+export function SecuritySidebar({
+  onRevokeSession,
+  overview,
+  revokingSessionId
+}: SecuritySidebarProps) {
   return (
     <aside className="grid content-start gap-3">
-      <LoginActivity activity={overview.loginActivity} />
+      <ActiveSessions
+        onRevokeSession={onRevokeSession}
+        revokingSessionId={revokingSessionId}
+        sessions={overview.sessions}
+      />
       <SecuritySummary overview={overview} />
       <section className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-md border border-border bg-card p-4 md:p-5">
         <Sparkles className="h-6 w-6 text-primary" aria-hidden="true" />
@@ -30,61 +47,103 @@ export function SecuritySidebar({ overview }: { overview: SecurityOverview }) {
   );
 }
 
-function LoginActivity({ activity }: { activity: SecurityLoginActivity[] }) {
+function ActiveSessions({
+  onRevokeSession,
+  revokingSessionId,
+  sessions
+}: {
+  onRevokeSession: (sessionId: string) => void;
+  revokingSessionId: string | null;
+  sessions: SecuritySession[];
+}) {
   return (
     <section
-      aria-labelledby="security-login-activity-heading"
+      aria-labelledby="security-active-sessions-heading"
       className="rounded-md border border-border bg-card p-4 md:p-5"
       id="security-login-activity"
     >
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold uppercase text-primary" id="security-login-activity-heading">
-          Recent login activity
+        <h2 className="text-sm font-semibold uppercase text-primary" id="security-active-sessions-heading">
+          Active sessions
         </h2>
-        <Badge variant="secondary">{activity.length} events</Badge>
+        <Badge variant="secondary">{sessions.length} active</Badge>
       </div>
 
-      {activity.length ? (
+      {sessions.length ? (
         <div className="mt-3 divide-y divide-border border-y border-border">
-          {activity.map((entry) => (
-            <LoginActivityRow entry={entry} key={entry.id} />
+          {sessions.map((session) => (
+            <SessionRow
+              key={session.id}
+              onRevokeSession={onRevokeSession}
+              revokingSessionId={revokingSessionId}
+              session={session}
+            />
           ))}
         </div>
       ) : (
         <p className="mt-3 rounded-md border border-dashed border-border px-3 py-5 text-sm text-muted-foreground">
-          No recent login activity is available.
+          No active sessions are available.
         </p>
       )}
     </section>
   );
 }
 
-function LoginActivityRow({ entry }: { entry: SecurityLoginActivity }) {
-  const occurredAt = formatSecurityActivityDate(entry.occurredAt);
+function SessionRow({
+  onRevokeSession,
+  revokingSessionId,
+  session
+}: {
+  onRevokeSession: (sessionId: string) => void;
+  revokingSessionId: string | null;
+  session: SecuritySession;
+}) {
+  const lastSeenAt = formatSecurityActivityDate(session.lastSeenAt);
+  const isRevoking = revokingSessionId === session.id;
 
   return (
     <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 py-3">
       <span className="relative flex h-11 w-11 items-center justify-center rounded-md border border-primary/25 bg-primary/10 text-primary">
-        <DeviceIcon deviceLabel={entry.deviceLabel} />
+        <DeviceIcon deviceLabel={session.deviceLabel} />
         <span
           aria-hidden="true"
-          className={`absolute -bottom-1 -right-1 h-2.5 w-2.5 rounded-full border-2 border-card ${entry.isLatest ? "bg-teal-400" : "bg-muted-foreground"}`}
+          className="absolute -bottom-1 -right-1 h-2.5 w-2.5 rounded-full border-2 border-card bg-teal-400"
         />
       </span>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <p className="break-words text-sm font-medium leading-5 text-foreground">
-            {entry.deviceLabel}
+            {session.deviceLabel}
           </p>
-          {entry.isLatest ? <Badge variant="success">Latest</Badge> : null}
+          {session.isCurrent ? <Badge variant="success">Current</Badge> : null}
         </div>
         <p className="mt-0.5 break-words text-xs leading-5 text-muted-foreground">
-          {entry.locationLabel}
+          {session.locationLabel}
         </p>
       </div>
-      <div className="text-right text-xs leading-5 text-muted-foreground">
-        <p>{occurredAt.date}</p>
-        <p>{occurredAt.time}</p>
+      <div className="grid justify-items-end gap-1 text-right text-xs leading-5 text-muted-foreground">
+        <div>
+          <p>{lastSeenAt.date}</p>
+          <p>{lastSeenAt.time}</p>
+        </div>
+        {!session.isCurrent ? (
+          <Button
+            aria-label={`Sign out ${session.deviceLabel}`}
+            disabled={Boolean(revokingSessionId)}
+            onClick={() => onRevokeSession(session.id)}
+            size="icon"
+            title={`Sign out ${session.deviceLabel}`}
+            type="button"
+            variant="ghost"
+          >
+            {isRevoking ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+            )}
+            <span className="sr-only">{isRevoking ? "Signing out" : "Sign out"}</span>
+          </Button>
+        ) : null}
       </div>
     </div>
   );
@@ -114,8 +173,8 @@ function SecuritySummary({ overview }: { overview: SecurityOverview }) {
           ready
         />
         <SummaryItem
-          description={`${overview.loginActivity.length} recent successful sign-ins recorded`}
-          label="Login activity"
+          description={`${overview.sessions.length} active sessions`}
+          label="Session tracking"
           ready
         />
         <SummaryItem description="Enrollment not configured" label="Two-factor authentication" ready={false} />

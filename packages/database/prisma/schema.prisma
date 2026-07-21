@@ -150,8 +150,38 @@ model User {
   auditLogs           AuditLog[]
   supportRequests     SupportRequest[]
   assistantThreads    AssistantThread[]
+  authSessions        AuthSession[]
   caseCollaborations  CaseCollaborator[]   @relation("CaseCollaboratorUser")
   packetSharesCreated PacketShare[]        @relation("PacketShareCreator")
+  passwordResetTokens PasswordResetToken[]
+}
+
+model AuthSession {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+
+  @@index([userId, revokedAt, expiresAt])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
 }
 
 model UserPreference {

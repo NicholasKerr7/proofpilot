@@ -57,6 +57,12 @@ Set these only on `api`:
 PORT=4000
 WEB_ORIGIN=https://REPLACE_WITH_VERCEL_PREVIEW_OR_CUSTOM_DOMAIN
 JWT_SECRET=REPLACE_WITH_AT_LEAST_32_RANDOM_CHARACTERS
+AUTH_SESSION_TTL_DAYS=7
+PASSWORD_RESET_DELIVERY_MODE=resend
+PASSWORD_RESET_TOKEN_TTL_MINUTES=30
+PASSWORD_RESET_REQUEST_COOLDOWN_SECONDS=60
+RESEND_API_KEY=REPLACE_WITH_STAGING_RESEND_KEY
+AUTH_EMAIL_FROM=ProofPilot <security@REPLACE_WITH_VERIFIED_DOMAIN>
 RATE_LIMIT_MAX=120
 RATE_LIMIT_WINDOW_MS=60000
 TRUST_PROXY=true
@@ -102,7 +108,7 @@ Railway buckets do not currently support lifecycle rules. Before production, eit
 1. Authenticate the Railway CLI and create the `proofpilot` project and `staging` environment.
 2. Add PostgreSQL, Redis, `evidence-bucket`, and the private `clamav` image service.
 3. Connect this GitHub repository to separate `api` and `worker` services and assign the checked-in config paths.
-4. Add shared and service-specific variables without deploying staged changes yet.
+4. Verify a staging sender domain in Resend and add shared and service-specific variables without deploying staged changes yet.
 5. Create a Railway public domain for `api` on port `4000`.
 6. Deploy the Vercel web preview with `NEXT_PUBLIC_API_URL=https://REPLACE_WITH_RAILWAY_API_DOMAIN`.
 7. Set `WEB_ORIGIN` and bucket CORS to the exact Vercel origin, then deploy all Railway staged changes.

@@ -18,6 +18,8 @@ import { AuthService, type AuthClientContext } from "./auth.service.js";
 import { ChangePasswordDto } from "./dto/change-password.dto.js";
 import { LoginDto } from "./dto/login.dto.js";
 import { RegisterDto } from "./dto/register.dto.js";
+import { RequestPasswordResetDto } from "./dto/request-password-reset.dto.js";
+import { ResetPasswordDto } from "./dto/reset-password.dto.js";
 import { UpdateProfileDto } from "./dto/update-profile.dto.js";
 
 @ApiTags("auth")
@@ -51,6 +53,18 @@ export class AuthController {
     );
   }
 
+  @Post("request-password-reset")
+  @HttpCode(HttpStatus.ACCEPTED)
+  requestPasswordReset(@Body() input: RequestPasswordResetDto) {
+    return this.authService.requestPasswordReset(input);
+  }
+
+  @Post("reset-password")
+  @HttpCode(HttpStatus.OK)
+  resetPassword(@Body() input: ResetPasswordDto) {
+    return this.authService.resetPassword(input);
+  }
+
   @Get("me")
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
@@ -70,7 +84,15 @@ export class AuthController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   changePassword(@CurrentUser() user: RequestUser, @Body() input: ChangePasswordDto) {
-    return this.authService.changePassword(user.id, input);
+    return this.authService.changePassword(user.id, user.sessionId, input);
+  }
+
+  @Post("logout")
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  logout(@CurrentUser() user: RequestUser) {
+    return this.authService.logout(user.id, user.sessionId);
   }
 }
 

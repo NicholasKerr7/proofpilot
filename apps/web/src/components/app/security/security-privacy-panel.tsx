@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type {
   SecurityOverview,
+  SessionRevocationResponse,
   UpdateUserSettingsInput,
   UserSettings
 } from "@proofpilot/types";
@@ -31,7 +32,10 @@ export function SecurityPrivacyPanel({
   const [overview, setOverview] = useState<SecurityOverview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [revokingSessionId, setRevokingSessionId] = useState<string | null>(null);
+  const [revokingOtherSessions, setRevokingOtherSessions] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -80,6 +84,67 @@ export function SecurityPrivacyPanel({
     });
   }
 
+  async function revokeSession(sessionId: string) {
+    setRevokingSessionId(sessionId);
+    setError(null);
+    setStatus(null);
+
+    try {
+      await apiRequest<SessionRevocationResponse>(`/api/security/sessions/${sessionId}`, {
+        method: "DELETE"
+      });
+      setOverview((current) =>
+        current
+          ? {
+              ...current,
+              sessions: current.sessions.filter((session) => session.id !== sessionId)
+            }
+          : current
+      );
+      setStatus("The selected session has been signed out.");
+    } catch (revokeError) {
+      setError(
+        revokeError instanceof Error ? revokeError.message : "The session could not be revoked."
+      );
+    } finally {
+      setRevokingSessionId(null);
+    }
+  }
+
+  async function revokeOtherSessions() {
+    setRevokingOtherSessions(true);
+    setError(null);
+    setStatus(null);
+
+    try {
+      const response = await apiRequest<SessionRevocationResponse>(
+        "/api/security/sessions/revoke-others",
+        { method: "POST" }
+      );
+      setOverview((current) =>
+        current
+          ? {
+              ...current,
+              sessions: current.sessions.filter((session) => session.isCurrent)
+            }
+          : current
+      );
+      setStatus(
+        response.revokedCount
+          ? `${response.revokedCount} other ${response.revokedCount === 1 ? "session" : "sessions"} signed out.`
+          : "There were no other active sessions to sign out."
+      );
+    } catch (revokeError) {
+      setError(
+        revokeError instanceof Error
+          ? revokeError.message
+          : "Other sessions could not be revoked."
+      );
+    } finally {
+      setRevokingOtherSessions(false);
+    }
+  }
+
   return (
     <section aria-labelledby="security-privacy-heading" className="grid gap-5">
       <div className="flex items-start gap-3">
@@ -118,6 +183,15 @@ export function SecurityPrivacyPanel({
         </div>
       ) : null}
 
+      {status ? (
+        <p
+          className="rounded-md border border-teal-400/30 bg-teal-400/10 px-3 py-2 text-sm text-teal-100"
+          role="status"
+        >
+          {status}
+        </p>
+      ) : null}
+
       {isLoading ? (
         <div className="flex min-h-48 items-center justify-center gap-3 rounded-md border border-border bg-card text-sm text-muted-foreground">
           <LoaderCircle className="h-5 w-5 animate-spin text-primary" aria-hidden="true" />
@@ -132,11 +206,19 @@ export function SecurityPrivacyPanel({
               onOpenReports={onOpenReports}
               onPasswordChanged={(passwordChangedAt) => {
                 setOverview((current) =>
-                  current ? { ...current, passwordChangedAt } : current
+                  current
+                    ? {
+                        ...current,
+                        passwordChangedAt,
+                        sessions: current.sessions.filter((session) => session.isCurrent)
+                      }
+                    : current
                 );
               }}
               onReviewActivity={reviewActivity}
+              onSignOutOtherSessions={() => void revokeOtherSessions()}
               overview={overview}
+              revokingOtherSessions={revokingOtherSessions}
             />
             <SecurityPrivacyControls
               onOpenHelp={onOpenHelp}
@@ -144,7 +226,11 @@ export function SecurityPrivacyPanel({
               settings={settings}
             />
           </div>
-          <SecuritySidebar overview={overview} />
+          <SecuritySidebar
+            onRevokeSession={(sessionId) => void revokeSession(sessionId)}
+            overview={overview}
+            revokingSessionId={revokingSessionId}
+          />
         </div>
       ) : null}
     </section>

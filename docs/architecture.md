@@ -35,8 +35,9 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 - Persisted user-authored plain text is normalized at the DTO boundary. Markup, unsafe element content, control characters, and bidirectional override characters are removed before length validation and persistence.
 - The web app renders stored content through escaped React text nodes and lint rejects raw HTML rendering. CSV exports separately neutralize spreadsheet formulas, and packet generation applies PDF-safe text normalization.
 - Passwords are hashed with bcryptjs.
-- API auth uses JWT bearer tokens for the MVP foundation.
-- Password changes update a dedicated `passwordChangedAt` timestamp.
+- API auth uses signed JWT bearer tokens linked to persisted, owner-scoped `AuthSession` records. Revoked or expired sessions fail even while the JWT signature remains valid.
+- Password changes update a dedicated `passwordChangedAt` timestamp and revoke every other session. Password reset completion revokes all sessions.
+- Password reset links carry 256-bit random tokens; PostgreSQL stores only SHA-256 hashes with expiry and one-time-use state.
 - Successful registration and login events store sanitized client context in owner-linked audit logs. User-agent and IP metadata are display context only and never authorization inputs.
 - Storage helpers generate signed upload/download URLs instead of exposing private object URLs.
 - The API streams completed uploads from private staging storage to ClamAV, then conditionally promotes the exact scanned ETag to a non-uploadable processing key before queueing work.
@@ -70,9 +71,9 @@ The current MVP intentionally keeps all case, document, packet, and assistant re
 
 ## Security And Privacy Foundation
 
-The Security & Privacy workspace reads password history and recent successful authentication activity through `GET /security`. Both the user lookup and audit-log query are restricted to the authenticated user ID. Privacy consent flags are persisted through the existing settings boundary.
+The Security & Privacy workspace reads password history and active sessions through `GET /security`. Session reads and revocations are restricted by the authenticated user ID, and the current session cannot be ended through the management endpoint. Privacy consent flags are persisted through the existing settings boundary.
 
-The MVP intentionally reports two-factor enrollment, WebAuthn biometric enrollment, and session revocation as unavailable. It does not infer active sessions from audit history, geolocate IP addresses, or claim team visibility and automatic-retention behavior that has not been implemented.
+The MVP intentionally reports two-factor enrollment and WebAuthn biometric enrollment as unavailable. It does not geolocate IP addresses or claim team visibility and automatic-retention behavior that has not been implemented.
 
 ## Billing Foundation
 

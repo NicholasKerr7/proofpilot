@@ -18,9 +18,12 @@ Authenticated cross-user lookups return `404` rather than confirming that anothe
 
 - `POST /auth/register`
 - `POST /auth/login`
+- `POST /auth/request-password-reset`
+- `POST /auth/reset-password`
 - `GET /auth/me`
 - `PATCH /auth/me`
 - `POST /auth/change-password`
+- `POST /auth/logout`
 
 ## Case Types
 
@@ -124,8 +127,10 @@ Settings include persisted analytics-usage and marketing-communication consent f
 ## Security
 
 - `GET /security`
+- `DELETE /security/sessions/:sessionId`
+- `POST /security/sessions/revoke-others`
 
-The security overview returns the authenticated user's password-change timestamp and up to five owner-scoped successful authentication events. It also returns explicit capability flags; two-factor enrollment, biometric enrollment, and session revocation remain unavailable until real providers are configured.
+The security overview returns the authenticated user's password-change timestamp and up to ten active owner-scoped sessions. Session revocation uses an owner-filtered update and does not allow the management endpoint to end the caller's current session. Two-factor and biometric enrollment remain unavailable until real providers are configured.
 
 ## Connections
 
@@ -165,6 +170,6 @@ Report summaries include open cases, uploaded evidence, missing required checkli
 ## Remaining Production Integrations
 
 - Add provider-backed payments, OAuth connections, and model generation.
-- Add two-factor/WebAuthn enrollment and server-side session revocation.
+- Add two-factor and WebAuthn enrollment.
 - Complete invitation acceptance and collaborator-session authorization.
 - Add packet email delivery, recipient email verification, and PDF watermarking.
