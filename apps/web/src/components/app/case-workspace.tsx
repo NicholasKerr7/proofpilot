@@ -148,7 +148,7 @@ export function CaseWorkspace({
             key={item.href}
             href={item.href}
             onClick={() => onSectionChange(item.destinationId)}
-            className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-md px-3 text-sm font-semibold text-muted-foreground hover:bg-secondary/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-md px-3 text-sm font-semibold text-muted-foreground hover:bg-secondary/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {item.label}
           </a>

@@ -16,20 +16,31 @@ test.describe("ProofPilot responsive workspace", () => {
     await page.goto("/");
 
     await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Sign in" })).toHaveAttribute(
-      "aria-selected",
-      "true"
-    );
+    const signInTab = page.getByRole("tab", { name: "Sign in" });
+    const createAccountTab = page.getByRole("tab", { name: "Create account" });
+    await expect(signInTab).toHaveAttribute("aria-selected", "true");
     await expect(page.getByLabel("Email address")).toBeVisible();
     await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { exact: true, name: "Sign in" })).toBeVisible();
 
-    await page.getByRole("tab", { name: "Create account" }).click();
+    await signInTab.focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(createAccountTab).toBeFocused();
+    await expect(createAccountTab).toHaveAttribute("aria-selected", "true");
     await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
     await expect(page.getByLabel("Full name")).toBeVisible();
     await expect(page.getByLabel("Confirm password", { exact: true })).toBeVisible();
 
+    await page.keyboard.press("Home");
+    await expect(signInTab).toBeFocused();
+    await expect(signInTab).toHaveAttribute("aria-selected", "true");
+    await page.keyboard.press("End");
+    await expect(createAccountTab).toBeFocused();
+    await expect(createAccountTab).toHaveAttribute("aria-selected", "true");
+
     await expectNoHorizontalOverflow(page);
+    await expectTouchTargets(page, "public authentication");
+    await expectReducedMotion(page);
     await expectAccessible(page, "public authentication");
   });
 
@@ -40,7 +51,23 @@ test.describe("ProofPilot responsive workspace", () => {
     const homeButton = primaryNavigation.getByRole("button", { exact: true, name: "Home" });
     await expect(homeButton).toHaveAttribute("aria-current", "page");
     await expectNavigationTargets(primaryNavigation);
+    await expectTouchTargets(page, "signed-in home workspace");
     await expect(page.getByText("Processed", { exact: true }).first()).toBeVisible();
+
+    await page.evaluate(() => {
+      const activeElement = document.activeElement;
+
+      if (activeElement instanceof HTMLElement) {
+        activeElement.blur();
+      }
+
+      window.scrollTo(0, 0);
+    });
+    const skipLink = page.getByRole("link", { name: "Skip to workspace" });
+    await page.keyboard.press("Tab");
+    await expect(skipLink).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#proofpilot-content")).toBeFocused();
 
     const invalidResourceResponse = await page.request.get("/api/cases/case.id");
     expect(invalidResourceResponse.status()).toBe(400);
@@ -48,12 +75,27 @@ test.describe("ProofPilot responsive workspace", () => {
       message: expect.stringContaining("Resource id must be")
     });
 
-    await page.getByRole("button", { name: "Open account menu" }).click();
+    const accountMenuTrigger = page.getByRole("button", { name: "Open account menu" });
+    await accountMenuTrigger.click();
     const accountDetails = page.getByRole("region", { name: "Account details" });
     await expect(accountDetails).toContainText("Nicholas Kerr");
     await expect(accountDetails).toContainText(demoCredentials.email);
     await page.keyboard.press("Escape");
     await expect(accountDetails).toBeHidden();
+    await expect(accountMenuTrigger).toBeFocused();
+
+    await accountMenuTrigger.click();
+    await accountDetails.getByRole("button", { name: "Manage account" }).click();
+    await expect(page.getByRole("heading", { exact: true, name: "Account" })).toBeVisible();
+    const profileTab = page.getByRole("tab", { exact: true, name: "Profile" });
+    const securityTab = page.getByRole("tab", { exact: true, name: "Security" });
+    await profileTab.focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(securityTab).toBeFocused();
+    await expect(securityTab).toHaveAttribute("aria-selected", "true");
+    await page.keyboard.press("Home");
+    await expect(profileTab).toBeFocused();
+    await expect(profileTab).toHaveAttribute("aria-selected", "true");
 
     const casesButton = primaryNavigation.getByRole("button", {
       exact: true,
@@ -67,6 +109,27 @@ test.describe("ProofPilot responsive workspace", () => {
     await homeButton.click();
     await expect(homeButton).toHaveAttribute("aria-current", "page");
     await expectAccessible(page, "signed-in home workspace");
+
+    await primaryNavigation.getByRole("button", { exact: true, name: "More" }).click();
+    await page.getByRole("button", { name: /^Settings / }).click();
+    await expect(page.getByRole("heading", { exact: true, name: "Settings" })).toBeVisible();
+    await expectTouchTargets(page, "settings workspace");
+    await expectAccessible(page, "settings workspace");
+
+    await page.keyboard.press("Control+K");
+    await expect(page.getByRole("heading", { exact: true, name: "Search" })).toBeVisible();
+    const allResultsTab = page.getByRole("tab", { name: /^All results/ });
+    const firstResultTypeTab = page.getByRole("tab").nth(1);
+    await expect(firstResultTypeTab).toBeVisible();
+    await allResultsTab.focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(firstResultTypeTab).toBeFocused();
+    await expect(firstResultTypeTab).toHaveAttribute("aria-selected", "true");
+    await page.keyboard.press("Home");
+    await expect(allResultsTab).toBeFocused();
+    await page.getByRole("searchbox", { name: "Search workspace" }).fill("PayPal");
+    await expectTouchTargets(page, "search workspace");
+    await expectAccessible(page, "search workspace");
 
     await navigateToReports(page);
     await expect(page.getByRole("heading", { name: "Reports & analytics" })).toBeVisible();
@@ -109,6 +172,7 @@ test.describe("ProofPilot responsive workspace", () => {
     await expect(
       page.getByRole("heading", { exact: true, name: "PayPal account closure appeal" })
     ).toBeVisible();
+    await expectTouchTargets(page, "case workspace");
 
     const timeline = page.locator("#case-timeline");
     const eventTitle = `Timeline verification ${Date.now()}`;
@@ -321,6 +385,86 @@ async function expectNavigationTargets(navigation: Locator) {
   for (const target of targetHeights) {
     expect(target.height, `${target.label} should be at least 44px tall`).toBeGreaterThanOrEqual(44);
   }
+}
+
+async function expectTouchTargets(page: Page, surface: string) {
+  if ((page.viewportSize()?.width ?? 0) >= 1024) {
+    return;
+  }
+
+  const undersizedTargets = await page
+    .locator(
+      'button, a[href], input:not([type="file"]):not([type="hidden"]), select, textarea, [role="button"], [role="tab"], [role="switch"]'
+    )
+    .evaluateAll((elements) =>
+      elements.flatMap((element) => {
+        const style = window.getComputedStyle(element);
+        const bounds = element.getBoundingClientRect();
+        const isVisible =
+          style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          Number(style.opacity) !== 0 &&
+          bounds.width > 1 &&
+          bounds.height > 1;
+
+        if (!isVisible || (bounds.width >= 44 && bounds.height >= 44)) {
+          return [];
+        }
+
+        return [
+          {
+            height: Math.round(bounds.height * 10) / 10,
+            label:
+              element.getAttribute("aria-label") ??
+              element.getAttribute("title") ??
+              element.textContent?.trim().replace(/\s+/g, " ").slice(0, 80) ??
+              element.tagName.toLowerCase(),
+            width: Math.round(bounds.width * 10) / 10
+          }
+        ];
+      })
+    );
+
+  expect(
+    undersizedTargets,
+    `${surface} contains interactive targets smaller than 44px.`
+  ).toEqual([]);
+}
+
+async function expectReducedMotion(page: Page) {
+  const reducedMotionStyles = await page.evaluate(() => {
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return null;
+    }
+
+    const target = document.querySelector("button");
+    const transitionDuration = target
+      ? maximumDurationInMilliseconds(window.getComputedStyle(target).transitionDuration)
+      : 0;
+
+    return {
+      scrollBehavior: window.getComputedStyle(document.documentElement).scrollBehavior,
+      transitionDuration
+    };
+
+    function maximumDurationInMilliseconds(value: string) {
+      return Math.max(
+        ...value.split(",").map((duration) => {
+          const normalizedDuration = duration.trim();
+          const numericDuration = Number.parseFloat(normalizedDuration);
+
+          return normalizedDuration.endsWith("ms") ? numericDuration : numericDuration * 1_000;
+        })
+      );
+    }
+  });
+
+  if (!reducedMotionStyles) {
+    return;
+  }
+
+  expect(reducedMotionStyles.scrollBehavior).toBe("auto");
+  expect(reducedMotionStyles.transitionDuration).toBeLessThanOrEqual(0.001);
 }
 
 async function expectNoHorizontalOverflow(page: Page) {

@@ -108,7 +108,7 @@ export function CollaboratorRoster({
                     </Label>
                     <Select
                       aria-label={`Role for ${collaborator.name ?? collaborator.email}`}
-                      className="h-10 min-h-10 w-28 text-xs"
+                      className="h-11 min-h-11 w-28 text-xs"
                       disabled={Boolean(pendingAction) || isExpired}
                       id={`collaborator-role-${collaborator.id}`}
                       onChange={(event) => {

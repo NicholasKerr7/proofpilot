@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import {
   BarChart3,
@@ -121,6 +121,8 @@ export function AppShell({
   user
 }: AppShellProps) {
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const desktopAccountTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileAccountTriggerRef = useRef<HTMLButtonElement>(null);
   const visibleDesktopNavItems =
     activeView === "calendar"
       ? [
@@ -138,14 +140,22 @@ export function AppShell({
         onNavigate("search");
       }
 
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && isAccountMenuOpen) {
         setIsAccountMenuOpen(false);
+        window.requestAnimationFrame(() => {
+          const visibleTrigger = [
+            desktopAccountTriggerRef.current,
+            mobileAccountTriggerRef.current
+          ].find((trigger) => trigger && trigger.getClientRects().length > 0);
+
+          visibleTrigger?.focus();
+        });
       }
     }
 
     window.addEventListener("keydown", handleSearchShortcut);
     return () => window.removeEventListener("keydown", handleSearchShortcut);
-  }, [onNavigate]);
+  }, [isAccountMenuOpen, onNavigate]);
 
   function handleNavigate(view: AppView) {
     setIsAccountMenuOpen(false);
@@ -280,6 +290,7 @@ export function AppShell({
             aria-label="Open account menu"
             className="flex min-h-11 items-center gap-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onClick={() => setIsAccountMenuOpen((current) => !current)}
+            ref={desktopAccountTriggerRef}
             type="button"
           >
             <span className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/55 bg-primary/10 text-sm font-semibold text-primary">
@@ -320,6 +331,7 @@ export function AppShell({
               aria-label="Open account menu"
               className="flex min-h-11 items-center gap-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => setIsAccountMenuOpen((current) => !current)}
+              ref={mobileAccountTriggerRef}
               type="button"
             >
               <span className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/55 bg-primary/10 text-sm font-semibold text-primary">

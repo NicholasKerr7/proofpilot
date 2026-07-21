@@ -87,7 +87,7 @@ export function AssistantConversation({
           {suggestedPrompts.slice(0, 3).map((prompt) => (
             <Button
               key={prompt}
-              className="h-auto min-h-10 whitespace-normal px-3 py-2 text-left"
+              className="h-auto min-h-11 whitespace-normal px-3 py-2 text-left"
               disabled={isSending}
               onClick={() => onPrompt(prompt)}
               size="sm"

@@ -1,5 +1,6 @@
 "use client";
 
+import type { KeyboardEvent } from "react";
 import {
   CalendarClock,
   FileText,
@@ -18,6 +19,7 @@ import { SecurityForm } from "@/components/app/account/security-form";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import type { AuthUser, CaseRecord } from "@/lib/client/types";
+import { getTabKeyboardTarget } from "@/lib/tab-keyboard-navigation";
 import { cn } from "@/lib/utils";
 
 export type AccountSection = "profile" | "security";
@@ -44,6 +46,25 @@ export function AccountPanel({
 }: AccountPanelProps) {
   const metrics = getAccountCaseMetrics(cases);
 
+  function handleTabKeyDown(
+    event: KeyboardEvent<HTMLButtonElement>,
+    currentSection: AccountSection
+  ) {
+    const nextSection = getTabKeyboardTarget(
+      accountTabs.map((tab) => tab.id),
+      currentSection,
+      event.key
+    );
+
+    if (!nextSection) {
+      return;
+    }
+
+    event.preventDefault();
+    onSectionChange(nextSection);
+    document.getElementById(`account-${nextSection}-tab`)?.focus();
+  }
+
   return (
     <section aria-labelledby="account-heading" className="grid gap-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -62,7 +83,7 @@ export function AccountPanel({
           {accountTabs.map((tab) => (
             <button
               key={tab.id}
-              aria-controls={`account-${tab.id}-panel`}
+              aria-controls="account-section-panel"
               aria-selected={section === tab.id}
               className={cn(
                 "flex min-h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -70,7 +91,9 @@ export function AccountPanel({
               )}
               id={`account-${tab.id}-tab`}
               onClick={() => onSectionChange(tab.id)}
+              onKeyDown={(event) => handleTabKeyDown(event, tab.id)}
               role="tab"
+              tabIndex={section === tab.id ? 0 : -1}
               type="button"
             >
               <tab.icon className="h-4 w-4" aria-hidden="true" />
@@ -113,7 +136,7 @@ export function AccountPanel({
 
       <div
         aria-labelledby={`account-${section}-tab`}
-        id={`account-${section}-panel`}
+        id="account-section-panel"
         role="tabpanel"
       >
         {section === "profile" ? (

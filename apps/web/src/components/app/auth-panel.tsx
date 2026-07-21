@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, type KeyboardEvent, useState } from "react";
 import {
   ArrowRight,
   AtSign,
@@ -20,9 +20,12 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { getTabKeyboardTarget } from "@/lib/tab-keyboard-navigation";
 import { cn } from "@/lib/utils";
 
 type AuthMode = "login" | "register";
+
+const authModes = ["login", "register"] as const satisfies readonly AuthMode[];
 
 interface AuthPanelProps {
   error: string | null;
@@ -88,6 +91,18 @@ export function AuthPanel({
     onClearError();
   }
 
+  function handleModeKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    const nextMode = getTabKeyboardTarget(authModes, mode, event.key);
+
+    if (!nextMode) {
+      return;
+    }
+
+    event.preventDefault();
+    changeMode(nextMode);
+    document.getElementById(`auth-${nextMode}-tab`)?.focus();
+  }
+
   async function handleDemoLogin() {
     setClientError(null);
     onClearError();
@@ -139,7 +154,7 @@ export function AuthPanel({
                   aria-controls="auth-mode-panel"
                   aria-selected={isLogin}
                   className={cn(
-                    "min-h-10 rounded-sm px-3 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+                    "min-h-11 rounded-sm px-3 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
                     isLogin
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground"
@@ -147,7 +162,9 @@ export function AuthPanel({
                   disabled={isSubmitting}
                   id="auth-login-tab"
                   onClick={() => changeMode("login")}
+                  onKeyDown={handleModeKeyDown}
                   role="tab"
+                  tabIndex={isLogin ? 0 : -1}
                   type="button"
                 >
                   Sign in
@@ -156,7 +173,7 @@ export function AuthPanel({
                   aria-controls="auth-mode-panel"
                   aria-selected={!isLogin}
                   className={cn(
-                    "min-h-10 rounded-sm px-3 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+                    "min-h-11 rounded-sm px-3 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
                     !isLogin
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground"
@@ -164,7 +181,9 @@ export function AuthPanel({
                   disabled={isSubmitting}
                   id="auth-register-tab"
                   onClick={() => changeMode("register")}
+                  onKeyDown={handleModeKeyDown}
                   role="tab"
+                  tabIndex={!isLogin ? 0 : -1}
                   type="button"
                 >
                   Create account

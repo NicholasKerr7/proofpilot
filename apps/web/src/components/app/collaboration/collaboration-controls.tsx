@@ -87,7 +87,7 @@ export function CollaborationControls({
             Invitation expiration
           </Label>
           <Select
-            className="h-10 min-h-10 w-24 text-xs"
+            className="h-11 min-h-11 w-24 text-xs"
             disabled={isUpdating}
             id="invitation-expiry"
             onChange={(event) => {

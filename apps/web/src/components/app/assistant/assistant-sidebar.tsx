@@ -108,7 +108,7 @@ export function AssistantSidebar({
           {prompts.map((prompt) => (
             <Button
               key={prompt}
-              className="h-auto min-h-10 justify-start whitespace-normal px-3 py-2 text-left font-normal"
+              className="h-auto min-h-11 justify-start whitespace-normal px-3 py-2 text-left font-normal"
               disabled={isSending}
               onClick={() => onPrompt(prompt)}
               size="sm"

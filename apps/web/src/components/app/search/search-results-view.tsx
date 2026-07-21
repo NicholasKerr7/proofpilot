@@ -1,3 +1,4 @@
+import type { KeyboardEvent } from "react";
 import { Search, SearchX, type LucideIcon } from "lucide-react";
 import {
   globalSearchResultTypes,
@@ -5,12 +6,11 @@ import {
   type GlobalSearchResult,
   type GlobalSearchResultType
 } from "@proofpilot/types";
-import {
-  searchTypeConfig
-} from "@/components/app/search/search-utils";
+import { searchTypeConfig } from "@/components/app/search/search-utils";
 import { SearchResultGroup } from "@/components/app/search/search-result-group";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { getTabKeyboardTarget } from "@/lib/tab-keyboard-navigation";
 import { cn } from "@/lib/utils";
 
 export type SearchResultTab = "ALL" | GlobalSearchResultType;
@@ -46,6 +46,22 @@ export function SearchResultsView({
     activeTab === "ALL" ? response.hasMore.length > 0 : response.hasMore.includes(activeTab);
   const visibleTotal = activeTab === "ALL" ? response.total : response.counts[activeTab];
   const availableTypes = globalSearchResultTypes.filter((type) => response.counts[type] > 0);
+  const availableTabs: readonly SearchResultTab[] = ["ALL", ...availableTypes];
+
+  function handleTabKeyDown(
+    event: KeyboardEvent<HTMLButtonElement>,
+    currentTab: SearchResultTab
+  ) {
+    const nextTab = getTabKeyboardTarget(availableTabs, currentTab, event.key);
+
+    if (!nextTab) {
+      return;
+    }
+
+    event.preventDefault();
+    onTabChange(nextTab);
+    document.getElementById(getSearchResultTabId(nextTab))?.focus();
+  }
 
   return (
     <div className="grid gap-5">
@@ -60,6 +76,7 @@ export function SearchResultsView({
           icon={Search}
           label="All results"
           onClick={() => onTabChange("ALL")}
+          onKeyDown={(event) => handleTabKeyDown(event, "ALL")}
           tab="ALL"
         />
         {availableTypes.map((type) => (
@@ -70,6 +87,7 @@ export function SearchResultsView({
             key={type}
             label={searchTypeConfig[type].pluralLabel}
             onClick={() => onTabChange(type)}
+            onKeyDown={(event) => handleTabKeyDown(event, type)}
             tab={type}
           />
         ))}
@@ -153,6 +171,7 @@ function ResultTab({
   icon: Icon,
   label,
   onClick,
+  onKeyDown,
   tab
 }: {
   active: boolean;
@@ -160,6 +179,7 @@ function ResultTab({
   icon: LucideIcon;
   label: string;
   onClick: () => void;
+  onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => void;
   tab: SearchResultTab;
 }) {
   return (
@@ -174,7 +194,9 @@ function ResultTab({
       )}
       id={getSearchResultTabId(tab)}
       onClick={onClick}
+      onKeyDown={onKeyDown}
       role="tab"
+      tabIndex={active ? 0 : -1}
       type="button"
     >
       <Icon className="h-4 w-4" aria-hidden="true" />
