@@ -324,44 +324,6 @@ textarea {
     inset 0 0 16px color-mix(in oklch, var(--primary) 3%, transparent);
 }
 
-.proof-progress-orb {
-  --proof-orb-color: var(--primary);
-  border: 1px solid color-mix(in oklch, var(--proof-orb-color) 26%, transparent);
-  border-radius: 999px;
-  background:
-    radial-gradient(
-      circle at 50% 42%,
-      color-mix(in oklch, var(--proof-orb-color) 9%, transparent) 0%,
-      transparent 58%
-    ),
-    color-mix(in oklch, var(--background) 84%, black 16%);
-  box-shadow:
-    0 0 30px color-mix(in oklch, var(--proof-orb-color) 13%, transparent),
-    inset 0 0 28px rgb(255 255 255 / 0.025),
-    inset 0 0 48px rgb(0 0 0 / 0.62);
-}
-
-.proof-progress-orb::before {
-  position: absolute;
-  inset: 20%;
-  border: 1px solid color-mix(in oklch, var(--proof-orb-color) 10%, transparent);
-  border-radius: inherit;
-  box-shadow: inset 0 0 18px rgb(0 0 0 / 0.68);
-  content: "";
-  pointer-events: none;
-}
-
-.proof-progress-orb-complete {
-  --proof-orb-color: oklch(0.78 0.17 137);
-}
-
-.proof-progress-orb-stroke {
-  color: var(--proof-orb-color);
-  filter: drop-shadow(
-    0 0 5px color-mix(in oklch, var(--proof-orb-color) 54%, transparent)
-  );
-}
-
 .light .proof-button-primary {
   box-shadow:
     0 0 0 1px color-mix(in oklch, var(--primary) 20%, transparent),

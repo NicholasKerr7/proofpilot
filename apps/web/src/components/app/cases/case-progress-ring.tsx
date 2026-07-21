@@ -1,8 +1,9 @@
+import { useId } from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import styles from "./case-progress-ring.module.css";
 
-const orbParticles = [0, 1, 2, 3, 4, 5, 6, 7, 8] as const;
+const orbParticles = Array.from({ length: 11 }, (_, index) => index);
 
 interface CaseProgressRingProps {
   className?: string;
@@ -19,6 +20,7 @@ export function CaseProgressRing({
 }: CaseProgressRingProps) {
   const safeValue = Math.min(100, Math.max(0, Math.round(value)));
   const isComplete = safeValue === 100;
+  const svgId = useId().replaceAll(":", "");
 
   return (
     <div
@@ -27,104 +29,282 @@ export function CaseProgressRing({
       aria-valuemin={0}
       aria-valuenow={safeValue}
       className={cn(
-        "proof-progress-orb relative isolate grid shrink-0 place-items-center",
-        isComplete ? "proof-progress-orb-complete" : null,
-        size === "compact"
-          ? cn(styles.compact, "h-16 w-16")
-          : "h-24 w-24 sm:h-32 sm:w-32 md:h-36 md:w-36",
+        "proof-progress-orb",
+        styles.orb,
+        isComplete ? styles.complete : styles.progress,
+        size === "compact" ? styles.compact : styles.default,
         className
       )}
       role="progressbar"
     >
+      <span className={styles.atmosphere} aria-hidden="true" />
+      <span className={styles.innerAura} aria-hidden="true" />
       <span className={styles.particles} aria-hidden="true">
         {orbParticles.map((particle) => (
           <span className={styles.particle} key={particle} />
         ))}
       </span>
-      <svg
-        className="absolute inset-0 h-full w-full -rotate-90 overflow-visible"
-        viewBox="0 0 100 100"
-        aria-hidden="true"
-      >
-        <circle
-          className="proof-progress-orb-stroke opacity-10"
-          cx="50"
-          cy="50"
-          fill="none"
-          r="45"
-          stroke="currentColor"
-          strokeWidth="1"
-        />
-        <circle
-          className="text-secondary"
-          cx="50"
-          cy="50"
-          fill="none"
-          r="40"
-          stroke="currentColor"
-          strokeWidth="9"
-        />
-        <circle
-          className="proof-progress-orb-stroke opacity-20"
-          cx="50"
-          cy="50"
-          fill="none"
-          pathLength="100"
-          r="40"
-          stroke="currentColor"
-          strokeDasharray={`${safeValue} ${100 - safeValue}`}
-          strokeLinecap="round"
-          strokeWidth="14"
-        />
-        <circle
-          className="proof-progress-orb-stroke"
-          cx="50"
-          cy="50"
-          fill="none"
-          pathLength="100"
-          r="40"
-          stroke="currentColor"
-          strokeDasharray={`${safeValue} ${100 - safeValue}`}
-          strokeLinecap="round"
-          strokeWidth="7"
-        />
-        <circle
-          className="proof-progress-orb-stroke opacity-45"
-          cx="50"
-          cy="50"
-          fill="none"
-          pathLength="100"
-          r="36"
-          stroke="currentColor"
-          strokeDasharray={`${safeValue} ${100 - safeValue}`}
-          strokeLinecap="round"
-          strokeWidth="1"
-        />
-      </svg>
-      <span className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center">
+      <span className={styles.core} aria-hidden="true" />
+      <span className={styles.coreInner} aria-hidden="true" />
+
+      {isComplete ? (
+        <CompleteOrbRings svgId={svgId} />
+      ) : (
+        <ProgressOrbRings safeValue={safeValue} svgId={svgId} />
+      )}
+
+      <span className={styles.readout}>
         {isComplete ? (
-          <Check
-            className={cn(
-              "text-lime-300 drop-shadow-[0_0_6px_rgba(132,255,55,0.28)]",
-              size === "compact" ? "mb-0.5 h-3.5 w-3.5" : "mb-1 h-4 w-4"
-            )}
-            aria-hidden="true"
-          />
+          <Check className={styles.completeCheck} strokeWidth={3} aria-hidden="true" />
         ) : null}
-        <span
-          className={cn(
-            "font-semibold tracking-normal text-foreground drop-shadow-[0_0_5px_rgba(255,255,255,0.16)]",
-            size === "compact" ? "text-base" : "text-2xl sm:text-3xl"
-          )}
-        >
-          {safeValue}%
+        <span className={styles.valueLine}>
+          <span className={styles.value}>{safeValue}</span>
+          <span className={styles.percent}>%</span>
         </span>
-        {size === "default" ? (
-          <span className="mt-1 text-[10px] font-semibold uppercase tracking-normal text-muted-foreground">
-            {label}
-          </span>
-        ) : null}
+        <span className={styles.valueLabel}>{isComplete ? "Complete" : label}</span>
       </span>
     </div>
+  );
+}
+
+function ProgressOrbRings({ safeValue, svgId }: { safeValue: number; svgId: string }) {
+  const gradientId = `progress-gradient-${svgId}`;
+  const glowId = `progress-glow-${svgId}`;
+  const highlightValue = Math.max(0, safeValue - 1.5);
+  const endpointAngle = (safeValue / 100) * Math.PI * 2;
+  const endpointX = 110 + Math.cos(endpointAngle) * 83;
+  const endpointY = 110 + Math.sin(endpointAngle) * 83;
+
+  return (
+    <svg
+      className={styles.rings}
+      viewBox="0 0 220 220"
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id={gradientId} x1="22" y1="170" x2="188" y2="28">
+          <stop offset="0%" stopColor="#ff6b00" />
+          <stop offset="52%" stopColor="#ff850e" />
+          <stop offset="100%" stopColor="#ffb13d" />
+        </linearGradient>
+        <filter id={glowId} x="-70%" y="-70%" width="240%" height="240%">
+          <feGaussianBlur stdDeviation="4.2" result="blur" />
+          <feColorMatrix
+            in="blur"
+            type="matrix"
+            values="1 0 0 0 0.95  0 0.55 0 0 0.26  0 0 0.12 0 0  0 0 0 0.82 0"
+            result="orangeBlur"
+          />
+          <feMerge>
+            <feMergeNode in="orangeBlur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      <circle
+        cx="110"
+        cy="110"
+        r="83"
+        fill="none"
+        stroke="#2b1f14"
+        strokeWidth="13"
+        strokeLinecap="round"
+        opacity="0.94"
+      />
+      <circle
+        cx="110"
+        cy="110"
+        r="96"
+        fill="none"
+        stroke="#2a1b10"
+        strokeWidth="2"
+        opacity="0.34"
+      />
+      {safeValue > 0 ? (
+        <>
+          <circle
+            cx="193"
+            cy="110"
+            r="10"
+            fill="#ff7a00"
+            opacity="0.42"
+            filter={`url(#${glowId})`}
+          />
+          <circle
+            cx={endpointX}
+            cy={endpointY}
+            r="10"
+            fill="#ff7600"
+            opacity="0.42"
+            filter={`url(#${glowId})`}
+          />
+        </>
+      ) : null}
+      <circle
+        cx="110"
+        cy="110"
+        r="83"
+        fill="none"
+        stroke="#ff6a00"
+        strokeWidth="20"
+        strokeLinecap="round"
+        pathLength="100"
+        strokeDasharray={`${safeValue} 100`}
+        opacity="0.18"
+        filter={`url(#${glowId})`}
+      />
+      <circle
+        cx="110"
+        cy="110"
+        r="83"
+        fill="none"
+        stroke={`url(#${gradientId})`}
+        strokeWidth="11"
+        strokeLinecap="round"
+        pathLength="100"
+        strokeDasharray={`${safeValue} 100`}
+        filter={`url(#${glowId})`}
+      />
+      <circle
+        cx="110"
+        cy="110"
+        r="77"
+        fill="none"
+        stroke="#ffa12a"
+        strokeWidth="2"
+        strokeLinecap="round"
+        pathLength="100"
+        strokeDasharray={`${highlightValue} 100`}
+        strokeDashoffset="0.75"
+        opacity="0.74"
+      />
+      <circle
+        cx="110"
+        cy="110"
+        r="66"
+        fill="none"
+        stroke="#05080a"
+        strokeWidth="3"
+        opacity="0.8"
+      />
+    </svg>
+  );
+}
+
+function CompleteOrbRings({ svgId }: { svgId: string }) {
+  const gradientId = `complete-gradient-${svgId}`;
+  const glowId = `complete-glow-${svgId}`;
+
+  return (
+    <svg
+      className={styles.rings}
+      viewBox="0 0 240 240"
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id={gradientId} x1="32" y1="190" x2="206" y2="38">
+          <stop offset="0%" stopColor="#6fe22e" />
+          <stop offset="48%" stopColor="#84f33b" />
+          <stop offset="100%" stopColor="#bcff63" />
+        </linearGradient>
+        <filter id={glowId} x="-70%" y="-70%" width="240%" height="240%">
+          <feGaussianBlur stdDeviation="4.5" result="blur" />
+          <feColorMatrix
+            in="blur"
+            type="matrix"
+            values="0.42 0 0 0 0.13  0 1 0 0 0.95  0 0 0.28 0 0.06  0 0 0 0.9 0"
+            result="greenGlow"
+          />
+          <feMerge>
+            <feMergeNode in="greenGlow" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      <circle
+        cx="120"
+        cy="120"
+        r="91"
+        fill="none"
+        stroke="#152514"
+        strokeWidth="14"
+        strokeLinecap="round"
+        opacity="0.95"
+      />
+      <circle
+        cx="120"
+        cy="120"
+        r="91"
+        fill="none"
+        stroke="#82f23b"
+        strokeWidth="21"
+        strokeLinecap="round"
+        opacity="0.2"
+        filter={`url(#${glowId})`}
+      />
+      <circle
+        cx="120"
+        cy="120"
+        r="91"
+        fill="none"
+        stroke={`url(#${gradientId})`}
+        strokeWidth="13"
+        strokeLinecap="round"
+        filter={`url(#${glowId})`}
+      />
+      <circle
+        cx="120"
+        cy="120"
+        r="91"
+        fill="none"
+        stroke="#162914"
+        strokeWidth="15"
+        strokeLinecap="round"
+        pathLength="100"
+        strokeDasharray="6 94"
+        strokeDashoffset="90"
+        opacity="0.85"
+      />
+      <circle
+        cx="120"
+        cy="120"
+        r="91"
+        fill="none"
+        stroke="#b8ff5a"
+        strokeWidth="13"
+        strokeLinecap="round"
+        pathLength="100"
+        strokeDasharray="3.5 96.5"
+        strokeDashoffset="88.8"
+        filter={`url(#${glowId})`}
+      />
+      <circle
+        cx="120"
+        cy="120"
+        r="84"
+        fill="none"
+        stroke="#baff63"
+        strokeWidth="2"
+        opacity="0.55"
+      />
+      <circle
+        cx="120"
+        cy="120"
+        r="72"
+        fill="none"
+        stroke="#05080a"
+        strokeWidth="3"
+        opacity="0.82"
+      />
+      <circle
+        cx="120"
+        cy="120"
+        r="103"
+        fill="none"
+        stroke="#6cff26"
+        strokeWidth="1"
+        opacity="0.13"
+      />
+    </svg>
   );
 }

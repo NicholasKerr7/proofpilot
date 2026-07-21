@@ -1,94 +1,470 @@
-.particles {
+.orb {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  overflow: visible;
+  border-radius: 999px;
+  container-type: inline-size;
+}
+
+.default {
+  width: 7rem;
+  height: 7rem;
+}
+
+.compact {
+  width: 4rem;
+  height: 4rem;
+}
+
+.progress {
+  --proof-orb-color: #ff7a00;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgb(13 24 30 / 0.98) 0%,
+    rgb(8 15 19 / 0.98) 54%,
+    rgb(2 6 9) 100%
+  );
+}
+
+.complete {
+  --proof-orb-color: #82f23b;
+  background: radial-gradient(circle at 50% 50%, #06131a 0%, #030910 62%, #010407 100%);
+}
+
+.atmosphere,
+.innerAura,
+.particles,
+.core,
+.coreInner,
+.rings,
+.readout {
   position: absolute;
-  z-index: 10;
-  inset: -2%;
-  border-radius: inherit;
   pointer-events: none;
+}
+
+.atmosphere {
+  z-index: -1;
+  border-radius: inherit;
+}
+
+.progress .atmosphere {
+  inset: -2.73%;
+  background: radial-gradient(
+    circle at 55% 48%,
+    rgb(255 111 0 / 0.16),
+    rgb(255 111 0 / 0.04) 42%,
+    transparent 66%
+  );
+  filter: blur(4.09cqi);
+}
+
+.complete .atmosphere {
+  inset: -10%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgb(120 255 49 / 0.22) 0%,
+    rgb(120 255 49 / 0.08) 38%,
+    transparent 70%
+  );
+  filter: blur(7.5cqi);
+}
+
+.innerAura {
+  border-radius: inherit;
+}
+
+.progress .innerAura {
+  inset: 0;
+  box-shadow:
+    0 0 19.09cqi rgb(255 105 0 / 0.12),
+    inset 0 0 19.09cqi rgb(255 255 255 / 0.035),
+    inset 0 0 34.55cqi rgb(0 0 0 / 0.88);
+}
+
+.complete .innerAura {
+  inset: 2.5%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgb(121 255 58 / 0.09) 0%,
+    rgb(121 255 58 / 0.03) 48%,
+    transparent 72%
+  );
+}
+
+.particles {
+  z-index: 20;
+  inset: 0;
+  border-radius: inherit;
 }
 
 .particle {
   position: absolute;
-  width: 2px;
-  height: 2px;
+  width: var(--particle-size);
+  height: var(--particle-size);
   border-radius: 999px;
-  background: color-mix(in oklch, var(--proof-orb-color) 76%, white 24%);
-  box-shadow:
-    0 0 4px 1px color-mix(in oklch, var(--proof-orb-color) 72%, transparent),
-    0 0 11px 4px color-mix(in oklch, var(--proof-orb-color) 30%, transparent);
+  background: var(--particle-color);
+  box-shadow: 0 0 var(--particle-blur) var(--particle-spread) var(--particle-glow);
 }
 
-.particle:nth-child(1) {
+.progress .particle {
+  --particle-size: 0.91cqi;
+  --particle-color: #ff9b23;
+  --particle-blur: 4.09cqi;
+  --particle-spread: 1.36cqi;
+  --particle-glow: rgb(255 120 0 / 0.32);
+}
+
+.progress .particle:nth-child(1) {
   top: 5%;
-  left: 29%;
-  transform: scale(1.25);
-  box-shadow:
-    0 0 5px 2px color-mix(in oklch, var(--proof-orb-color) 78%, transparent),
-    0 0 18px 7px color-mix(in oklch, var(--proof-orb-color) 34%, transparent);
+  left: 29.09%;
+  --particle-size: 1.82cqi;
+  --particle-color: #ff8a19;
+  --particle-blur: 5.45cqi;
+  --particle-spread: 2.27cqi;
+  --particle-glow: rgb(255 122 0 / 0.48);
 }
 
-.particle:nth-child(2) {
-  top: 5%;
-  right: 28%;
-  opacity: 0.86;
+.progress .particle:nth-child(2) {
+  top: 4.55%;
+  right: 27.73%;
+  --particle-size: 1.36cqi;
+  --particle-color: #ff9c23;
+  --particle-blur: 4.55cqi;
+  --particle-spread: 1.82cqi;
+  --particle-glow: rgb(255 122 0 / 0.42);
 }
 
-.particle:nth-child(3) {
-  top: 34%;
-  right: 12%;
-  transform: scale(0.82);
-  opacity: 0.78;
+.progress .particle:nth-child(3) {
+  top: 34.55%;
+  right: 12.73%;
+  --particle-size: 1.14cqi;
+  --particle-color: #ff9d24;
+  --particle-blur: 4.09cqi;
+  --particle-spread: 1.36cqi;
+  --particle-glow: rgb(255 122 0 / 0.34);
 }
 
-.particle:nth-child(4) {
-  bottom: 21%;
-  left: 13%;
-  transform: scale(1.3);
-  box-shadow:
-    0 0 5px 2px color-mix(in oklch, var(--proof-orb-color) 78%, transparent),
-    0 0 18px 7px color-mix(in oklch, var(--proof-orb-color) 34%, transparent);
+.progress .particle:nth-child(4) {
+  bottom: 22.27%;
+  left: 14.09%;
+  --particle-size: 1.82cqi;
+  --particle-color: #ff7a00;
+  --particle-blur: 5.91cqi;
+  --particle-spread: 2.27cqi;
+  --particle-glow: rgb(255 103 0 / 0.48);
 }
 
-.particle:nth-child(5) {
-  bottom: 15%;
-  left: 23%;
-  transform: scale(0.72);
-  opacity: 0.72;
+.progress .particle:nth-child(5) {
+  bottom: 15.91%;
+  left: 22.73%;
+  --particle-color: #ff9b23;
 }
 
-.particle:nth-child(6) {
-  top: 14%;
-  left: 39%;
-  transform: scale(0.68);
-  opacity: 0.76;
+.progress .particle:nth-child(6) {
+  top: 13.64%;
+  left: 39.09%;
+  --particle-color: #ffb347;
+  --particle-blur: 3.64cqi;
+  --particle-glow: rgb(255 150 0 / 0.35);
 }
 
-.particle:nth-child(7) {
-  top: 22%;
-  right: 20%;
-  transform: scale(0.72);
-  opacity: 0.72;
+.progress .particle:nth-child(7) {
+  top: 23.18%;
+  right: 20.45%;
+  --particle-color: #ff8a19;
+  --particle-blur: 3.64cqi;
+  --particle-glow: rgb(255 118 0 / 0.32);
 }
 
-.particle:nth-child(8) {
-  right: 16%;
-  bottom: 33%;
-  transform: scale(0.88);
-  opacity: 0.76;
+.progress .particle:nth-child(8) {
+  right: 17.27%;
+  bottom: 33.64%;
+  --particle-size: 1.14cqi;
+  --particle-blur: 4.55cqi;
+  --particle-spread: 1.82cqi;
+  --particle-glow: rgb(255 132 0 / 0.34);
 }
 
-.particle:nth-child(9) {
-  bottom: 12%;
-  left: 32%;
-  transform: scale(0.68);
-  opacity: 0.7;
+.progress .particle:nth-child(9) {
+  bottom: 12.73%;
+  left: 32.73%;
+  --particle-color: #ff7a00;
+  --particle-blur: 3.64cqi;
+  --particle-glow: rgb(255 100 0 / 0.3);
 }
 
-.compact .particle {
-  box-shadow:
-    0 0 3px 1px color-mix(in oklch, var(--proof-orb-color) 68%, transparent),
-    0 0 7px 2px color-mix(in oklch, var(--proof-orb-color) 25%, transparent);
-}
-
-.compact .particle:nth-child(even) {
+.progress .particle:nth-child(n + 10) {
   display: none;
+}
+
+.complete .particle {
+  --particle-size: 0.83cqi;
+  --particle-color: #baff6f;
+  --particle-blur: 3.33cqi;
+  --particle-spread: 1.25cqi;
+  --particle-glow: rgb(132 255 55 / 0.32);
+}
+
+.complete .particle:nth-child(1) {
+  top: 35%;
+  left: 8.75%;
+  --particle-color: #a5ff4c;
+  --particle-blur: 3.75cqi;
+  --particle-glow: rgb(119 255 42 / 0.38);
+}
+
+.complete .particle:nth-child(2) {
+  top: 22.92%;
+  left: 12.92%;
+  --particle-size: 1.25cqi;
+  --particle-color: #91ff34;
+  --particle-blur: 4.17cqi;
+  --particle-spread: 1.67cqi;
+  --particle-glow: rgb(119 255 42 / 0.48);
+}
+
+.complete .particle:nth-child(3) {
+  top: 10.83%;
+  left: 24.17%;
+}
+
+.complete .particle:nth-child(4) {
+  top: 5.42%;
+  left: 43.33%;
+  --particle-color: #8dff35;
+  --particle-glow: rgb(119 255 42 / 0.32);
+}
+
+.complete .particle:nth-child(5) {
+  top: 7.5%;
+  right: 31.67%;
+  --particle-color: #b8ff68;
+}
+
+.complete .particle:nth-child(6) {
+  top: 20.83%;
+  right: 15%;
+  --particle-size: 1.25cqi;
+  --particle-color: #9fff45;
+  --particle-blur: 4.17cqi;
+  --particle-spread: 1.67cqi;
+  --particle-glow: rgb(119 255 42 / 0.42);
+}
+
+.complete .particle:nth-child(7) {
+  top: 40%;
+  right: 8.75%;
+  --particle-color: #c5ff80;
+}
+
+.complete .particle:nth-child(8) {
+  right: 12.08%;
+  bottom: 26.67%;
+  --particle-size: 1.04cqi;
+  --particle-color: #a4ff4b;
+  --particle-blur: 4.17cqi;
+  --particle-spread: 1.67cqi;
+  --particle-glow: rgb(119 255 42 / 0.38);
+}
+
+.complete .particle:nth-child(9) {
+  right: 30%;
+  bottom: 10%;
+  --particle-color: #baff70;
+  --particle-glow: rgb(132 255 55 / 0.3);
+}
+
+.complete .particle:nth-child(10) {
+  bottom: 12.5%;
+  left: 19.17%;
+  --particle-color: #97ff3e;
+  --particle-glow: rgb(119 255 42 / 0.28);
+}
+
+.complete .particle:nth-child(11) {
+  bottom: 34.17%;
+  left: 7.92%;
+  --particle-color: #c2ff7b;
+}
+
+.core,
+.coreInner {
+  border-radius: inherit;
+}
+
+.progress .core {
+  z-index: 1;
+  inset: 16.36%;
+  background: radial-gradient(
+    circle at 50% 44%,
+    rgb(21 36 43 / 0.95) 0%,
+    rgb(9 18 23 / 0.98) 54%,
+    rgb(3 7 10) 100%
+  );
+  box-shadow:
+    inset 0 0 9.09cqi rgb(255 255 255 / 0.025),
+    inset 0 0 15.45cqi rgb(0 0 0 / 0.9),
+    0 0 8.18cqi rgb(0 0 0 / 0.8);
+}
+
+.progress .coreInner {
+  z-index: 2;
+  inset: 22.73%;
+  border: 1px solid rgb(0 0 0 / 0.7);
+  box-shadow:
+    0 0 0 1px rgb(255 115 0 / 0.04),
+    inset 0 0 10.91cqi rgb(0 0 0 / 0.78);
+}
+
+.complete .core {
+  z-index: 1;
+  inset: 17.5%;
+  background: radial-gradient(
+    circle at 50% 42%,
+    rgb(9 21 27 / 0.98) 0%,
+    rgb(4 12 17 / 0.98) 58%,
+    rgb(1 5 8) 100%
+  );
+  box-shadow:
+    inset 0 0 9.17cqi rgb(255 255 255 / 0.035),
+    inset 0 0 23.33cqi rgb(0 0 0 / 0.88),
+    0 0 10cqi rgb(0 0 0 / 0.75);
+}
+
+.complete .coreInner {
+  z-index: 2;
+  inset: 23.33%;
+  border: 1px solid rgb(0 0 0 / 0.8);
+  box-shadow:
+    0 0 0 1px rgb(130 255 54 / 0.05),
+    inset 0 0 9.17cqi rgb(0 0 0 / 0.8);
+}
+
+.rings {
+  z-index: 10;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  transform: rotate(-90deg);
+}
+
+.readout {
+  z-index: 30;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  text-align: center;
+}
+
+.progress .readout {
+  transform: translateY(1.82cqi);
+}
+
+.valueLine {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  line-height: 1;
+  filter: drop-shadow(0 0 3.18cqi rgb(255 255 255 / 0.28));
+}
+
+.value,
+.percent,
+.valueLabel {
+  letter-spacing: 0;
+}
+
+.progress .value {
+  font-size: clamp(1.3rem, 21.82cqi, 3rem);
+  font-weight: 300;
+}
+
+.progress .percent {
+  margin-bottom: 1.36cqi;
+  margin-left: 1.82cqi;
+  font-size: clamp(0.95rem, 13.18cqi, 1.8125rem);
+  font-weight: 300;
+}
+
+.complete .value {
+  font-size: clamp(1.75rem, 25cqi, 3.75rem);
+  font-weight: 600;
+}
+
+.complete .percent {
+  margin-bottom: 4.17cqi;
+  margin-left: 1.67cqi;
+  font-size: clamp(1rem, 11.67cqi, 1.75rem);
+  font-weight: 500;
+}
+
+.valueLabel {
+  text-transform: uppercase;
+}
+
+.progress .valueLabel {
+  margin-top: 3.64cqi;
+  color: #cfd3d8;
+  font-size: clamp(0.625rem, 6.82cqi, 0.9375rem);
+  font-weight: 700;
+  filter: drop-shadow(0 0 2.27cqi rgb(255 255 255 / 0.22));
+}
+
+.complete .valueLabel {
+  margin-top: 3.33cqi;
+  color: rgb(255 255 255 / 0.62);
+  font-size: clamp(0.625rem, 7.5cqi, 1.125rem);
+  font-weight: 500;
+}
+
+.completeCheck {
+  width: min(15cqi, 2.25rem);
+  height: min(15cqi, 2.25rem);
+  margin-bottom: 3.75cqi;
+  color: #91f24e;
+  filter: drop-shadow(0 0 4.17cqi rgb(131 255 61 / 0.34));
+}
+
+.compact .value {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.compact .percent {
+  margin-bottom: 0;
+  margin-left: 1px;
+  font-size: 0.7rem;
+}
+
+.compact .valueLabel,
+.compact .completeCheck {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .default {
+    width: 9rem;
+    height: 9rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .default {
+    width: 11rem;
+    height: 11rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .default {
+    width: 15rem;
+    height: 15rem;
+  }
 }
