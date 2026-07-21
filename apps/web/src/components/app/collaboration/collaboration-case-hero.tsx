@@ -48,7 +48,7 @@ export function CollaborationCaseHero({ caseRecord, onBack }: CollaborationCaseH
         </div>
       </div>
 
-      <Card className="border-primary/45">
+      <Card className="proof-accent-frame">
         <CardContent className="grid gap-5 p-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:p-6">
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-sm font-semibold uppercase text-primary">

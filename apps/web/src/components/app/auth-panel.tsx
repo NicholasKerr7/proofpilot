@@ -122,7 +122,7 @@ export function AuthPanel({
             <ApiStatus />
           </div>
 
-          <Card className="overflow-hidden bg-card/95">
+          <Card className="proof-accent-frame overflow-hidden">
             <CardHeader className="gap-5 p-5 sm:p-7 md:p-8 md:pb-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <Badge variant="secondary">Private workspace</Badge>

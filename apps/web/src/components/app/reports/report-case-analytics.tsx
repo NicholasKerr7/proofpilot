@@ -54,7 +54,7 @@ export function ReportCaseAnalytics({
 
   return (
     <div className="hidden gap-5 md:grid">
-      <Card className="border-primary/45">
+      <Card className="proof-accent-frame">
         <CardContent className="grid gap-5 p-6 md:grid-cols-[minmax(0,1.15fr)_auto_minmax(9rem,0.65fr)] md:items-center">
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-sm font-semibold uppercase text-primary">

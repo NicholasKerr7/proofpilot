@@ -37,7 +37,7 @@ export function AssistantCaseHero({
   return (
     <section
       aria-label="Current assistant case"
-      className="rounded-lg border border-primary/45 bg-card px-4 py-5 shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:px-6 md:px-7 md:py-6"
+      className="proof-accent-frame rounded-lg border px-4 py-5 sm:px-6 md:px-7 md:py-6"
     >
       <div className="md:hidden">
         <p className="text-xs font-semibold uppercase text-primary">Current case</p>
