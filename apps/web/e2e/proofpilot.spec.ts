@@ -15,6 +15,17 @@ test.describe("ProofPilot responsive workspace", () => {
     await waitForApi(page);
     await page.goto("/");
 
+    await expect(
+      page.getByRole("heading", { name: "ProofPilot Account Appeal Builder" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: "ProofPilot case workspace preview" })
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await expectTouchTargets(page, "public landing");
+    await expectAccessible(page, "public landing");
+
+    await page.getByRole("button", { exact: true, name: "Sign in" }).first().click();
     await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
     const signInTab = page.getByRole("tab", { name: "Sign in" });
     const createAccountTab = page.getByRole("tab", { name: "Create account" });
@@ -157,6 +168,66 @@ test.describe("ProofPilot responsive workspace", () => {
 
     await expectNoHorizontalOverflow(page);
     await expectAccessible(page, "reports analytics workspace");
+  });
+
+  test("demo user can capture and review a document scan", async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "mediaDevices", {
+        configurable: true,
+        value: {
+          getUserMedia: async () => {
+            throw new DOMException("No camera available in this test.", "NotFoundError");
+          }
+        }
+      });
+    });
+    await loginAsDemoUser(page);
+
+    await getPrimaryNavigation(page)
+      .getByRole("button", { name: /^Upload/ })
+      .click();
+    await expect(page.getByRole("heading", { exact: true, name: "Import evidence" })).toBeVisible();
+
+    await page
+      .getByRole("button", { name: /^(Camera scan|Scan document)/ })
+      .click();
+    const cameraHeading = page.getByRole("heading", { exact: true, name: "Scan document" });
+    await expect(cameraHeading).toBeVisible();
+    await expect(cameraHeading).toBeFocused();
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+    await expect(page.getByText("Live camera unavailable", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Capture document" })).toBeDisabled();
+
+    await page.getByLabel("Choose scan image").setInputFiles({
+      buffer: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFElEQVR4nGP4z8DAwMDAxMDAwMDAAAANHQEDasKb6QAAAABJRU5ErkJggg==",
+        "base64"
+      ),
+      mimeType: "image/png",
+      name: "account-notice.png"
+    });
+
+    const scanReviewHeading = page.getByRole("heading", { exact: true, name: "Scan review" });
+    await expect(scanReviewHeading).toBeVisible();
+    await expect(scanReviewHeading).toBeFocused();
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+    await expect(page.getByAltText("Scan preview of account-notice.png")).toBeVisible();
+    await page.getByRole("button", { name: "Rotate scan right" }).click();
+    await page.getByRole("button", { exact: true, name: "Crop" }).click();
+    await page.getByRole("button", { exact: true, name: "10%" }).click();
+    await expect(page.getByText("90 degree rotation, 10% center crop", { exact: true })).toBeVisible();
+
+    await expectNoHorizontalOverflow(page);
+    await expectTouchTargets(page, "scan review");
+    await expectAccessible(page, "scan review");
+
+    await page.getByRole("button", { exact: true, name: "Retake" }).click();
+    await expect(cameraHeading).toBeVisible();
+    await expect(cameraHeading).toBeFocused();
+    await page.getByRole("button", { name: "Back to evidence sources" }).click();
+    const sourceHeading = page.getByRole("heading", { exact: true, name: "Choose a source" });
+    await expect(sourceHeading).toBeVisible();
+    await expect(sourceHeading).toBeFocused();
   });
 
   test("demo user can add, edit, reorder, and delete a timeline event", async ({ page }) => {
@@ -318,6 +389,10 @@ test.describe("ProofPilot responsive workspace", () => {
 async function loginAsDemoUser(page: Page) {
   await waitForApi(page);
   await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "ProofPilot Account Appeal Builder" })
+  ).toBeVisible();
+  await page.getByRole("button", { exact: true, name: "Sign in" }).first().click();
   await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
   await page.getByLabel("Email address").fill(demoCredentials.email);
   await page.getByLabel("Password", { exact: true }).fill(demoCredentials.password);

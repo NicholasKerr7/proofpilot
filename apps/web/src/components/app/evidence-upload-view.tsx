@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { ArrowLeft, FolderOpen, Plus } from "lucide-react";
 import { EvidenceImportHero } from "@/components/app/evidence/evidence-import-hero";
 import { EvidencePanel } from "@/components/app/evidence/evidence-panel";
+import type { EvidenceCaptureState } from "@/components/app/evidence/evidence-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { CaseRecord } from "@/lib/client/types";
@@ -23,6 +24,7 @@ export function EvidenceUploadView({
   onViewCases,
   selectedCase
 }: EvidenceUploadViewProps) {
+  const [captureState, setCaptureState] = useState<EvidenceCaptureState>("idle");
   const selectedCaseId = selectedCase?.id ?? null;
   const handleDocumentsChanged = useCallback(async () => {
     if (selectedCaseId) {
@@ -66,36 +68,44 @@ export function EvidenceUploadView({
 
   return (
     <section aria-labelledby="upload-view-heading" className="grid gap-5">
-      <header className="order-1 flex items-start gap-3 sm:order-2">
-        <Button
-          aria-label="Back to cases"
-          className="shrink-0 sm:hidden"
-          onClick={onViewCases}
-          size="icon"
-          title="Back to cases"
-          type="button"
-          variant="ghost"
-        >
-          <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-        </Button>
-        <div>
-          <h1 id="upload-view-heading" className="text-2xl font-semibold leading-8 sm:text-3xl">
-            Import evidence
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Bring files, emails, and documents into your case.
-          </p>
+      {captureState === "idle" ? (
+        <header className="order-1 flex items-start gap-3 sm:order-2">
+          <Button
+            aria-label="Back to cases"
+            className="shrink-0 sm:hidden"
+            onClick={onViewCases}
+            size="icon"
+            title="Back to cases"
+            type="button"
+            variant="ghost"
+          >
+            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+          </Button>
+          <div>
+            <h1
+              id="upload-view-heading"
+              className="text-2xl font-semibold leading-8 sm:text-3xl"
+            >
+              Import evidence
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Bring files, emails, and documents into your case.
+            </p>
+          </div>
+        </header>
+      ) : null}
+
+      {captureState === "idle" ? (
+        <div className="order-2 sm:order-1">
+          <EvidenceImportHero caseRecord={selectedCase} />
         </div>
-      </header>
+      ) : null}
 
-      <div className="order-2 sm:order-1">
-        <EvidenceImportHero caseRecord={selectedCase} />
-      </div>
-
-      <div className="order-3">
+      <div className={captureState === "idle" ? "order-3" : "order-1"}>
         <EvidencePanel
           confirmBeforeDelete={confirmBeforeDelete}
           key={selectedCase.id}
+          onCaptureStateChange={setCaptureState}
           onDocumentsChanged={handleDocumentsChanged}
           selectedCase={selectedCase}
         />

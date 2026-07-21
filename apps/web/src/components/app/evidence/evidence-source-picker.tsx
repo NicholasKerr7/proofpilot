@@ -28,7 +28,7 @@ import { cn } from "@/lib/utils";
 
 interface EvidenceSourcePickerProps {
   onFilesSelected: (files: File[], source: EvidenceUploadSource) => void;
-  onScanSelected: (file: File) => void;
+  onScanRequested: () => void;
 }
 
 type SourceTone = "blue" | "green" | "primary" | "red" | "rose" | "violet";
@@ -44,7 +44,7 @@ const sourceToneClassNames: Record<SourceTone, string> = {
 
 export function EvidenceSourcePicker({
   onFilesSelected,
-  onScanSelected
+  onScanRequested
 }: EvidenceSourcePickerProps) {
   const [isDragging, setIsDragging] = useState(false);
 
@@ -55,15 +55,6 @@ export function EvidenceSourcePicker({
     const files = Array.from(event.target.files ?? []);
     event.target.value = "";
     onFilesSelected(files, source);
-  }
-
-  function handleScanInput(event: ChangeEvent<HTMLInputElement>) {
-    const [file] = Array.from(event.target.files ?? []);
-    event.target.value = "";
-
-    if (file) {
-      onScanSelected(file);
-    }
   }
 
   function handleDragOver(event: DragEvent<HTMLElement>) {
@@ -98,7 +89,11 @@ export function EvidenceSourcePicker({
     >
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 id="evidence-sources-heading" className="text-lg font-semibold text-foreground">
+          <h2
+            id="evidence-sources-heading"
+            className="scroll-mt-28 text-lg font-semibold text-foreground lg:scroll-mt-24"
+            tabIndex={-1}
+          >
             Choose a source
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -159,13 +154,11 @@ export function EvidenceSourcePicker({
           title="Files"
           tone="primary"
         />
-        <SourceOption
-          accept="image/png,image/jpeg"
-          capture="environment"
+        <SourceAction
           compact
           description="Capture a document"
           icon={<SourceIcon icon={Camera} />}
-          onChange={handleScanInput}
+          onClick={onScanRequested}
           title="Camera scan"
           tone="violet"
         />
@@ -199,12 +192,10 @@ export function EvidenceSourcePicker({
           title="Google Drive"
           tone="green"
         />
-        <SourceOption
-          accept="image/png,image/jpeg"
-          capture="environment"
+        <SourceAction
           description="Use your camera to capture and review a document."
           icon={<SourceIcon icon={ScanLine} />}
-          onChange={handleScanInput}
+          onClick={onScanRequested}
           title="Scan document"
           tone="violet"
         />
@@ -226,6 +217,15 @@ interface SourceOptionProps {
   icon: ReactNode;
   multiple?: boolean;
   onChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  title: string;
+  tone: SourceTone;
+}
+
+interface SourceActionProps {
+  compact?: boolean;
+  description: string;
+  icon: ReactNode;
+  onClick: () => void;
   title: string;
   tone: SourceTone;
 }
@@ -291,6 +291,61 @@ function SourceOption({
         aria-hidden="true"
       />
     </label>
+  );
+}
+
+function SourceAction({
+  compact = false,
+  description,
+  icon,
+  onClick,
+  title,
+  tone
+}: SourceActionProps) {
+  return (
+    <button
+      className={cn(
+        "group grid cursor-pointer grid-rows-[auto_1fr_auto] border border-border bg-card text-left transition-colors hover:border-primary/55 hover:bg-secondary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        compact ? "min-h-40 gap-2 rounded-md p-3" : "min-h-56 gap-4 rounded-md p-4"
+      )}
+      onClick={onClick}
+      type="button"
+    >
+      <span
+        className={cn(
+          "flex items-center justify-center rounded-md border",
+          compact ? "h-11 w-11" : "h-16 w-16",
+          sourceToneClassNames[tone]
+        )}
+      >
+        {icon}
+      </span>
+      <span className="self-end">
+        <span
+          className={cn(
+            "block break-words font-semibold text-foreground",
+            compact ? "text-xs leading-4" : "text-base"
+          )}
+        >
+          {title}
+        </span>
+        <span
+          className={cn(
+            "mt-1 block text-muted-foreground",
+            compact ? "text-[11px] leading-4" : "text-sm leading-5"
+          )}
+        >
+          {description}
+        </span>
+      </span>
+      <ArrowRight
+        className={cn(
+          "text-muted-foreground transition-colors group-hover:text-primary",
+          compact ? "h-4 w-4 justify-self-end" : "h-5 w-5"
+        )}
+        aria-hidden="true"
+      />
+    </button>
   );
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -27,6 +27,7 @@ import {
 } from "@/components/app/cases/case-utils";
 import { ChecklistPanel } from "@/components/app/checklist-panel";
 import { EvidencePanel } from "@/components/app/evidence/evidence-panel";
+import type { EvidenceCaptureState } from "@/components/app/evidence/evidence-panel";
 import { PacketExportPanel } from "@/components/app/packet-export-panel";
 import { ReminderPanel } from "@/components/app/reminder-panel";
 import { StatementBuilder } from "@/components/app/statement-builder";
@@ -58,6 +59,7 @@ export function CaseWorkspace({
   onSectionChange,
   selectedCase
 }: CaseWorkspaceProps) {
+  const [captureState, setCaptureState] = useState<EvidenceCaptureState>("idle");
   const selectedCaseId = selectedCase?.id ?? null;
   const handleDocumentsChanged = useCallback(async () => {
     if (selectedCaseId) {
@@ -85,98 +87,105 @@ export function CaseWorkspace({
 
   return (
     <div className="grid grid-cols-1 gap-5">
-      <Card id="case-overview" className="proof-accent-frame scroll-mt-28 lg:scroll-mt-24">
-        <CardContent className="grid gap-5 p-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-7 md:p-6">
-          <CaseProgressRing
-            className="order-2 justify-self-center md:justify-self-end"
-            value={readiness}
-          />
-          <div className="order-1 min-w-0">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <Button onClick={onBackToCases} size="sm" type="button" variant="ghost">
-                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                All cases
-              </Button>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button onClick={onOpenCollaboration} size="sm" type="button" variant="outline">
-                  <UsersRound className="h-4 w-4" aria-hidden="true" />
-                  Collaborators
+      <div className={cn("grid gap-5", captureState !== "idle" ? "hidden" : null)}>
+        <Card id="case-overview" className="proof-accent-frame scroll-mt-28 lg:scroll-mt-24">
+          <CardContent className="grid gap-5 p-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-7 md:p-6">
+            <CaseProgressRing
+              className="order-2 justify-self-center md:justify-self-end"
+              value={readiness}
+            />
+            <div className="order-1 min-w-0">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <Button onClick={onBackToCases} size="sm" type="button" variant="ghost">
+                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                  All cases
                 </Button>
-                <Badge>Primary case</Badge>
-                <Badge variant={getCaseStatusVariant(selectedCase.status)}>
-                  {formatCaseStatus(selectedCase.status)}
-                </Badge>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    onClick={onOpenCollaboration}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    <UsersRound className="h-4 w-4" aria-hidden="true" />
+                    Collaborators
+                  </Button>
+                  <Badge>Primary case</Badge>
+                  <Badge variant={getCaseStatusVariant(selectedCase.status)}>
+                    {formatCaseStatus(selectedCase.status)}
+                  </Badge>
+                </div>
               </div>
+              <h1 className="mt-4 break-words text-2xl font-semibold leading-9 md:text-3xl">
+                {selectedCase.title}
+              </h1>
+              <p className="mt-1 font-mono text-xs text-muted-foreground">
+                {formatCaseReference(selectedCase)}
+              </p>
+              <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                {selectedCase.summary ?? "No summary added yet."}
+              </p>
+              <dl className="mt-4 grid gap-3 border-t border-border pt-4 sm:grid-cols-3">
+                <div>
+                  <dt className="text-xs text-muted-foreground">Platform</dt>
+                  <dd className="mt-1 text-sm font-medium text-foreground">
+                    {selectedCase.platform}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Deadline</dt>
+                  <dd className="mt-1 text-sm font-medium text-foreground">
+                    {selectedCase.deadline ? formatCaseDate(selectedCase.deadline) : "Not set"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Case type</dt>
+                  <dd className="mt-1 break-words text-sm font-medium text-foreground">
+                    {selectedCase.caseType.name}
+                  </dd>
+                </div>
+              </dl>
             </div>
-            <h1 className="mt-4 break-words text-2xl font-semibold leading-9 md:text-3xl">
-              {selectedCase.title}
-            </h1>
-            <p className="mt-1 font-mono text-xs text-muted-foreground">
-              {formatCaseReference(selectedCase)}
-            </p>
-            <p className="mt-4 text-sm leading-6 text-muted-foreground">
-              {selectedCase.summary ?? "No summary added yet."}
-            </p>
-            <dl className="mt-4 grid gap-3 border-t border-border pt-4 sm:grid-cols-3">
-              <div>
-                <dt className="text-xs text-muted-foreground">Platform</dt>
-                <dd className="mt-1 text-sm font-medium text-foreground">{selectedCase.platform}</dd>
-              </div>
-              <div>
-                <dt className="text-xs text-muted-foreground">Deadline</dt>
-                <dd className="mt-1 text-sm font-medium text-foreground">
-                  {selectedCase.deadline ? formatCaseDate(selectedCase.deadline) : "Not set"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-muted-foreground">Case type</dt>
-                <dd className="mt-1 break-words text-sm font-medium text-foreground">
-                  {selectedCase.caseType.name}
-                </dd>
-              </div>
-            </dl>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      <nav
-        className="flex gap-2 overflow-x-auto rounded-lg border border-border bg-card/70 p-1 scroll-container"
-        aria-label="Case workspace sections"
-      >
-        {workspaceNavItems.map((item) => (
-          <a
-            key={item.href}
-            href={item.href}
-            onClick={() => onSectionChange(item.destinationId)}
-            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-md px-3 text-sm font-semibold text-muted-foreground hover:bg-secondary/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {item.label}
-          </a>
-        ))}
-      </nav>
+        <nav
+          className="flex gap-2 overflow-x-auto rounded-lg border border-border bg-card/70 p-1 scroll-container"
+          aria-label="Case workspace sections"
+        >
+          {workspaceNavItems.map((item) => (
+            <a
+              key={item.href}
+              href={item.href}
+              onClick={() => onSectionChange(item.destinationId)}
+              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-md px-3 text-sm font-semibold text-muted-foreground hover:bg-secondary/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {item.label}
+            </a>
+          ))}
+        </nav>
 
-      <NextActionsPanel
-        onSectionChange={onSectionChange}
-        readiness={readiness}
+        <NextActionsPanel
+          onSectionChange={onSectionChange}
+          readiness={readiness}
+          selectedCase={selectedCase}
+        />
+      </div>
+
+      <EvidencePanel
+        confirmBeforeDelete={confirmBeforeDelete}
+        onCaptureStateChange={setCaptureState}
+        onDocumentsChanged={handleDocumentsChanged}
         selectedCase={selectedCase}
       />
 
-      <div className="grid grid-cols-1 gap-5">
-        <EvidencePanel
-          confirmBeforeDelete={confirmBeforeDelete}
-          selectedCase={selectedCase}
-          onDocumentsChanged={handleDocumentsChanged}
-        />
-
+      <div className={cn("grid grid-cols-1 gap-5", captureState !== "idle" ? "hidden" : null)}>
         <TimelinePanel
           confirmBeforeDelete={confirmBeforeDelete}
           key={`timeline-${selectedCase.id}`}
           selectedCase={selectedCase}
           onCaseChanged={onCaseChanged}
         />
-      </div>
-
-      <div className="grid grid-cols-1 gap-5">
         <ChecklistPanel
           key={`checklist-${selectedCase.id}`}
           selectedCase={selectedCase}
@@ -189,9 +198,6 @@ export function CaseWorkspace({
           onNotificationsChanged={onNotificationsChanged}
           selectedCase={selectedCase}
         />
-      </div>
-
-      <div className="grid grid-cols-1 gap-5">
         <StatementBuilder onCaseChanged={onCaseChanged} selectedCase={selectedCase} />
 
         <PacketExportPanel
@@ -201,9 +207,8 @@ export function CaseWorkspace({
           readiness={readiness}
           selectedCase={selectedCase}
         />
+        <ActivityPanel key={`activity-${selectedCase.id}`} selectedCase={selectedCase} />
       </div>
-
-      <ActivityPanel key={`activity-${selectedCase.id}`} selectedCase={selectedCase} />
     </div>
   );
 }

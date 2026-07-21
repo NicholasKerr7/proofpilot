@@ -39,25 +39,27 @@ export function EvidenceImportHero({ caseRecord }: EvidenceImportHeroProps) {
         </div>
       </div>
 
-      <dl className="contents">
-        <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 border-t border-border pt-4 sm:min-h-20 sm:content-center sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
-          <CalendarDays className="mt-0.5 h-5 w-5 text-primary" aria-hidden="true" />
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 border-t border-border pt-4 sm:min-h-20 sm:content-center sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
+        <CalendarDays className="mt-0.5 h-5 w-5 text-primary" aria-hidden="true" />
+        <dl>
           <div>
             <dt className="text-xs text-muted-foreground">Deadline</dt>
             <dd className="mt-1 text-sm font-medium">
               {caseRecord.deadline ? formatCaseDate(caseRecord.deadline) : "Not set"}
             </dd>
           </div>
-        </div>
+        </dl>
+      </div>
 
-        <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 border-t border-border pt-4 sm:min-h-20 sm:content-center sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
-          <StatusIcon
-            className={cn(
-              "mt-0.5 h-5 w-5",
-              statusVariant === "success" ? "text-teal-300" : "text-primary"
-            )}
-            aria-hidden="true"
-          />
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 border-t border-border pt-4 sm:min-h-20 sm:content-center sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
+        <StatusIcon
+          className={cn(
+            "mt-0.5 h-5 w-5",
+            statusVariant === "success" ? "text-teal-300" : "text-primary"
+          )}
+          aria-hidden="true"
+        />
+        <dl>
           <div>
             <dt className="text-xs text-muted-foreground">Status</dt>
             <dd
@@ -69,8 +71,8 @@ export function EvidenceImportHero({ caseRecord }: EvidenceImportHeroProps) {
               {formatCaseStatus(caseRecord.status)}
             </dd>
           </div>
-        </div>
-      </dl>
+        </dl>
+      </div>
     </section>
   );
 }

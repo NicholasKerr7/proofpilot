@@ -2,6 +2,7 @@
 
 import { type FormEvent, type KeyboardEvent, useState } from "react";
 import {
+  ArrowLeft,
   ArrowRight,
   AtSign,
   LogIn,
@@ -23,13 +24,15 @@ import { Separator } from "@/components/ui/separator";
 import { getTabKeyboardTarget } from "@/lib/tab-keyboard-navigation";
 import { cn } from "@/lib/utils";
 
-type AuthMode = "login" | "register";
+export type AuthMode = "login" | "register";
 
 const authModes = ["login", "register"] as const satisfies readonly AuthMode[];
 
 interface AuthPanelProps {
   error: string | null;
+  initialMode?: AuthMode;
   isSubmitting: boolean;
+  onBack?: () => void;
   onClearError: () => void;
   onDemoLogin: () => Promise<void>;
   onLogin: (input: { email: string; password: string }) => Promise<void>;
@@ -38,13 +41,15 @@ interface AuthPanelProps {
 
 export function AuthPanel({
   error,
+  initialMode = "login",
   isSubmitting,
+  onBack,
   onClearError,
   onDemoLogin,
   onLogin,
   onRegister
 }: AuthPanelProps) {
-  const [mode, setMode] = useState<AuthMode>("login");
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -117,9 +122,19 @@ export function AuthPanel({
         <AuthShowcase />
 
         <section aria-labelledby="auth-heading" className="mx-auto w-full max-w-xl">
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 lg:hidden">
-            <AuthBrand />
-            <ApiStatus />
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+            <div className="lg:hidden">
+              <AuthBrand />
+            </div>
+            {onBack ? (
+              <Button onClick={onBack} type="button" variant="ghost">
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                Back to overview
+              </Button>
+            ) : null}
+            <div className="lg:hidden">
+              <ApiStatus />
+            </div>
           </div>
 
           <Card className="proof-accent-frame overflow-hidden">

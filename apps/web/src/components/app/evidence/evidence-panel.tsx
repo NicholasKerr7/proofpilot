@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { EvidenceCameraCapture } from "@/components/app/evidence/evidence-camera-capture";
 import { EvidenceRecentImports } from "@/components/app/evidence/evidence-recent-imports";
 import { EvidenceReviewWorkspace } from "@/components/app/evidence/evidence-review-workspace";
 import { EvidenceScanReview } from "@/components/app/evidence/evidence-scan-review";
@@ -33,7 +34,10 @@ interface EvidencePanelProps {
   confirmBeforeDelete: boolean;
   selectedCase: CaseRecord;
   onDocumentsChanged: () => Promise<void>;
+  onCaptureStateChange: (state: EvidenceCaptureState) => void;
 }
+
+export type EvidenceCaptureState = "idle" | "camera" | "review";
 
 type Notice = {
   tone: "success" | "error" | "info";
@@ -67,7 +71,8 @@ function analyzeCaseTimeline(caseId: string) {
 export function EvidencePanel({
   confirmBeforeDelete,
   selectedCase,
-  onDocumentsChanged
+  onDocumentsChanged,
+  onCaptureStateChange
 }: EvidencePanelProps) {
   const [documents, setDocuments] = useState<EvidenceDocument[]>([]);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
@@ -76,6 +81,7 @@ export function EvidencePanel({
   const [uploadQueue, setUploadQueue] = useState<EvidenceUploadQueueItem[]>([]);
   const [activeUploadId, setActiveUploadId] = useState<string | null>(null);
   const [scanFile, setScanFile] = useState<File | null>(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -176,6 +182,8 @@ export function EvidencePanel({
       setSelectedDocumentId(null);
       setUploadQueue([]);
       setScanFile(null);
+      setIsCameraOpen(false);
+      onCaptureStateChange("idle");
 
       try {
         const nextDocuments = await apiRequest<EvidenceDocument[]>(
@@ -208,7 +216,7 @@ export function EvidencePanel({
     return () => {
       isMounted = false;
     };
-  }, [selectedCase.id]);
+  }, [onCaptureStateChange, selectedCase.id]);
 
   useEffect(() => {
     let isMounted = true;
@@ -609,6 +617,24 @@ export function EvidencePanel({
 
     setNotice(null);
     setScanFile(file);
+    setIsCameraOpen(false);
+    onCaptureStateChange("review");
+    focusEvidenceSurface("scan-review-heading", "page");
+  }
+
+  function openCamera() {
+    setNotice(null);
+    setScanFile(null);
+    setIsCameraOpen(true);
+    onCaptureStateChange("camera");
+    focusEvidenceSurface("camera-capture-heading", "page");
+  }
+
+  function closeCapture() {
+    setScanFile(null);
+    setIsCameraOpen(false);
+    onCaptureStateChange("idle");
+    focusEvidenceSurface("evidence-sources-heading", "element");
   }
 
   function handleRetryUpload(itemId: string) {
@@ -725,24 +751,41 @@ export function EvidencePanel({
     (document) => document.status === "FAILED" || document.status === "NEEDS_REVIEW"
   ).length;
 
+  if (isCameraOpen) {
+    return (
+      <div id="evidence-intake" className="scroll-mt-28 lg:scroll-mt-24">
+        <EvidenceCameraCapture
+          caseRecord={selectedCase}
+          onCancel={closeCapture}
+          onCapture={handleScanSelected}
+        />
+      </div>
+    );
+  }
+
+  if (scanFile) {
+    return (
+      <div id="evidence-intake" className="scroll-mt-28 lg:scroll-mt-24">
+        <EvidenceScanReview
+          caseRecord={selectedCase}
+          file={scanFile}
+          onCancel={closeCapture}
+          onConfirm={(preparedFile) => {
+            enqueueFiles([preparedFile], "camera");
+            closeCapture();
+          }}
+          onRetake={openCamera}
+        />
+      </div>
+    );
+  }
+
   return (
     <div id="evidence-intake" className="grid scroll-mt-28 gap-5 lg:scroll-mt-24">
       <EvidenceSourcePicker
         onFilesSelected={enqueueFiles}
-        onScanSelected={handleScanSelected}
+        onScanRequested={openCamera}
       />
-
-      {scanFile ? (
-        <EvidenceScanReview
-          file={scanFile}
-          onCancel={() => setScanFile(null)}
-          onConfirm={() => {
-            enqueueFiles([scanFile], "camera");
-            setScanFile(null);
-          }}
-          onReplace={handleScanSelected}
-        />
-      ) : null}
 
       <EvidenceUploadQueue
         activeUploadId={activeUploadId}
@@ -851,4 +894,20 @@ function getEvidenceScrollBehavior(): ScrollBehavior {
     document.documentElement.dataset.reduceMotion === "true"
     ? "auto"
     : "smooth";
+}
+
+function focusEvidenceSurface(elementId: string, scrollTarget: "element" | "page") {
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      const target = document.getElementById(elementId);
+
+      if (scrollTarget === "page") {
+        window.scrollTo({ behavior: "auto", left: 0, top: 0 });
+      } else {
+        target?.scrollIntoView({ behavior: "auto", block: "start" });
+      }
+
+      target?.focus({ preventScroll: true });
+    });
+  });
 }

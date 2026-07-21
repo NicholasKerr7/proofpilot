@@ -14,6 +14,7 @@ import {
 import { AppShell, type AppView } from "@/components/app/app-shell";
 import { AssistantPanel } from "@/components/app/assistant/assistant-panel";
 import { AuthPanel } from "@/components/app/auth-panel";
+import type { AuthMode } from "@/components/app/auth-panel";
 import { BillingPanel } from "@/components/app/billing/billing-panel";
 import { CaseDashboard } from "@/components/app/case-dashboard";
 import { CaseCollaborationPanel } from "@/components/app/collaboration/case-collaboration-panel";
@@ -29,6 +30,7 @@ import { MoreMenu } from "@/components/app/more-menu";
 import { NotificationCenter } from "@/components/app/notification-center";
 import { getSupportRequestIdFromNotification } from "@/components/app/notifications/notification-utils";
 import { PacketSharePanel } from "@/components/app/packet-sharing/packet-share-panel";
+import { PublicLanding } from "@/components/app/public/public-landing";
 import { ReportsPanel } from "@/components/app/reports/reports-panel";
 import { SearchPanel } from "@/components/app/search/search-panel";
 import { SecurityPrivacyPanel } from "@/components/app/security/security-privacy-panel";
@@ -55,6 +57,8 @@ const fallbackCaseTypes: CaseType[] = [
 
 export function ProofPilotApp() {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [publicView, setPublicView] = useState<"landing" | "auth">("landing");
+  const [publicAuthMode, setPublicAuthMode] = useState<AuthMode>("login");
   const [cases, setCases] = useState<CaseRecord[]>([]);
   const [caseTypes, setCaseTypes] = useState<CaseType[]>(fallbackCaseTypes);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
@@ -252,6 +256,7 @@ export function ProofPilotApp() {
     setActiveView("home");
     setActiveCaseDestinationId("case-overview");
     setUnreadNotificationCount(0);
+    setPublicView("landing");
   }
 
   async function handleCreateCase(payload: CreateCasePayload) {
@@ -445,10 +450,29 @@ export function ProofPilotApp() {
   }
 
   if (!user) {
+    if (publicView === "landing") {
+      return (
+        <PublicLanding
+          onSelectAuth={(mode) => {
+            setPublicAuthMode(mode);
+            setPublicView("auth");
+            scrollToPageTop();
+          }}
+        />
+      );
+    }
+
     return (
       <AuthPanel
         error={message}
+        initialMode={publicAuthMode}
         isSubmitting={isSubmitting}
+        key={publicAuthMode}
+        onBack={() => {
+          setMessage(null);
+          setPublicView("landing");
+          scrollToPageTop();
+        }}
         onClearError={() => setMessage(null)}
         onDemoLogin={() => authenticate("/api/auth/demo", {})}
         onLogin={(input) => authenticate("/api/auth/login", input)}
