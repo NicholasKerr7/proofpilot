@@ -6,6 +6,8 @@ ProofPilot runs as three production services:
 - `apps/api`: NestJS API, container target `api`.
 - `apps/worker`: BullMQ document processor, packet generator, and reminder scheduler, container target `worker`.
 
+The provider-specific staging topology, Railway service configs, variable references, cost gate, and deployment order are documented in [staging-deployment.md](staging-deployment.md).
+
 ## Required Runtime Services
 
 - PostgreSQL
