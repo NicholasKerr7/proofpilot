@@ -139,6 +139,8 @@ Billing summaries and usage are scoped to the authenticated user. Invoice downlo
 - `GET /reports/summary`
 - `GET /reports/export`
 
+Report summaries include open cases, uploaded evidence, missing required checklist items, future deadlines, generated packets, and failed document-processing totals. Packet totals count only `READY` or `DOWNLOADED` packets; generating and failed attempts are excluded. Every report query is limited to non-archived cases owned by the authenticated user.
+
 ## Support
 
 - `GET /support/requests`

@@ -1,4 +1,10 @@
-import { ChecklistStatus, Prisma } from "@proofpilot/database";
+import {
+  CaseStatus,
+  ChecklistStatus,
+  DocumentStatus,
+  PacketStatus,
+  Prisma
+} from "@proofpilot/database";
 import type {
   ReportCaseSummary,
   ReportEvidenceBreakdownItem,
@@ -23,7 +29,8 @@ export const reportCaseSelect = {
   documents: {
     select: {
       byteSize: true,
-      mimeType: true
+      mimeType: true,
+      status: true
     }
   },
   checklist: {
@@ -35,7 +42,13 @@ export const reportCaseSelect = {
     select: {
       events: true,
       statements: true,
-      packets: true
+      packets: {
+        where: {
+          status: {
+            in: [PacketStatus.READY, PacketStatus.DOWNLOADED]
+          }
+        }
+      }
     }
   }
 } satisfies Prisma.CaseSelect;
@@ -44,7 +57,8 @@ export type ReportCaseRecord = Prisma.CaseGetPayload<{ select: typeof reportCase
 
 export function buildReportSummary(
   cases: ReportCaseRecord[],
-  caseId: string | null
+  caseId: string | null,
+  now = new Date()
 ): ReportSummary {
   const caseSummaries = cases.map(toReportCaseSummary);
   const totalChecklistItems = sum(caseSummaries, (caseRecord) => caseRecord.checklistCount);
@@ -60,22 +74,43 @@ export function buildReportSummary(
   }
 
   return {
-    generatedAt: new Date().toISOString(),
+    generatedAt: now.toISOString(),
     scope: {
       caseId,
       label: caseId ? caseSummaries[0]?.title ?? "Selected case" : "All cases"
     },
     metrics: {
       totalCases: caseSummaries.length,
-      activeCases: caseSummaries.filter((caseRecord) => caseRecord.status !== "RESOLVED").length,
+      activeCases: caseSummaries.filter((caseRecord) => caseRecord.status !== CaseStatus.RESOLVED)
+        .length,
+      upcomingDeadlines: caseSummaries.filter(
+        (caseRecord) =>
+          caseRecord.deadline !== null &&
+          caseRecord.status !== CaseStatus.RESOLVED &&
+          new Date(caseRecord.deadline).getTime() >= now.getTime()
+      ).length,
       averageReadiness: caseSummaries.length
         ? Math.round(totalReadiness / caseSummaries.length)
         : 0,
       totalDocuments: sum(caseSummaries, (caseRecord) => caseRecord.documentCount),
+      failedDocuments: sum(
+        cases,
+        (caseRecord) =>
+          caseRecord.documents.filter((document) => document.status === DocumentStatus.FAILED).length
+      ),
       totalEvidenceBytes: sum(caseSummaries, (caseRecord) => caseRecord.evidenceByteSize),
       totalEvents: sum(caseSummaries, (caseRecord) => caseRecord.eventCount),
       totalChecklistItems,
       completedChecklistItems,
+      missingChecklistItems: sum(
+        cases,
+        (caseRecord) =>
+          caseRecord.checklist.filter(
+            (item) =>
+              !completedChecklistStatuses.has(item.status) &&
+              item.status !== ChecklistStatus.OPTIONAL
+          ).length
+      ),
       totalStatements: sum(caseSummaries, (caseRecord) => caseRecord.statementCount),
       totalPackets: sum(caseSummaries, (caseRecord) => caseRecord.packetCount)
     },

@@ -365,8 +365,8 @@ function getCaseMetrics(caseRecord: CaseRecord) {
     {
       icon: CheckCircle2,
       iconClassName: "text-teal-300",
-      label: "Checklist ready",
-      value: String(getCompletedChecklistCount(caseRecord))
+      label: "Processed",
+      value: String(caseRecord.documentStats?.processed ?? 0)
     },
     {
       icon: TriangleAlert,

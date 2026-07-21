@@ -1,6 +1,11 @@
 import { BadRequestException, NotFoundException } from "@nestjs/common";
-import { CaseStatus, ChecklistStatus } from "@proofpilot/database";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  CaseStatus,
+  ChecklistStatus,
+  DocumentStatus,
+  PacketStatus
+} from "@proofpilot/database";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service.js";
 import { ReportsService } from "./reports.service.js";
 
@@ -38,6 +43,7 @@ interface ReportCaseFixture {
   documents: Array<{
     byteSize: number;
     mimeType: string;
+    status: DocumentStatus;
   }>;
   checklist: Array<{
     status: ChecklistStatus;
@@ -67,8 +73,8 @@ function baseReportCase(): ReportCaseFixture {
     createdAt,
     updatedAt,
     documents: [
-      { byteSize: 1000, mimeType: "application/pdf" },
-      { byteSize: 500, mimeType: "text/csv" }
+      { byteSize: 1000, mimeType: "application/pdf", status: DocumentStatus.PROCESSED },
+      { byteSize: 500, mimeType: "text/csv", status: DocumentStatus.FAILED }
     ],
     checklist: [
       { status: ChecklistStatus.COMPLETE },
@@ -87,8 +93,14 @@ describe("ReportsService", () => {
   let service: ReportsService;
 
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-20T12:00:00.000Z"));
     prisma = createPrismaMock();
     service = createService(prisma);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("builds current analytics from owned cases", async () => {
@@ -98,9 +110,11 @@ describe("ReportsService", () => {
         id: "case-2",
         title: "Marketplace suspension",
         platform: "eBay",
-        status: CaseStatus.COLLECTING_EVIDENCE,
+        status: CaseStatus.RESOLVED,
         summary: null,
-        documents: [{ byteSize: 2000, mimeType: "image/png" }],
+        documents: [
+          { byteSize: 2000, mimeType: "image/png", status: DocumentStatus.PROCESSING }
+        ],
         checklist: [{ status: ChecklistStatus.FOUND }],
         _count: { events: 1, statements: 0, packets: 0 }
       })
@@ -114,18 +128,40 @@ describe("ReportsService", () => {
         archivedAt: null
       },
       orderBy: { updatedAt: "desc" },
-      select: expect.any(Object)
+      select: expect.objectContaining({
+        documents: {
+          select: {
+            byteSize: true,
+            mimeType: true,
+            status: true
+          }
+        },
+        _count: {
+          select: expect.objectContaining({
+            packets: {
+              where: {
+                status: {
+                  in: [PacketStatus.READY, PacketStatus.DOWNLOADED]
+                }
+              }
+            }
+          })
+        }
+      })
     });
     expect(result.scope).toEqual({ caseId: null, label: "All cases" });
     expect(result.metrics).toEqual({
       totalCases: 2,
-      activeCases: 2,
+      activeCases: 1,
+      upcomingDeadlines: 1,
       averageReadiness: 55,
       totalDocuments: 3,
+      failedDocuments: 1,
       totalEvidenceBytes: 3500,
       totalEvents: 4,
       totalChecklistItems: 3,
       completedChecklistItems: 2,
+      missingChecklistItems: 1,
       totalStatements: 1,
       totalPackets: 1
     });

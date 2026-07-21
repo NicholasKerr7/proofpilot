@@ -40,6 +40,7 @@ test.describe("ProofPilot responsive workspace", () => {
     const homeButton = primaryNavigation.getByRole("button", { exact: true, name: "Home" });
     await expect(homeButton).toHaveAttribute("aria-current", "page");
     await expectNavigationTargets(primaryNavigation);
+    await expect(page.getByText("Processed", { exact: true }).first()).toBeVisible();
 
     await page.getByRole("button", { name: "Open account menu" }).click();
     const accountDetails = page.getByRole("region", { name: "Account details" });
@@ -60,6 +61,33 @@ test.describe("ProofPilot responsive workspace", () => {
     await homeButton.click();
     await expect(homeButton).toHaveAttribute("aria-current", "page");
     await expectAccessible(page, "signed-in home workspace");
+
+    await navigateToReports(page);
+    await expect(page.getByRole("heading", { name: "Reports & analytics" })).toBeVisible();
+
+    if ((page.viewportSize()?.width ?? 0) < 768) {
+      for (const metric of [
+        "Open cases",
+        "Evidence uploaded",
+        "Missing evidence",
+        "Upcoming deadlines",
+        "Packets generated",
+        "Failed processing"
+      ]) {
+        await expect(page.getByText(metric, { exact: true }).last()).toBeVisible();
+      }
+    } else {
+      await expect(
+        page.getByRole("heading", {
+          exact: true,
+          level: 2,
+          name: "Completion overview"
+        })
+      ).toBeVisible();
+    }
+
+    await expectNoHorizontalOverflow(page);
+    await expectAccessible(page, "reports analytics workspace");
   });
 
   test("demo user can add, edit, reorder, and delete a timeline event", async ({ page }) => {
@@ -245,6 +273,22 @@ function getPrimaryNavigation(page: Page) {
   return page.getByRole("navigation", {
     name: viewportWidth >= 1024 ? "Primary" : "Primary mobile"
   });
+}
+
+async function navigateToReports(page: Page) {
+  const primaryNavigation = getPrimaryNavigation(page);
+  const reportsButton = primaryNavigation.getByRole("button", {
+    exact: true,
+    name: "Reports"
+  });
+
+  if (await reportsButton.isVisible().catch(() => false)) {
+    await reportsButton.click();
+    return;
+  }
+
+  await primaryNavigation.getByRole("button", { exact: true, name: "More" }).click();
+  await page.getByRole("button", { name: /^Reports/ }).click();
 }
 
 async function expectNavigationTargets(navigation: Locator) {

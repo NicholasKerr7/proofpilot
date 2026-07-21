@@ -22,6 +22,11 @@ export interface CaseRecord {
   createdAt: string;
   updatedAt: string;
   caseType: CaseType;
+  documentStats?: {
+    failed: number;
+    processed: number;
+    total: number;
+  };
   checklist?: ChecklistItem[];
   events?: CaseEvent[];
   _count?: {

@@ -2,10 +2,12 @@
 
 import {
   ArrowRight,
+  CalendarDays,
   CheckCircle2,
   Clock3,
   FileArchive,
   FileText,
+  FileWarning,
   FolderOpen,
   ListChecks,
   TriangleAlert,
@@ -59,26 +61,42 @@ export function ReportAnalytics({ onExport, onOpenCase, summary }: ReportAnalyti
         />
       ) : null}
 
-      <div className="aggregate-report-section grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="aggregate-report-section grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <ReportMetric
           icon={FolderOpen}
-          label="Cases"
-          value={String(summary.metrics.totalCases)}
-        />
-        <ReportMetric
-          icon={CheckCircle2}
-          label="Average readiness"
-          value={`${summary.metrics.averageReadiness}%`}
+          iconClassName="text-primary"
+          label="Open cases"
+          value={String(summary.metrics.activeCases)}
         />
         <ReportMetric
           icon={FileText}
-          label="Evidence files"
+          iconClassName="text-sky-300"
+          label="Evidence uploaded"
           value={String(summary.metrics.totalDocuments)}
         />
         <ReportMetric
+          icon={TriangleAlert}
+          iconClassName="text-amber-200"
+          label="Missing evidence"
+          value={String(summary.metrics.missingChecklistItems)}
+        />
+        <ReportMetric
+          icon={CalendarDays}
+          iconClassName="text-violet-300"
+          label="Upcoming deadlines"
+          value={String(summary.metrics.upcomingDeadlines)}
+        />
+        <ReportMetric
           icon={FileArchive}
-          label="Packets"
+          iconClassName="text-teal-300"
+          label="Packets generated"
           value={String(summary.metrics.totalPackets)}
+        />
+        <ReportMetric
+          icon={FileWarning}
+          iconClassName={summary.metrics.failedDocuments ? "text-red-300" : "text-muted-foreground"}
+          label="Failed processing"
+          value={String(summary.metrics.failedDocuments)}
         />
       </div>
 
@@ -226,11 +244,21 @@ export function ReportAnalytics({ onExport, onOpenCase, summary }: ReportAnalyti
   );
 }
 
-function ReportMetric({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
+function ReportMetric({
+  icon: Icon,
+  iconClassName,
+  label,
+  value
+}: {
+  icon: LucideIcon;
+  iconClassName: string;
+  label: string;
+  value: string;
+}) {
   return (
     <Card>
       <CardContent className="grid min-h-32 content-between gap-3 p-4">
-        <Icon className="h-5 w-5 text-primary" aria-hidden="true" />
+        <Icon className={`h-5 w-5 ${iconClassName}`} aria-hidden="true" />
         <div>
           <p className="text-2xl font-semibold">{value}</p>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">{label}</p>
@@ -287,11 +315,39 @@ function getReportInsights(summary: ReportSummary) {
     ];
   }
 
-  const openChecklistItems =
-    summary.metrics.totalChecklistItems - summary.metrics.completedChecklistItems;
+  const openChecklistItems = summary.metrics.missingChecklistItems;
   const noEvidenceCases = summary.cases.filter((caseRecord) => !caseRecord.documentCount).length;
+  const operationalInsights: Array<{
+    detail: string;
+    icon: LucideIcon;
+    iconClassName: string;
+    title: string;
+  }> = [];
+
+  if (summary.metrics.failedDocuments) {
+    operationalInsights.push({
+      title: `${summary.metrics.failedDocuments} failed evidence ${
+        summary.metrics.failedDocuments === 1 ? "file needs" : "files need"
+      } review`,
+      detail: "Review processing details and retry supported files before packet generation.",
+      icon: FileWarning,
+      iconClassName: "text-red-300"
+    });
+  }
+
+  if (summary.metrics.upcomingDeadlines) {
+    operationalInsights.push({
+      title: `${summary.metrics.upcomingDeadlines} upcoming ${
+        summary.metrics.upcomingDeadlines === 1 ? "deadline" : "deadlines"
+      }`,
+      detail: "Prioritize evidence and final review for active cases with scheduled deadlines.",
+      icon: CalendarDays,
+      iconClassName: "text-violet-300"
+    });
+  }
 
   return [
+    ...operationalInsights,
     {
       title:
         summary.metrics.averageReadiness >= 80
@@ -307,7 +363,9 @@ function getReportInsights(summary: ReportSummary) {
       title: openChecklistItems
         ? `${openChecklistItems} checklist ${openChecklistItems === 1 ? "item" : "items"} remain open`
         : "Checklist coverage is complete",
-      detail: `${summary.metrics.completedChecklistItems} of ${summary.metrics.totalChecklistItems} requirements are complete or found.`,
+      detail: openChecklistItems
+        ? "Review missing or uncertain requirements before generating the next packet."
+        : "Every required checklist item is complete or matched to evidence.",
       icon: openChecklistItems ? TriangleAlert : ListChecks,
       iconClassName: openChecklistItems ? "text-amber-300" : "text-teal-300"
     },
@@ -319,5 +377,5 @@ function getReportInsights(summary: ReportSummary) {
       icon: UploadCloud,
       iconClassName: noEvidenceCases ? "text-amber-300" : "text-teal-300"
     }
-  ];
+  ].slice(0, 4);
 }

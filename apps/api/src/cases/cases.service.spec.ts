@@ -1,5 +1,5 @@
 import { BadRequestException, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
-import { CaseStatus, ChecklistStatus, PacketStatus } from "@proofpilot/database";
+import { CaseStatus, ChecklistStatus, DocumentStatus, PacketStatus } from "@proofpilot/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service.js";
 import type { PacketGenerationQueueService } from "../queue/packet-generation-queue.service.js";
@@ -175,6 +175,57 @@ describe("CasesService", () => {
     });
   });
 
+  it("returns owned case document status totals without exposing document rows", async () => {
+    prisma.case.findFirst.mockResolvedValue({
+      id: caseId,
+      title: "PayPal appeal",
+      documents: [
+        { status: DocumentStatus.PROCESSED },
+        { status: DocumentStatus.PROCESSED },
+        { status: DocumentStatus.FAILED },
+        { status: DocumentStatus.PROCESSING }
+      ],
+      checklist: [],
+      events: [],
+      caseType: { id: "case-type-1" },
+      _count: {
+        documents: 4,
+        events: 0,
+        checklist: 0,
+        statements: 0,
+        packets: 0
+      }
+    });
+
+    const result = await service.get(ownerId, caseId);
+
+    expect(prisma.case.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: caseId,
+          ownerId,
+          archivedAt: null
+        },
+        include: expect.objectContaining({
+          documents: {
+            select: { status: true }
+          }
+        })
+      })
+    );
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: caseId,
+        documentStats: {
+          failed: 1,
+          processed: 2,
+          total: 4
+        }
+      })
+    );
+    expect(result).not.toHaveProperty("documents");
+  });
+
   it("notifies the owner when an enabled case status changes", async () => {
     prisma.case.findFirst.mockResolvedValue({
       id: caseId,
@@ -240,7 +291,7 @@ describe("CasesService", () => {
   });
 
   it("manually completes an owned checklist item and refreshes case readiness", async () => {
-    const caseRecord = { id: caseId, checklist: [] };
+    const caseRecord = { id: caseId, checklist: [], documents: [] };
     prisma.caseChecklistItem.findFirst.mockResolvedValue({
       id: "item-1",
       label: "Support conversation",
@@ -281,7 +332,15 @@ describe("CasesService", () => {
       caseId,
       ownerId
     });
-    expect(result).toEqual(caseRecord);
+    expect(result).toEqual({
+      id: caseId,
+      checklist: [],
+      documentStats: {
+        failed: 0,
+        processed: 0,
+        total: 0
+      }
+    });
   });
 
   it("reopens an optional checklist item without making it required", async () => {
@@ -290,7 +349,7 @@ describe("CasesService", () => {
       label: "Additional context",
       requirement: { required: false }
     });
-    prisma.case.findFirst.mockResolvedValue({ id: caseId, checklist: [] });
+    prisma.case.findFirst.mockResolvedValue({ id: caseId, checklist: [], documents: [] });
 
     await service.updateChecklistItem(ownerId, caseId, "item-1", {
       completed: false
@@ -969,7 +1028,7 @@ describe("CasesService", () => {
   it("removes stale analyzed events when timeline analysis has no current documents", async () => {
     prisma.case.findFirst
       .mockResolvedValueOnce({ id: caseId, documents: [] })
-      .mockResolvedValueOnce({ id: caseId });
+      .mockResolvedValueOnce({ id: caseId, documents: [] });
     prisma.caseEvent.deleteMany.mockResolvedValue({ count: 2 });
     prisma.caseEvent.findMany.mockResolvedValue([]);
 

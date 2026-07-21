@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, BarChart3, Download, RefreshCcw } from "lucide-react";
 import type { ReportSummary } from "@proofpilot/types";
 import { ReportAnalytics } from "@/components/app/reports/report-analytics";
+import { ReportAnalyticsSkeleton } from "@/components/app/reports/report-analytics-skeleton";
 import { ReportExportForm } from "@/components/app/reports/report-export-form";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { apiRequest } from "@/lib/client/api";
@@ -188,11 +188,7 @@ export function ReportsPanel({ cases, onOpenCase }: ReportsPanelProps) {
       ) : null}
 
       {isLoading && mode === "analytics" ? (
-        <Card>
-          <CardContent className="grid min-h-64 place-items-center p-6 text-sm text-muted-foreground">
-            Loading report data...
-          </CardContent>
-        </Card>
+        <ReportAnalyticsSkeleton />
       ) : mode === "analytics" && summary ? (
         <ReportAnalytics
           onExport={openExport}

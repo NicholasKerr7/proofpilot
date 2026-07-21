@@ -57,8 +57,9 @@ export function getCaseNextActions(caseRecord: CaseRecord): CaseNextAction[] {
   const eventCount = caseRecord.events?.length ?? caseRecord._count?.events ?? 0;
   const missingChecklistItems = getMissingChecklistCount(caseRecord);
   const hasStatement = Boolean(caseRecord.summary || caseRecord._count?.statements);
+  const failedDocuments = caseRecord.documentStats?.failed ?? 0;
 
-  return [
+  const actions: CaseNextAction[] = [
     {
       destinationId: "evidence-intake",
       detail: "Upload notices, support threads, statements, and account ownership proof.",
@@ -96,6 +97,18 @@ export function getCaseNextActions(caseRecord: CaseRecord): CaseNextAction[] {
       wide: true
     }
   ];
+
+  if (failedDocuments) {
+    actions.unshift({
+      destinationId: "evidence-intake",
+      detail: "Open failed evidence files, review processing details, and retry when ready.",
+      label: "Review failed processing",
+      status: `${failedDocuments} failed`,
+      variant: "warning"
+    });
+  }
+
+  return actions;
 }
 
 export function formatCaseStatus(status: string) {

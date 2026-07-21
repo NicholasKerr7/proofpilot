@@ -189,6 +189,11 @@ export class CasesService {
       },
       include: {
         caseType: true,
+        documents: {
+          select: {
+            status: true
+          }
+        },
         checklist: this.getChecklistSelect(),
         events: this.getTimelineSelect(),
         _count: {
@@ -207,7 +212,17 @@ export class CasesService {
       throw new NotFoundException("Case not found.");
     }
 
-    return foundCase;
+    const { documents, ...caseRecord } = foundCase;
+
+    return {
+      ...caseRecord,
+      documentStats: {
+        failed: documents.filter((document) => document.status === DocumentStatus.FAILED).length,
+        processed: documents.filter((document) => document.status === DocumentStatus.PROCESSED)
+          .length,
+        total: documents.length
+      }
+    };
   }
 
   async listActivity(

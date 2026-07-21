@@ -13,12 +13,15 @@ export type ReportEvidenceCategory = "images" | "documents" | "emails" | "data" 
 export interface ReportMetrics {
   totalCases: number;
   activeCases: number;
+  upcomingDeadlines: number;
   averageReadiness: number;
   totalDocuments: number;
+  failedDocuments: number;
   totalEvidenceBytes: number;
   totalEvents: number;
   totalChecklistItems: number;
   completedChecklistItems: number;
+  missingChecklistItems: number;
   totalStatements: number;
   totalPackets: number;
 }
