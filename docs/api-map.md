@@ -7,6 +7,8 @@
 
 All database-backed route parameters and resource-ID fields in request bodies or queries must be 1 to 128 characters and contain only letters, numbers, underscores, or hyphens. Malformed identifiers return `400` before a database or storage lookup; well-formed identifiers still pass through the endpoint's authenticated ownership checks.
 
+User-authored names, case fields, timeline text, statements, guidance, reminder messages, packet comments, support messages, search text, and uploaded filenames are treated as plain text. The API removes markup and unsafe invisible characters before validating the sanitized value. Passwords, tokens, email addresses, IDs, enums, MIME types, and dates are validated by their dedicated rules and are not passed through the content sanitizer.
+
 ## Auth
 
 - `POST /auth/register`

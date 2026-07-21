@@ -130,7 +130,15 @@ test.describe("ProofPilot responsive workspace", () => {
 
     const editEditor = eventRow.locator("#timeline-event-editor");
     await editEditor.getByLabel("Event", { exact: true }).fill(updatedTitle);
-    await editEditor.getByRole("button", { exact: true, name: "Save event" }).click();
+    const saveEventButton = editEditor.getByRole("button", {
+      exact: true,
+      name: "Save event"
+    });
+    await saveEventButton.evaluate((element) => {
+      element.scrollIntoView({ block: "center", inline: "nearest" });
+    });
+    await expect(saveEventButton).toBeInViewport();
+    await saveEventButton.click();
 
     await expect(timeline.getByText(updatedTitle, { exact: true })).toBeVisible();
     eventRow = timeline.getByRole("listitem").filter({ hasText: updatedTitle });

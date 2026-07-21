@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { sanitizeUserText } from "./text.js";
 
 export const assistantMessageRoles = ["USER", "ASSISTANT"] as const;
 export const assistantResponseModes = ["GUIDED", "MODEL"] as const;
@@ -12,7 +13,10 @@ export const assistantActionDestinations = [
 ] as const;
 
 export const createAssistantMessageSchema = z.object({
-  content: z.string().trim().min(2).max(2000)
+  content: z
+    .string()
+    .transform((value) => sanitizeUserText(value))
+    .pipe(z.string().min(2).max(2000))
 });
 
 export type AssistantMessageRole = (typeof assistantMessageRoles)[number];

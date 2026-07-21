@@ -11,6 +11,7 @@ import {
   MinLength
 } from "class-validator";
 import { resourceIdPattern } from "../../common/validation/resource-id.js";
+import { SanitizedText } from "../../common/validation/sanitized-text.js";
 
 export class CreateTimelineEventDto {
   @ApiProperty({ example: "2026-07-02T12:00:00.000Z" })
@@ -18,6 +19,7 @@ export class CreateTimelineEventDto {
   occurredAt!: string;
 
   @ApiProperty({ example: "Account closure notice received" })
+  @SanitizedText({ singleLine: true })
   @IsString()
   @MinLength(3)
   @MaxLength(160)
@@ -28,6 +30,7 @@ export class CreateTimelineEventDto {
     nullable: true
   })
   @IsOptional()
+  @SanitizedText()
   @IsString()
   @MaxLength(2000)
   description?: string | null;

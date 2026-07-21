@@ -90,6 +90,10 @@ The command loads `.env` and `.env.local`, uses the same `STORAGE_*` variables a
 
 The API's global validation pipe strips no unknown input silently: it rejects non-whitelisted fields and transforms only declared DTO values. Database-backed route parameters and resource IDs in queries, bodies, and ID arrays use the same bounded character rule. Malformed identifiers return `400` before ownership-aware database or private-storage lookups; a syntactically valid identifier never bypasses the authenticated owner filter.
 
+Persisted user-authored content is plain text. DTO transforms normalize Unicode and line endings, remove markup, control characters, and bidirectional overrides, then run field length and nonblank validation against the sanitized value. Keep frontend output in React text nodes; web lint rejects `dangerouslySetInnerHTML`. Preserve context-specific defenses when adding an output format: CSV cells must remain formula-neutralized and PDF text must pass through the renderer's supported-character normalization.
+
+Text extracted from uploaded evidence is intentionally preserved as source material. Never render extracted text as raw HTML, interpolate it into SQL, shell commands, or storage keys, or send it to a third-party model without the explicit provider controls described above.
+
 ## Upload Security
 
 Evidence uploads are limited to PDF, PNG, JPG, JPEG, TXT, DOCX, EML, CSV, and XLSX files under 25 MB. The API validates the requested upload metadata before issuing a signed URL and validates the stored object size and content type before queueing document processing.

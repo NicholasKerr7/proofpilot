@@ -7,6 +7,7 @@ import {
   MaxLength,
   MinLength
 } from "class-validator";
+import { SanitizedText } from "../../common/validation/sanitized-text.js";
 
 export class CreateReminderDto {
   @ApiProperty({ example: "2026-07-20T12:00:00.000Z" })
@@ -15,6 +16,7 @@ export class CreateReminderDto {
 
   @ApiPropertyOptional({ example: "Review the appeal packet before the platform deadline." })
   @IsOptional()
+  @SanitizedText()
   @IsString()
   @Matches(/\S/)
   @MinLength(1)

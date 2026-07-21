@@ -1,4 +1,10 @@
 import { z } from "zod";
+import { sanitizeUserText } from "./text.js";
+
+const singleLineUserText = z
+  .string()
+  .transform((value) => sanitizeUserText(value, { singleLine: true }));
+const multilineUserText = z.string().transform((value) => sanitizeUserText(value));
 
 export const caseStatuses = [
   "DRAFT",
@@ -37,23 +43,23 @@ export const checklistStatuses = [
 ] as const;
 
 export const createCaseSchema = z.object({
-  title: z.string().min(3).max(160),
-  platform: z.string().min(2).max(80),
-  summary: z.string().max(2000).optional(),
+  title: singleLineUserText.pipe(z.string().min(3).max(160)),
+  platform: singleLineUserText.pipe(z.string().min(2).max(80)),
+  summary: multilineUserText.pipe(z.string().max(2000)).optional(),
   deadline: z.coerce.date().optional(),
   caseTypeSlug: z.string().min(2).max(80).default("account-ban-appeal")
 });
 
 export const updateCaseSchema = z.object({
-  title: z.string().min(3).max(160).optional(),
-  platform: z.string().min(2).max(80).optional(),
-  summary: z.string().max(2000).nullable().optional(),
+  title: singleLineUserText.pipe(z.string().min(3).max(160)).optional(),
+  platform: singleLineUserText.pipe(z.string().min(2).max(80)).optional(),
+  summary: multilineUserText.pipe(z.string().max(2000)).nullable().optional(),
   deadline: z.coerce.date().nullable().optional(),
   status: z.enum(caseStatuses).optional()
 });
 
 export const saveStatementSchema = z.object({
-  content: z.string().trim().min(1).max(12000)
+  content: multilineUserText.pipe(z.string().min(1).max(12000))
 });
 
 export const statementGuidanceFields = [
@@ -67,19 +73,19 @@ export const statementGuidanceFields = [
 ] as const;
 
 export const saveStatementGuidanceSchema = z.object({
-  platformAction: z.string().trim().max(500),
-  actionDate: z.string().trim().max(160),
-  reasonGiven: z.string().trim().max(2000),
-  accountUse: z.string().trim().max(2000),
-  supportContact: z.string().trim().max(2000),
-  requestedOutcome: z.string().trim().max(1200),
-  supportingDocuments: z.string().trim().max(2000)
+  platformAction: multilineUserText.pipe(z.string().max(500)),
+  actionDate: singleLineUserText.pipe(z.string().max(160)),
+  reasonGiven: multilineUserText.pipe(z.string().max(2000)),
+  accountUse: multilineUserText.pipe(z.string().max(2000)),
+  supportContact: multilineUserText.pipe(z.string().max(2000)),
+  requestedOutcome: multilineUserText.pipe(z.string().max(1200)),
+  supportingDocuments: multilineUserText.pipe(z.string().max(2000))
 });
 
 export const createTimelineEventSchema = z.object({
   occurredAt: z.coerce.date(),
-  title: z.string().trim().min(3).max(160),
-  description: z.string().trim().max(2000).optional()
+  title: singleLineUserText.pipe(z.string().min(3).max(160)),
+  description: multilineUserText.pipe(z.string().max(2000)).optional()
 });
 
 export type CaseStatus = (typeof caseStatuses)[number];

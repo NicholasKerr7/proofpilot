@@ -1,14 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsDateString, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
+import { SanitizedText } from "../../common/validation/sanitized-text.js";
 
 export class CreateCaseDto {
   @ApiProperty({ example: "PayPal account closure appeal" })
+  @SanitizedText({ singleLine: true })
   @IsString()
   @MinLength(3)
   @MaxLength(160)
   title!: string;
 
   @ApiProperty({ example: "PayPal" })
+  @SanitizedText({ singleLine: true })
   @IsString()
   @MinLength(2)
   @MaxLength(80)
@@ -18,6 +21,7 @@ export class CreateCaseDto {
     example: "Account was closed after a payment review and I need to submit evidence."
   })
   @IsOptional()
+  @SanitizedText()
   @IsString()
   @MaxLength(2000)
   summary?: string;

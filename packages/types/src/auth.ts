@@ -1,8 +1,13 @@
 import { z } from "zod";
+import { sanitizeUserText } from "./text.js";
 
 export const registerSchema = z.object({
   email: z.string().email(),
-  name: z.string().min(1).max(120).optional(),
+  name: z
+    .string()
+    .transform((value) => sanitizeUserText(value, { singleLine: true }))
+    .pipe(z.string().min(1).max(120))
+    .optional(),
   password: z.string().min(8).max(120)
 });
 

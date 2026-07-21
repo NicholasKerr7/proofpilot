@@ -1,7 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { Transform } from "class-transformer";
 import { IsString, Matches, MaxLength, MinLength } from "class-validator";
 import type { CreateAssistantMessageInput } from "@proofpilot/types";
+import { SanitizedText } from "../../common/validation/sanitized-text.js";
 
 export class CreateAssistantMessageDto implements CreateAssistantMessageInput {
   @ApiProperty({
@@ -9,7 +9,7 @@ export class CreateAssistantMessageDto implements CreateAssistantMessageInput {
     maxLength: 2000,
     minLength: 2
   })
-  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  @SanitizedText()
   @IsString()
   @Matches(/\S/)
   @MinLength(2)

@@ -1,3 +1,5 @@
+import { sanitizeUserText } from "@proofpilot/types";
+
 interface TimelineEvidenceDocument {
   id: string;
   originalName: string;
@@ -211,10 +213,10 @@ function createDescription(originalName: string, dateValue: string, context: str
   const trimmedContext = context.length > 220 ? `${context.slice(0, 220).trim()}...` : context;
 
   if (!trimmedContext) {
-    return `Detected ${dateValue} in ${originalName}.`;
+    return sanitizeUserText(`Detected ${dateValue} in ${originalName}.`);
   }
 
-  return `Detected ${dateValue} in ${originalName}: ${trimmedContext}`;
+  return sanitizeUserText(`Detected ${dateValue} in ${originalName}: ${trimmedContext}`);
 }
 
 function includesAny(value: string, candidates: string[]) {

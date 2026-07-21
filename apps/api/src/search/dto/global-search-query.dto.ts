@@ -20,6 +20,7 @@ import {
   type GlobalSearchStatusFilter
 } from "@proofpilot/types";
 import { resourceIdPattern } from "../../common/validation/resource-id.js";
+import { SanitizedText } from "../../common/validation/sanitized-text.js";
 
 const searchDatePattern = /^\d{4}-\d{2}-\d{2}$/;
 const searchTypesPattern = new RegExp(
@@ -29,6 +30,7 @@ const searchTypesPattern = new RegExp(
 export class GlobalSearchQueryDto {
   @ApiPropertyOptional({ example: "PayPal" })
   @IsOptional()
+  @SanitizedText({ singleLine: true })
   @IsString()
   @MaxLength(160)
   q?: string;

@@ -31,6 +31,8 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 - Demo billing records keep display-only card metadata: brand, last four digits, and expiry. Full card numbers, security codes, and provider payment tokens are not stored.
 - All request DTOs are validated with Nest validation pipes.
 - Database-backed route, query, body, and array identifiers share one bounded resource-ID rule before ownership-aware service lookups.
+- Persisted user-authored plain text is normalized at the DTO boundary. Markup, unsafe element content, control characters, and bidirectional override characters are removed before length validation and persistence.
+- The web app renders stored content through escaped React text nodes and lint rejects raw HTML rendering. CSV exports separately neutralize spreadsheet formulas, and packet generation applies PDF-safe text normalization.
 - Passwords are hashed with bcryptjs.
 - API auth uses JWT bearer tokens for the MVP foundation.
 - Password changes update a dedicated `passwordChangedAt` timestamp.
@@ -42,6 +44,8 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 - Collaboration management resolves every case through the authenticated owner ID. Audit metadata records collaborator IDs, roles, and changed setting names without storing invited email addresses.
 - Packet-share creation and revocation resolve the ready export through the authenticated case owner. Audit metadata stores share IDs, recipient counts, permissions, and expiry without storing raw tokens or recipient addresses.
 - Statement guidance, version restore, and summary generation resolve the active case through the authenticated owner. Audit metadata stores record IDs, answer counts, and source counts without duplicating answers, drafts, or summary text.
+
+Extracted document text is source evidence rather than user-authored application metadata, so processing preserves it for review and search. It is still rendered only through escaped text contexts and normalized before PDF drawing; it is never inserted as executable HTML.
 
 ## Notification Delivery
 

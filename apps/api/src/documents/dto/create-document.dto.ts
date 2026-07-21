@@ -1,10 +1,23 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { evidenceMaxUploadByteSize } from "@proofpilot/types/evidence";
-import { IsInt, IsMimeType, IsString, Max, MaxLength, Min } from "class-validator";
+import {
+  IsInt,
+  IsMimeType,
+  IsString,
+  Matches,
+  Max,
+  MaxLength,
+  Min,
+  MinLength
+} from "class-validator";
+import { SanitizedText } from "../../common/validation/sanitized-text.js";
 
 export class CreateDocumentDto {
   @ApiProperty({ example: "closure-notice.png" })
+  @SanitizedText({ singleLine: true })
   @IsString()
+  @Matches(/\S/)
+  @MinLength(1)
   @MaxLength(240)
   originalName!: string;
 

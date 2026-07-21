@@ -14,6 +14,7 @@ import {
   type SupportRequestPriority
 } from "@proofpilot/types";
 import { resourceIdPattern } from "../../common/validation/resource-id.js";
+import { SanitizedText } from "../../common/validation/sanitized-text.js";
 
 export class CreateSupportRequestDto {
   @ApiPropertyOptional({ description: "An active case owned by the current user." })
@@ -29,6 +30,7 @@ export class CreateSupportRequestDto {
   category!: SupportRequestCategory;
 
   @ApiProperty({ example: "Help reviewing missing evidence" })
+  @SanitizedText({ singleLine: true })
   @IsString()
   @Matches(/\S/)
   @MinLength(5)
@@ -36,6 +38,7 @@ export class CreateSupportRequestDto {
   subject!: string;
 
   @ApiProperty({ example: "I need help understanding which ownership document is missing." })
+  @SanitizedText()
   @IsString()
   @Matches(/\S/)
   @MinLength(20)

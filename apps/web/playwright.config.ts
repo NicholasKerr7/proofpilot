@@ -26,6 +26,7 @@ export default defineConfig({
       name: "tablet-chromium",
       use: {
         ...devices["Desktop Chrome HiDPI"],
+        contextOptions: { reducedMotion: "reduce" },
         hasTouch: true,
         viewport: { height: 1024, width: 768 }
       }

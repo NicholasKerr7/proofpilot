@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
+import { SanitizedText } from "../../common/validation/sanitized-text.js";
 
 export class RegisterDto {
   @ApiProperty({ example: "owner@example.com" })
@@ -8,6 +9,7 @@ export class RegisterDto {
 
   @ApiPropertyOptional({ example: "Case Owner" })
   @IsOptional()
+  @SanitizedText({ singleLine: true })
   @IsString()
   @MinLength(1)
   @MaxLength(120)
