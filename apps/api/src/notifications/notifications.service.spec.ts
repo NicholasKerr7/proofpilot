@@ -213,36 +213,18 @@ describe("NotificationsService", () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it("excludes completed reminders from both due selection and atomic delivery", async () => {
-    const dueReminder = {
-      id: reminderId,
-      message: "Review the appeal packet.",
-      remindAt: new Date("2026-07-10T14:00:00.000Z"),
-      case: {
-        id: caseId,
-        platform: "PayPal",
-        title: "PayPal appeal"
-      }
-    };
-    prisma.reminder.findMany.mockResolvedValue([dueReminder]);
+  it("lists owned notifications without mutating reminder delivery state", async () => {
+    prisma.notification.findMany.mockResolvedValue([]);
 
-    await service.list(ownerId);
+    await expect(service.list(ownerId)).resolves.toEqual([]);
 
-    expect(prisma.reminder.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          sentAt: null,
-          completedAt: null
-        })
-      })
-    );
-    expect(prisma.transactionClient.reminder.updateMany).toHaveBeenCalledWith({
-      where: {
-        id: reminderId,
-        sentAt: null,
-        completedAt: null
-      },
-      data: { sentAt: expect.any(Date) }
+    expect(prisma.notification.findMany).toHaveBeenCalledWith({
+      where: { userId: ownerId },
+      orderBy: { createdAt: "desc" },
+      select: expect.any(Object),
+      take: 50
     });
+    expect(prisma.reminder.findMany).not.toHaveBeenCalled();
+    expect(prisma.transactionClient.reminder.updateMany).not.toHaveBeenCalled();
   });
 });

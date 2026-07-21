@@ -12,6 +12,7 @@ The response contains one entry each for:
 
 - `document-processing`
 - `packet-generation`
+- `reminder-delivery`
 
 Each queue reports BullMQ counts for `waiting`, `active`, `delayed`, `completed`, `failed`, `paused`, `prioritized`, and `waiting-children`. The aggregate status is `degraded` when any queue is paused, has retained failed jobs, or cannot be read from Redis.
 
@@ -27,6 +28,17 @@ If packet generation stays in `GENERATING`:
 6. Run `pnpm smoke:packet` after the API and worker are restarted.
 
 If document processing stalls, follow the same checks for `document-processing`, then inspect the document processing logs in the document detail API response.
+
+## Reminder Queue Runbook
+
+The worker registers `deliver-due-reminders-every-minute` as an idempotent BullMQ scheduler. If a due reminder remains unsent for more than two minutes:
+
+1. Check `GET /health/queues` and confirm `reminder-delivery` is not paused and has no retained failures.
+2. Confirm the worker logs `ProofPilot worker is listening on reminder-delivery.`
+3. Confirm the API and worker use the same `REDIS_URL` and `DATABASE_URL` targets.
+4. Inspect worker failures for the `deliver_due_reminders` job.
+5. Confirm the reminder is incomplete, its case is not archived, and its `remindAt` timestamp is in the past.
+6. Check the owner's in-app and deadline-reminder preferences. Suppressed reminders are marked sent and audited without creating an alert.
 
 ## Upload Security Runbook
 

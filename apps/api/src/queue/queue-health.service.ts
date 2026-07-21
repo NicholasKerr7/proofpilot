@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { DocumentProcessingQueueService } from "./document-processing-queue.service.js";
 import { PacketGenerationQueueService } from "./packet-generation-queue.service.js";
 import type { QueueHealthSnapshot } from "./queue-health-snapshot.js";
+import { ReminderDeliveryQueueService } from "./reminder-delivery-queue.service.js";
 
 export interface QueueHealthResult {
   queues: (QueueHealthSnapshot | QueueHealthUnavailableSnapshot)[];
@@ -19,7 +20,8 @@ interface QueueHealthUnavailableSnapshot {
 export class QueueHealthService {
   constructor(
     private readonly documentProcessingQueue: DocumentProcessingQueueService,
-    private readonly packetGenerationQueue: PacketGenerationQueueService
+    private readonly packetGenerationQueue: PacketGenerationQueueService,
+    private readonly reminderDeliveryQueue: ReminderDeliveryQueueService
   ) {}
 
   async getHealth(): Promise<QueueHealthResult> {
@@ -27,7 +29,8 @@ export class QueueHealthService {
       this.getQueueHealth("document-processing", () =>
         this.documentProcessingQueue.getHealthSnapshot()
       ),
-      this.getQueueHealth("packet-generation", () => this.packetGenerationQueue.getHealthSnapshot())
+      this.getQueueHealth("packet-generation", () => this.packetGenerationQueue.getHealthSnapshot()),
+      this.getQueueHealth("reminder-delivery", () => this.reminderDeliveryQueue.getHealthSnapshot())
     ]);
 
     return {

@@ -90,7 +90,11 @@ function basePacketRecord() {
       updatedAt: timestamp,
       owner: {
         email: "nicholas.kerr@proofpilot.test",
-        name: "Nicholas Kerr"
+        name: "Nicholas Kerr",
+        preference: {
+          inAppNotifications: true,
+          notifyPacketReady: true
+        }
       },
       caseType: {
         name: "Account Ban / Appeal Builder"
@@ -305,6 +309,33 @@ describe("packet generation worker processor", () => {
         })
       ]
     });
+  });
+
+  it("does not create a packet alert when packet notifications are disabled", async () => {
+    const prisma = createPrismaMock();
+    const packet = createPacketRecord();
+    packet.case.owner.preference.notifyPacketReady = false;
+    prisma.casePacket.findFirst.mockResolvedValue(packet);
+    mocks.generateCasePacketPdf.mockResolvedValue({
+      bytes: Buffer.from("proofpilot-pdf"),
+      includedDocumentCount: 0,
+      indexedDocumentCount: 0,
+      pageCount: 6
+    });
+    mocks.writeStoredObjectBytes.mockResolvedValue(undefined);
+
+    const generateCasePacket = await loadGenerateCasePacket(prisma);
+
+    await expect(generateCasePacket(createJob())).resolves.toEqual({
+      packetId,
+      status: "READY"
+    });
+    expect(prisma.notification.create).not.toHaveBeenCalled();
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ action: "case.packet_generated" })
+      })
+    );
   });
 
   it("stops a stored evidence stream when its recorded size is stale", async () => {

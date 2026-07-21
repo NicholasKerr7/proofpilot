@@ -1,4 +1,4 @@
-import { Worker } from "bullmq";
+import { Queue, Worker } from "bullmq";
 import { getWorkerEnv } from "./config/env.js";
 import {
   documentProcessingQueueName,
@@ -9,10 +9,15 @@ import {
   type GeneratePacketJobData
 } from "./queues/packet-generation.queue.js";
 import {
+  reminderDeliveryQueueName,
+  type DeliverRemindersJobData
+} from "./queues/reminder-delivery.queue.js";
+import {
   processUploadedDocument,
   shutdownDocumentProcessor
 } from "./processors/document-processing.processor.js";
 import { generateCasePacket } from "./processors/packet-generation.processor.js";
+import { deliverDueReminders } from "./processors/reminder-delivery.processor.js";
 
 const env = getWorkerEnv();
 const redisUrl = new URL(env.REDIS_URL);
@@ -60,11 +65,45 @@ const packetWorker = new Worker<GeneratePacketJobData>(
   { connection }
 );
 
+const reminderQueue = new Queue<DeliverRemindersJobData>(reminderDeliveryQueueName, {
+  connection
+});
+const reminderWorker = new Worker<DeliverRemindersJobData>(
+  reminderDeliveryQueueName,
+  async (job) => {
+    if (job.name === "deliver_due_reminders") {
+      return deliverDueReminders(job);
+    }
+
+    throw new Error(`Unsupported job name: ${job.name}`);
+  },
+  { connection }
+);
+
+await reminderQueue.upsertJobScheduler(
+  "deliver-due-reminders-every-minute",
+  { every: 60_000 },
+  {
+    name: "deliver_due_reminders",
+    data: {},
+    opts: {
+      removeOnComplete: 100,
+      removeOnFail: 100
+    }
+  }
+);
+
 attachWorkerLogging(documentWorker, documentProcessingQueueName);
 attachWorkerLogging(packetWorker, packetGenerationQueueName);
+attachWorkerLogging(reminderWorker, reminderDeliveryQueueName);
 
 process.on("SIGTERM", async () => {
-  await Promise.all([documentWorker.close(), packetWorker.close()]);
+  await Promise.all([
+    documentWorker.close(),
+    packetWorker.close(),
+    reminderWorker.close(),
+    reminderQueue.close()
+  ]);
   await shutdownDocumentProcessor();
 });
 

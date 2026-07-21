@@ -3,15 +3,11 @@ import { PrismaService } from "../prisma/prisma.service.js";
 import type { CreateReminderDto } from "./dto/create-reminder.dto.js";
 import type { UpdateReminderDto } from "./dto/update-reminder.dto.js";
 
-const maxDueRemindersPerRequest = 25;
-
 @Injectable()
 export class NotificationsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async list(ownerId: string) {
-    await this.materializeDueReminders(ownerId);
-
     return this.prisma.notification.findMany({
       where: { userId: ownerId },
       orderBy: { createdAt: "desc" },
@@ -253,75 +249,6 @@ export class NotificationsService {
 
     if (!foundCase) {
       throw new NotFoundException("Case not found.");
-    }
-  }
-
-  private async materializeDueReminders(ownerId: string) {
-    const dueReminders = await this.prisma.reminder.findMany({
-      where: {
-        sentAt: null,
-        completedAt: null,
-        remindAt: {
-          lte: new Date()
-        },
-        case: {
-          ownerId,
-          archivedAt: null
-        }
-      },
-      orderBy: { remindAt: "asc" },
-      select: {
-        id: true,
-        message: true,
-        remindAt: true,
-        case: {
-          select: {
-            id: true,
-            platform: true,
-            title: true
-          }
-        }
-      },
-      take: maxDueRemindersPerRequest
-    });
-
-    for (const reminder of dueReminders) {
-      await this.prisma.$transaction(async (tx) => {
-        const updated = await tx.reminder.updateMany({
-          where: {
-            id: reminder.id,
-            sentAt: null,
-            completedAt: null
-          },
-          data: { sentAt: new Date() }
-        });
-
-        if (!updated.count) {
-          return;
-        }
-
-        await tx.notification.create({
-          data: {
-            userId: ownerId,
-            caseId: reminder.case.id,
-            type: "deadline_reminder",
-            title: `Reminder: ${reminder.case.title}`,
-            body: reminder.message
-          }
-        });
-
-        await tx.auditLog.create({
-          data: {
-            userId: ownerId,
-            caseId: reminder.case.id,
-            action: "case.reminder_sent",
-            metadata: {
-              reminderId: reminder.id,
-              remindAt: reminder.remindAt.toISOString()
-            }
-          }
-        });
-      });
     }
   }
 

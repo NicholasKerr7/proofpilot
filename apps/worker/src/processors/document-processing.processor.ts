@@ -61,7 +61,17 @@ export async function processUploadedDocument(job: Job<ProcessDocumentJobData>) 
           id: true,
           ownerId: true,
           platform: true,
-          title: true
+          title: true,
+          owner: {
+            select: {
+              preference: {
+                select: {
+                  inAppNotifications: true,
+                  notifyEvidenceProcessing: true
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -186,6 +196,10 @@ export async function processUploadedDocument(job: Job<ProcessDocumentJobData>) 
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Document processing failed.";
+    const preference = document.case.owner.preference;
+    const shouldNotify =
+      preference?.inAppNotifications !== false &&
+      preference?.notifyEvidenceProcessing !== false;
 
     await prisma.$transaction([
       prisma.document.update({
@@ -200,15 +214,19 @@ export async function processUploadedDocument(job: Job<ProcessDocumentJobData>) 
           message
         }
       }),
-      prisma.notification.create({
-        data: {
-          userId: document.case.ownerId,
-          caseId: document.case.id,
-          type: "processing_failed",
-          title: "Evidence processing failed",
-          body: `${document.originalName} needs review for ${document.case.title}. ${truncateMessage(message)}`
-        }
-      }),
+      ...(shouldNotify
+        ? [
+            prisma.notification.create({
+              data: {
+                userId: document.case.ownerId,
+                caseId: document.case.id,
+                type: "processing_failed",
+                title: "Evidence processing failed",
+                body: `${document.originalName} needs review for ${document.case.title}. ${truncateMessage(message)}`
+              }
+            })
+          ]
+        : []),
       prisma.auditLog.create({
         data: {
           userId: document.case.ownerId,

@@ -1,5 +1,5 @@
 import { BadRequestException, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
-import { ChecklistStatus, PacketStatus } from "@proofpilot/database";
+import { CaseStatus, ChecklistStatus, PacketStatus } from "@proofpilot/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service.js";
 import type { PacketGenerationQueueService } from "../queue/packet-generation-queue.service.js";
@@ -99,6 +99,9 @@ function createPrismaMock() {
     document: {
       findMany: vi.fn()
     },
+    notification: {
+      create: vi.fn().mockResolvedValue({})
+    },
     caseStatement: {
       create: vi.fn(),
       findFirst: vi.fn(),
@@ -170,6 +173,70 @@ describe("CasesService", () => {
       missingCount: 0,
       status: "READY_FOR_REVIEW"
     });
+  });
+
+  it("notifies the owner when an enabled case status changes", async () => {
+    prisma.case.findFirst.mockResolvedValue({
+      id: caseId,
+      status: CaseStatus.DRAFT,
+      owner: {
+        preference: {
+          inAppNotifications: true,
+          notifyCaseUpdates: true
+        }
+      }
+    });
+    prisma.case.update.mockResolvedValue({
+      id: caseId,
+      title: "PayPal appeal",
+      status: CaseStatus.COLLECTING_EVIDENCE,
+      caseType: { id: "case-type-1" }
+    });
+
+    const result = await service.update(ownerId, caseId, {
+      status: CaseStatus.COLLECTING_EVIDENCE
+    });
+
+    expect(prisma.notification.create).toHaveBeenCalledWith({
+      data: {
+        userId: ownerId,
+        caseId,
+        type: "case_status_updated",
+        title: "Case status updated",
+        body: "PayPal appeal is now collecting evidence."
+      }
+    });
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: caseId,
+        status: CaseStatus.COLLECTING_EVIDENCE
+      })
+    );
+  });
+
+  it("does not create a case status alert when case notifications are disabled", async () => {
+    prisma.case.findFirst.mockResolvedValue({
+      id: caseId,
+      status: CaseStatus.DRAFT,
+      owner: {
+        preference: {
+          inAppNotifications: true,
+          notifyCaseUpdates: false
+        }
+      }
+    });
+    prisma.case.update.mockResolvedValue({
+      id: caseId,
+      title: "PayPal appeal",
+      status: CaseStatus.COLLECTING_EVIDENCE,
+      caseType: { id: "case-type-1" }
+    });
+
+    await service.update(ownerId, caseId, {
+      status: CaseStatus.COLLECTING_EVIDENCE
+    });
+
+    expect(prisma.notification.create).not.toHaveBeenCalled();
   });
 
   it("manually completes an owned checklist item and refreshes case readiness", async () => {

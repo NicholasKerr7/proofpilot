@@ -6,7 +6,7 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 
 - `apps/web`: Next.js App Router frontend.
 - `apps/api`: NestJS REST API with Swagger documentation.
-- `apps/worker`: BullMQ worker for document processing and packet generation jobs.
+- `apps/worker`: BullMQ worker for document processing, packet generation, and scheduled reminder delivery.
 
 ## Packages
 
@@ -17,7 +17,7 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 ## Local Services
 
 - PostgreSQL stores users, cases, assistant threads and messages, audit logs, connection metadata, billing metadata, evidence metadata, timelines, checklist data, statements, packet exports, packet shares, notifications, and jobs.
-- Redis backs BullMQ queues.
+- Redis backs document processing, packet generation, and reminder delivery BullMQ queues.
 - MinIO provides a local S3-compatible private storage target.
 - ClamAV can scan private uploads through an opt-in local security profile or a private production service.
 
@@ -41,6 +41,12 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 - Collaboration management resolves every case through the authenticated owner ID. Audit metadata records collaborator IDs, roles, and changed setting names without storing invited email addresses.
 - Packet-share creation and revocation resolve the ready export through the authenticated case owner. Audit metadata stores share IDs, recipient counts, permissions, and expiry without storing raw tokens or recipient addresses.
 - Statement guidance, version restore, and summary generation resolve the active case through the authenticated owner. Audit metadata stores record IDs, answer counts, and source counts without duplicating answers, drafts, or summary text.
+
+## Notification Delivery
+
+The worker registers one idempotent BullMQ scheduler for `reminder-delivery`. Each run claims due, incomplete reminders with an atomic `sentAt IS NULL` update before creating an in-app notification, which prevents duplicate alerts across worker instances. Archived cases are excluded. The notifications API only reads notification records and does not trigger delivery as a side effect.
+
+Reminder, case-status, evidence-processing, and packet-result producers read the owner's current in-app category preferences before creating an alert. A suppressed reminder is still claimed and audited so re-enabling a preference does not unexpectedly replay an old prompt.
 
 ## Packet Sharing Foundation
 

@@ -73,4 +73,4 @@ The first product slice is Account Ban / Appeal Builder:
 7. Draft a professional statement.
 8. Generate a downloadable PDF packet.
 
-This first commit establishes Sprint 0 infrastructure and starts Sprint 1 with auth and case APIs.
+The local MVP now covers the owned case flow from authentication and evidence processing through checklist, timeline, statement, packet export, reminders, and in-app notifications. Production-only provider integrations and hardening work remain documented in the [project docs](docs/).

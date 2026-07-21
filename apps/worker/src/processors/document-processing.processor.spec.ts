@@ -36,6 +36,12 @@ function createPrismaMock() {
     documentEntity: {
       createMany: vi.fn().mockResolvedValue({ count: 0 }),
       deleteMany: vi.fn().mockResolvedValue({ count: 0 })
+    },
+    auditLog: {
+      create: vi.fn().mockResolvedValue({})
+    },
+    notification: {
+      create: vi.fn().mockResolvedValue({})
     }
   };
 
@@ -164,6 +170,30 @@ describe("document processing worker", () => {
       }
     });
   });
+
+  it("records processing failure without an alert when evidence notifications are disabled", async () => {
+    const prisma = createPrismaMock();
+    const document = createDocument();
+    document.case.owner.preference.notifyEvidenceProcessing = false;
+    prisma.document.findUnique.mockResolvedValue(document);
+    mocks.prisma = prisma;
+    mocks.readStoredObjectBytes.mockRejectedValue(new Error("Storage read failed"));
+    vi.resetModules();
+    const { processUploadedDocument } = await import("./document-processing.processor.js");
+
+    await expect(processUploadedDocument(createJob())).rejects.toThrow("Storage read failed");
+
+    expect(prisma.document.update).toHaveBeenCalledWith({
+      where: { id: "document-1" },
+      data: { status: "FAILED" }
+    });
+    expect(prisma.notification.create).not.toHaveBeenCalled();
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ action: "document.processing_failed" })
+      })
+    );
+  });
 });
 
 function createDocument() {
@@ -177,7 +207,13 @@ function createDocument() {
       id: "case-1",
       ownerId: "user-1",
       platform: "PayPal",
-      title: "PayPal appeal"
+      title: "PayPal appeal",
+      owner: {
+        preference: {
+          inAppNotifications: true,
+          notifyEvidenceProcessing: true
+        }
+      }
     }
   };
 }

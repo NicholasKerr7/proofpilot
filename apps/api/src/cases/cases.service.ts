@@ -1055,7 +1055,32 @@ export class CasesService {
   }
 
   async update(ownerId: string, caseId: string, input: UpdateCaseDto) {
-    await this.assertCaseOwnership(ownerId, caseId);
+    const existingCase = await this.prisma.case.findFirst({
+      where: {
+        id: caseId,
+        ownerId,
+        archivedAt: null
+      },
+      select: {
+        id: true,
+        status: true,
+        owner: {
+          select: {
+            preference: {
+              select: {
+                inAppNotifications: true,
+                notifyCaseUpdates: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!existingCase) {
+      throw new NotFoundException("Case not found.");
+    }
+
     const data: Prisma.CaseUpdateInput = {};
 
     if (input.title !== undefined) {
@@ -1078,24 +1103,47 @@ export class CasesService {
       data.deadline = input.deadline ? new Date(input.deadline) : null;
     }
 
-    const updatedCase = await this.prisma.case.update({
-      where: { id: caseId },
-      data,
-      include: {
-        caseType: true
-      }
-    });
+    return this.prisma.$transaction(async (tx) => {
+      const updatedCase = await tx.case.update({
+        where: { id: caseId },
+        data,
+        include: {
+          caseType: true
+        }
+      });
 
-    await this.prisma.auditLog.create({
-      data: {
-        userId: ownerId,
-        caseId,
-        action: "case.updated",
-        metadata: this.toUpdateAuditMetadata(input)
-      }
-    });
+      await tx.auditLog.create({
+        data: {
+          userId: ownerId,
+          caseId,
+          action: "case.updated",
+          metadata: this.toUpdateAuditMetadata(input)
+        }
+      });
 
-    return updatedCase;
+      const preference = existingCase.owner.preference;
+      const shouldNotifyStatusChange =
+        input.status !== undefined &&
+        input.status !== existingCase.status &&
+        preference?.inAppNotifications !== false &&
+        preference?.notifyCaseUpdates !== false;
+
+      if (shouldNotifyStatusChange) {
+        await tx.notification.create({
+          data: {
+            userId: ownerId,
+            caseId,
+            type: "case_status_updated",
+            title: "Case status updated",
+            body: `${updatedCase.title} is now ${this.formatCaseStatus(
+              input.status ?? existingCase.status
+            )}.`
+          }
+        });
+      }
+
+      return updatedCase;
+    });
   }
 
   async archive(ownerId: string, caseId: string) {
@@ -1472,5 +1520,9 @@ export class CasesService {
     }
 
     return metadata;
+  }
+
+  private formatCaseStatus(status: CaseStatus) {
+    return status.toLowerCase().replaceAll("_", " ");
   }
 }
