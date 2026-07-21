@@ -56,6 +56,7 @@ export async function processUploadedDocument(job: Job<ProcessDocumentJobData>) 
       mimeType: true,
       quarantinedAt: true,
       storageKey: true,
+      uploadExpiredAt: true,
       case: {
         select: {
           id: true,
@@ -81,13 +82,15 @@ export async function processUploadedDocument(job: Job<ProcessDocumentJobData>) 
     throw new Error(`Document ${job.data.documentId} was not found.`);
   }
 
-  if (document.quarantinedAt) {
+  if (document.quarantinedAt || document.uploadExpiredAt) {
     await prisma.documentProcessingLog.create({
       data: {
         documentId: document.id,
         step: "process_uploaded_document",
         status: "skipped",
-        message: "Worker skipped a quarantined document."
+        message: document.quarantinedAt
+          ? "Worker skipped a quarantined document."
+          : "Worker skipped an expired upload reservation."
       }
     });
     return;

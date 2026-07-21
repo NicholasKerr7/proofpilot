@@ -6,7 +6,7 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 
 - `apps/web`: Next.js App Router frontend.
 - `apps/api`: NestJS REST API with Swagger documentation.
-- `apps/worker`: BullMQ worker for document processing, packet generation, and scheduled reminder delivery.
+- `apps/worker`: BullMQ worker for document processing, packet generation, reminder delivery, and staging-upload cleanup.
 
 ## Packages
 
@@ -17,7 +17,7 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 ## Local Services
 
 - PostgreSQL stores users, cases, assistant threads and messages, audit logs, connection metadata, billing metadata, evidence metadata, timelines, checklist data, statements, packet exports, packet shares, notifications, and jobs.
-- Redis backs document processing, packet generation, and reminder delivery BullMQ queues.
+- Redis backs document processing, packet generation, reminder delivery, and upload cleanup BullMQ queues.
 - MinIO provides a local S3-compatible private storage target.
 - ClamAV can scan private uploads through an opt-in local security profile or a private production service.
 
@@ -42,6 +42,7 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 - Unauthenticated API traffic is rate-limited by client address. Traffic with a signature-verified JWT uses a SHA-256 digest of its session ID as the in-memory bucket key so users behind the web proxy do not share one global limit; invalid bearer values remain in the IP bucket and raw tokens are never retained in limiter state.
 - Storage helpers generate signed upload/download URLs instead of exposing private object URLs.
 - The API streams completed uploads from private staging storage to ClamAV, then conditionally promotes the exact scanned ETag to a non-uploadable processing key before queueing work.
+- Upload completion and the hourly cleanup worker atomically claim staging reservations before touching storage. Reservations inactive for 24 hours are marked expired, deleted from private storage, and removed from PostgreSQL; transient storage failures retain sanitized audit state for a later retry.
 - Assistant threads use a compound user-and-case key, and every assistant request resolves authenticated read access before thread access.
 - Assistant audit events record IDs, response mode, intent, and prompt length without duplicating message content in audit metadata.
 - Collaboration management resolves every case through the authenticated owner ID. Audit metadata records collaborator IDs, roles, and changed setting names without storing invited email addresses.

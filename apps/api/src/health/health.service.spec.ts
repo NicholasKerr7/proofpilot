@@ -62,7 +62,8 @@ describe("HealthService", () => {
       queueHealthResult([
         queueSnapshot("document-processing"),
         queueSnapshot("packet-generation"),
-        queueSnapshot("reminder-delivery")
+        queueSnapshot("reminder-delivery"),
+        queueSnapshot("upload-cleanup")
       ])
     );
   });
@@ -108,7 +109,8 @@ describe("HealthService", () => {
           name: "packet-generation",
           status: "degraded"
         },
-        queueSnapshot("reminder-delivery")
+        queueSnapshot("reminder-delivery"),
+        queueSnapshot("upload-cleanup")
       ])
     );
 
@@ -135,7 +137,8 @@ describe("HealthService", () => {
       queueHealthResult([
         queueSnapshot("document-processing", "degraded"),
         queueSnapshot("packet-generation"),
-        queueSnapshot("reminder-delivery")
+        queueSnapshot("reminder-delivery"),
+        queueSnapshot("upload-cleanup")
       ])
     );
 

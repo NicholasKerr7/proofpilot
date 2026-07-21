@@ -54,6 +54,7 @@ function createPrismaMock() {
       create: vi.fn(),
       delete: vi.fn(),
       findFirst: vi.fn(),
+      findUnique: vi.fn(),
       findMany: vi.fn(),
       update: vi.fn().mockResolvedValue({}),
       updateMany: vi.fn().mockResolvedValue({ count: 1 })
@@ -107,7 +108,8 @@ function baseUploadedDocument() {
     mimeType: "image/png",
     originalName: "proof.png",
     status: DocumentStatus.UPLOADED as DocumentStatus,
-    storageKey
+    storageKey,
+    uploadExpiredAt: null as Date | null
   };
 }
 
@@ -190,7 +192,8 @@ describe("DocumentsService upload hardening", () => {
     expect(prisma.document.updateMany).toHaveBeenCalledWith({
       where: {
         id: documentId,
-        status: DocumentStatus.UPLOADED
+        status: DocumentStatus.UPLOADED,
+        uploadExpiredAt: null
       },
       data: { status: DocumentStatus.PROCESSING }
     });
@@ -308,7 +311,42 @@ describe("DocumentsService upload hardening", () => {
         message: "Upload security checks could not be completed; processing was not queued."
       }
     });
+    expect(prisma.document.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: documentId,
+        quarantinedAt: null,
+        status: DocumentStatus.PROCESSING,
+        uploadExpiredAt: null
+      },
+      data: { status: DocumentStatus.UPLOADED }
+    });
     expect(queue.addProcessDocumentJob).not.toHaveBeenCalled();
+  });
+
+  it("releases the completion claim when queueing fails", async () => {
+    const document = createUploadedDocument();
+    prisma.document.findFirst.mockResolvedValue(document);
+    storageMocks.headStoredObject.mockResolvedValue({
+      byteSize: document.byteSize,
+      contentType: document.mimeType,
+      etag: '"source-etag"',
+      lastModified: new Date("2026-01-01T12:00:00.000Z")
+    });
+    queue.addProcessDocumentJob.mockRejectedValue(new Error("Redis unavailable"));
+
+    await expect(service.completeUpload(ownerId, documentId)).rejects.toThrow(
+      "Redis unavailable"
+    );
+
+    expect(prisma.document.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: documentId,
+        quarantinedAt: null,
+        status: DocumentStatus.PROCESSING,
+        uploadExpiredAt: null
+      },
+      data: { status: DocumentStatus.UPLOADED }
+    });
   });
 
   it("does not issue download URLs for quarantined documents", async () => {
@@ -345,6 +383,73 @@ describe("DocumentsService upload hardening", () => {
     expect(storageMocks.createPresignedDownloadUrl).not.toHaveBeenCalled();
   });
 
+  it("does not issue a download URL while a claimed staging upload is scanned", async () => {
+    prisma.document.findFirst.mockResolvedValue({
+      ...createUploadedDocument({
+        status: DocumentStatus.PROCESSING,
+        storageKey: "users/user-1/cases/case-1/upload-staging/document-1.png"
+      }),
+      createdAt: new Date("2026-01-01T12:00:00.000Z"),
+      entities: [],
+      extractedText: null,
+      processingLogs: [],
+      quarantinedAt: null,
+      updatedAt: new Date("2026-01-01T12:01:00.000Z")
+    });
+
+    const result = await service.get(ownerId, documentId);
+
+    expect(result.downloadUrl).toBeNull();
+    expect(storageMocks.createPresignedDownloadUrl).not.toHaveBeenCalled();
+  });
+
+  it("does not complete or download an expired upload reservation", async () => {
+    const uploadExpiredAt = new Date("2026-01-02T12:00:00.000Z");
+    prisma.document.findFirst.mockResolvedValue(
+      createUploadedDocument({ uploadExpiredAt })
+    );
+
+    await expect(service.completeUpload(ownerId, documentId)).rejects.toThrow(
+      "This upload reservation has expired. Upload the file again."
+    );
+    expect(queue.addProcessDocumentJob).not.toHaveBeenCalled();
+
+    prisma.document.findFirst.mockResolvedValue({
+      ...createUploadedDocument({
+        status: DocumentStatus.FAILED,
+        uploadExpiredAt
+      }),
+      createdAt: new Date("2026-01-01T12:00:00.000Z"),
+      entities: [],
+      extractedText: null,
+      processingLogs: [],
+      quarantinedAt: null,
+      updatedAt: uploadExpiredAt
+    });
+
+    const result = await service.get(ownerId, documentId);
+
+    expect(result.downloadUrl).toBeNull();
+    expect(storageMocks.createPresignedDownloadUrl).not.toHaveBeenCalled();
+  });
+
+  it("returns an expiry error when cleanup wins the completion claim", async () => {
+    const uploadExpiredAt = new Date("2026-01-02T12:00:00.000Z");
+    prisma.document.findFirst.mockResolvedValue(createUploadedDocument());
+    prisma.document.updateMany.mockResolvedValueOnce({ count: 0 });
+    prisma.document.findUnique.mockResolvedValue({
+      status: DocumentStatus.FAILED,
+      uploadExpiredAt
+    });
+
+    await expect(service.completeUpload(ownerId, documentId)).rejects.toThrow(
+      "This upload reservation has expired. Upload the file again."
+    );
+
+    expect(storageMocks.headStoredObject).not.toHaveBeenCalled();
+    expect(queue.addProcessDocumentJob).not.toHaveBeenCalled();
+  });
+
   it("prevents quarantined documents from being reprocessed", async () => {
     prisma.document.findFirst.mockResolvedValue({
       id: documentId,
@@ -357,6 +462,52 @@ describe("DocumentsService upload hardening", () => {
       BadRequestException
     );
 
+    expect(queue.addProcessDocumentJob).not.toHaveBeenCalled();
+  });
+
+  it("prevents expired uploads from being reprocessed", async () => {
+    prisma.document.findFirst.mockResolvedValue({
+      id: documentId,
+      caseId,
+      originalName: "expired.txt",
+      quarantinedAt: null,
+      uploadExpiredAt: new Date("2026-01-02T12:00:00.000Z")
+    });
+
+    await expect(service.reprocess(ownerId, documentId)).rejects.toThrow(
+      "Expired uploads cannot be reprocessed."
+    );
+
+    expect(queue.addProcessDocumentJob).not.toHaveBeenCalled();
+  });
+
+  it("requires upload completion before reprocessing can start", async () => {
+    prisma.document.findFirst.mockResolvedValue({
+      ...createUploadedDocument(),
+      quarantinedAt: null,
+      updatedAt: new Date("2026-01-01T12:00:00.000Z")
+    });
+
+    await expect(service.reprocess(ownerId, documentId)).rejects.toThrow(
+      "Upload completion is required before this document can be reprocessed."
+    );
+
+    expect(storageMocks.headStoredObject).not.toHaveBeenCalled();
+    expect(queue.addProcessDocumentJob).not.toHaveBeenCalled();
+  });
+
+  it("does not enqueue duplicate processing for an active document", async () => {
+    prisma.document.findFirst.mockResolvedValue({
+      ...createUploadedDocument({ status: DocumentStatus.PROCESSING }),
+      quarantinedAt: null,
+      updatedAt: new Date("2026-01-01T12:00:00.000Z")
+    });
+
+    await expect(service.reprocess(ownerId, documentId)).rejects.toThrow(
+      "This document is already being processed."
+    );
+
+    expect(storageMocks.headStoredObject).not.toHaveBeenCalled();
     expect(queue.addProcessDocumentJob).not.toHaveBeenCalled();
   });
 

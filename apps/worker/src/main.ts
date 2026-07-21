@@ -13,11 +13,16 @@ import {
   type DeliverRemindersJobData
 } from "./queues/reminder-delivery.queue.js";
 import {
+  uploadCleanupQueueName,
+  type ExpireAbandonedUploadsJobData
+} from "./queues/upload-cleanup.queue.js";
+import {
   processUploadedDocument,
   shutdownDocumentProcessor
 } from "./processors/document-processing.processor.js";
 import { generateCasePacket } from "./processors/packet-generation.processor.js";
 import { deliverDueReminders } from "./processors/reminder-delivery.processor.js";
+import { expireAbandonedUploads } from "./processors/upload-cleanup.processor.js";
 
 const env = getWorkerEnv();
 const redisUrl = new URL(env.REDIS_URL);
@@ -79,6 +84,20 @@ const reminderWorker = new Worker<DeliverRemindersJobData>(
   },
   { connection }
 );
+const uploadCleanupQueue = new Queue<ExpireAbandonedUploadsJobData>(uploadCleanupQueueName, {
+  connection
+});
+const uploadCleanupWorker = new Worker<ExpireAbandonedUploadsJobData>(
+  uploadCleanupQueueName,
+  async (job) => {
+    if (job.name === "expire_abandoned_uploads") {
+      return expireAbandonedUploads(job);
+    }
+
+    throw new Error(`Unsupported job name: ${job.name}`);
+  },
+  { connection }
+);
 
 await reminderQueue.upsertJobScheduler(
   "deliver-due-reminders-every-minute",
@@ -92,17 +111,32 @@ await reminderQueue.upsertJobScheduler(
     }
   }
 );
+await uploadCleanupQueue.upsertJobScheduler(
+  "expire-abandoned-uploads-hourly",
+  { every: 60 * 60 * 1_000 },
+  {
+    name: "expire_abandoned_uploads",
+    data: {},
+    opts: {
+      removeOnComplete: 100,
+      removeOnFail: 100
+    }
+  }
+);
 
 attachWorkerLogging(documentWorker, documentProcessingQueueName);
 attachWorkerLogging(packetWorker, packetGenerationQueueName);
 attachWorkerLogging(reminderWorker, reminderDeliveryQueueName);
+attachWorkerLogging(uploadCleanupWorker, uploadCleanupQueueName);
 
 process.on("SIGTERM", async () => {
   await Promise.all([
     documentWorker.close(),
     packetWorker.close(),
     reminderWorker.close(),
-    reminderQueue.close()
+    reminderQueue.close(),
+    uploadCleanupWorker.close(),
+    uploadCleanupQueue.close()
   ]);
   await shutdownDocumentProcessor();
 });

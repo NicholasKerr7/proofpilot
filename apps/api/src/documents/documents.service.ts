@@ -150,6 +150,7 @@ export class DocumentsService {
         originalName: true,
         storageKey: true,
         status: true,
+        uploadExpiredAt: true,
         case: {
           select: { ownerId: true }
         }
@@ -160,6 +161,12 @@ export class DocumentsService {
       throw new NotFoundException("Document not found.");
     }
 
+    if (document.uploadExpiredAt) {
+      throw new BadRequestException(
+        "This upload reservation has expired. Upload the file again."
+      );
+    }
+
     if (document.status === DocumentStatus.FAILED) {
       throw new BadRequestException(
         "This upload has failed and cannot be completed. Upload the file again."
@@ -167,41 +174,76 @@ export class DocumentsService {
     }
 
     if (document.status !== DocumentStatus.UPLOADED) {
-      return {
-        documentId: document.id,
-        alreadyCompleted: true,
-        processingJob: {
-          id: document.id,
-          name: processUploadedDocumentJobName
-        }
-      };
+      return this.createAlreadyCompletedResponse(document.id);
     }
 
-    const objectMetadata = await this.assertCompletedUploadAllowed(ownerId, document);
-    await this.scanCompletedUpload(
-      ownerId,
-      document.case.ownerId,
-      document,
-      objectMetadata.etag
-    );
-
-    const job = await this.documentProcessingQueue.addProcessDocumentJob(
-      {
-        documentId: document.id,
-        caseId: document.caseId,
-        ownerId: document.case.ownerId
+    const claim = await this.prisma.document.updateMany({
+      where: {
+        id: document.id,
+        status: DocumentStatus.UPLOADED,
+        uploadExpiredAt: null
       },
-      { jobId: document.id }
-    );
+      data: { status: DocumentStatus.PROCESSING }
+    });
+
+    if (!claim.count) {
+      const current = await this.prisma.document.findUnique({
+        where: { id: document.id },
+        select: {
+          status: true,
+          uploadExpiredAt: true
+        }
+      });
+
+      if (!current) {
+        throw new NotFoundException("Document not found.");
+      }
+
+      if (current.uploadExpiredAt) {
+        throw new BadRequestException(
+          "This upload reservation has expired. Upload the file again."
+        );
+      }
+
+      if (current.status === DocumentStatus.FAILED) {
+        throw new BadRequestException(
+          "This upload has failed and cannot be completed. Upload the file again."
+        );
+      }
+
+      return this.createAlreadyCompletedResponse(document.id);
+    }
+
+    try {
+      const objectMetadata = await this.assertCompletedUploadAllowed(ownerId, document);
+      await this.scanCompletedUpload(
+        ownerId,
+        document.case.ownerId,
+        document,
+        objectMetadata.etag
+      );
+    } catch (error) {
+      await this.releaseUploadCompletionClaim(document.id);
+      throw error;
+    }
+
+    let job: Awaited<ReturnType<DocumentProcessingQueueService["addProcessDocumentJob"]>>;
+
+    try {
+      job = await this.documentProcessingQueue.addProcessDocumentJob(
+        {
+          documentId: document.id,
+          caseId: document.caseId,
+          ownerId: document.case.ownerId
+        },
+        { jobId: document.id }
+      );
+    } catch (error) {
+      await this.releaseUploadCompletionClaim(document.id);
+      throw error;
+    }
 
     await this.prisma.$transaction([
-      this.prisma.document.updateMany({
-        where: {
-          id: document.id,
-          status: DocumentStatus.UPLOADED
-        },
-        data: { status: DocumentStatus.PROCESSING }
-      }),
       this.prisma.documentProcessingLog.create({
         data: {
           documentId: document.id,
@@ -283,7 +325,9 @@ export class DocumentsService {
         mimeType: true,
         originalName: true,
         quarantinedAt: true,
+        status: true,
         storageKey: true,
+        uploadExpiredAt: true,
         updatedAt: true,
         case: {
           select: { ownerId: true }
@@ -297,6 +341,20 @@ export class DocumentsService {
 
     if (document.quarantinedAt) {
       throw new BadRequestException("Quarantined uploads cannot be reprocessed.");
+    }
+
+    if (document.uploadExpiredAt) {
+      throw new BadRequestException("Expired uploads cannot be reprocessed.");
+    }
+
+    if (document.status === DocumentStatus.UPLOADED) {
+      throw new BadRequestException(
+        "Upload completion is required before this document can be reprocessed."
+      );
+    }
+
+    if (document.status === DocumentStatus.PROCESSING) {
+      throw new BadRequestException("This document is already being processed.");
     }
 
     const objectMetadata = await this.assertCompletedUploadAllowed(ownerId, document);
@@ -389,6 +447,7 @@ export class DocumentsService {
         extractedText: true,
         quarantinedAt: true,
         storageKey: true,
+        uploadExpiredAt: true,
         case: {
           select: buildCaseAccessSelect(ownerId)
         },
@@ -422,12 +481,16 @@ export class DocumentsService {
       throw new NotFoundException("Document not found.");
     }
 
-    const { case: caseAccess, storageKey, ...publicDocument } = document;
+    const { case: caseAccess, storageKey, uploadExpiredAt, ...publicDocument } = document;
     const canDownload = createCaseAccess(ownerId, caseAccess).canDownload;
 
     return {
       ...publicDocument,
-      downloadUrl: !canDownload || document.quarantinedAt || document.status === DocumentStatus.UPLOADED
+      downloadUrl: !canDownload ||
+        document.quarantinedAt ||
+        uploadExpiredAt ||
+        isUploadStagingKey(storageKey) ||
+        document.status === DocumentStatus.UPLOADED
         ? null
         : await createPresignedDownloadUrl({ key: storageKey })
     };
@@ -513,6 +576,33 @@ export class DocumentsService {
       throw new BadRequestException(
         `File is too large. Upload evidence under ${evidenceMaxUploadSizeLabel}.`
       );
+    }
+  }
+
+  private createAlreadyCompletedResponse(documentId: string) {
+    return {
+      documentId,
+      alreadyCompleted: true,
+      processingJob: {
+        id: documentId,
+        name: processUploadedDocumentJobName
+      }
+    };
+  }
+
+  private async releaseUploadCompletionClaim(documentId: string) {
+    try {
+      await this.prisma.document.updateMany({
+        where: {
+          id: documentId,
+          quarantinedAt: null,
+          status: DocumentStatus.PROCESSING,
+          uploadExpiredAt: null
+        },
+        data: { status: DocumentStatus.UPLOADED }
+      });
+    } catch {
+      this.logger.error(`Upload completion claim could not be released for ${documentId}.`);
     }
   }
 

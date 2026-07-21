@@ -110,6 +110,31 @@ describe("document processing worker", () => {
     });
   });
 
+  it("skips upload reservations claimed by the cleanup worker", async () => {
+    const prisma = createPrismaMock();
+    prisma.document.findUnique.mockResolvedValue({
+      ...createDocument(),
+      storageKey: "users/user-1/cases/case-1/upload-staging/document-1.txt",
+      uploadExpiredAt: new Date("2026-01-02T12:00:00.000Z")
+    });
+    mocks.prisma = prisma;
+    vi.resetModules();
+    const { processUploadedDocument } = await import("./document-processing.processor.js");
+
+    await processUploadedDocument(createJob());
+
+    expect(prisma.document.update).not.toHaveBeenCalled();
+    expect(mocks.readStoredObjectBytes).not.toHaveBeenCalled();
+    expect(prisma.documentProcessingLog.create).toHaveBeenCalledWith({
+      data: {
+        documentId: "document-1",
+        step: "process_uploaded_document",
+        status: "skipped",
+        message: "Worker skipped an expired upload reservation."
+      }
+    });
+  });
+
   it("refreshes the checklist after successful document processing", async () => {
     const prisma = createPrismaMock();
     prisma.document.findUnique.mockResolvedValue(createDocument());
@@ -203,6 +228,7 @@ function createDocument() {
     originalName: "support-ticket.txt",
     quarantinedAt: null,
     storageKey: "users/user-1/cases/case-1/documents/document-1.txt",
+    uploadExpiredAt: null,
     case: {
       id: "case-1",
       ownerId: "user-1",

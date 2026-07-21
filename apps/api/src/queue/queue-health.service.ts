@@ -3,6 +3,7 @@ import { DocumentProcessingQueueService } from "./document-processing-queue.serv
 import { PacketGenerationQueueService } from "./packet-generation-queue.service.js";
 import type { QueueHealthSnapshot } from "./queue-health-snapshot.js";
 import { ReminderDeliveryQueueService } from "./reminder-delivery-queue.service.js";
+import { UploadCleanupQueueService } from "./upload-cleanup-queue.service.js";
 
 export interface QueueHealthResult {
   queues: (QueueHealthSnapshot | QueueHealthUnavailableSnapshot)[];
@@ -21,7 +22,8 @@ export class QueueHealthService {
   constructor(
     private readonly documentProcessingQueue: DocumentProcessingQueueService,
     private readonly packetGenerationQueue: PacketGenerationQueueService,
-    private readonly reminderDeliveryQueue: ReminderDeliveryQueueService
+    private readonly reminderDeliveryQueue: ReminderDeliveryQueueService,
+    private readonly uploadCleanupQueue: UploadCleanupQueueService
   ) {}
 
   async getHealth(): Promise<QueueHealthResult> {
@@ -30,7 +32,8 @@ export class QueueHealthService {
         this.documentProcessingQueue.getHealthSnapshot()
       ),
       this.getQueueHealth("packet-generation", () => this.packetGenerationQueue.getHealthSnapshot()),
-      this.getQueueHealth("reminder-delivery", () => this.reminderDeliveryQueue.getHealthSnapshot())
+      this.getQueueHealth("reminder-delivery", () => this.reminderDeliveryQueue.getHealthSnapshot()),
+      this.getQueueHealth("upload-cleanup", () => this.uploadCleanupQueue.getHealthSnapshot())
     ]);
 
     return {

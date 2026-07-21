@@ -84,7 +84,7 @@ OCR_LANGUAGES=eng
 OCR_CACHE_PATH=/tmp/proofpilot-ocr
 ```
 
-Keep exactly one worker replica while the reminder scheduler is enabled. BullMQ processing can scale later after scheduler ownership is separated or explicitly coordinated.
+Keep exactly one worker replica while the reminder and upload-cleanup schedulers are enabled. BullMQ processing can scale later after scheduler ownership is separated or explicitly coordinated.
 
 ## Bucket CORS
 
@@ -101,7 +101,7 @@ The browser uploads directly to short-lived signed URLs. Configure the private b
 ]
 ```
 
-Railway buckets do not currently support lifecycle rules. Before production, either use a provider that supports lifecycle expiration or add a scheduled cleanup for abandoned keys under `users/*/cases/*/upload-staging/`.
+The worker's hourly `upload-cleanup` scheduler removes database-tracked objects under `users/*/cases/*/upload-staging/` after 24 hours and retries transient deletion failures. Railway's lack of lifecycle rules is therefore not a staging blocker. For production, prefer a provider lifecycle rule as defense in depth for untracked objects and extended worker downtime.
 
 ## Provisioning Order
 
@@ -136,4 +136,4 @@ PROOFPILOT_E2E_API_URL=https://REPLACE_WITH_RAILWAY_API_DOMAIN/health \
   pnpm test:e2e
 ```
 
-The staging gate is complete only when API readiness, queue health, private upload, ClamAV promotion, worker processing, packet generation, signed download, and responsive browser tests all pass.
+The staging gate is complete only when API readiness, all four queue health entries, private upload, ClamAV promotion, worker processing, upload cleanup, packet generation, signed download, and responsive browser tests all pass.

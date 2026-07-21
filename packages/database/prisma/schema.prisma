@@ -347,25 +347,28 @@ model CaseSharingSettings {
 }
 
 model Document {
-  id                 String                  @id @default(cuid())
-  caseId             String
-  case               Case                    @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  originalName       String
-  mimeType           String
-  byteSize           Int
-  storageKey         String
-  status             DocumentStatus          @default(UPLOADED)
-  extractedText      String?
-  quarantinedAt      DateTime?
-  createdAt          DateTime                @default(now())
-  updatedAt          DateTime                @updatedAt
-  versions           DocumentVersion[]
-  entities           DocumentEntity[]
-  processingLogs     DocumentProcessingLog[]
-  eventSources       EventSource[]
-  requirementMatches CaseRequirementMatch[]
+  id                       String                  @id @default(cuid())
+  caseId                   String
+  case                     Case                    @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  originalName             String
+  mimeType                 String
+  byteSize                 Int
+  storageKey               String
+  status                   DocumentStatus          @default(UPLOADED)
+  extractedText            String?
+  quarantinedAt            DateTime?
+  uploadExpiredAt          DateTime?
+  uploadCleanupAttemptedAt DateTime?
+  createdAt                DateTime                @default(now())
+  updatedAt                DateTime                @updatedAt
+  versions                 DocumentVersion[]
+  entities                 DocumentEntity[]
+  processingLogs           DocumentProcessingLog[]
+  eventSources             EventSource[]
+  requirementMatches       CaseRequirementMatch[]
 
   @@index([caseId, status])
+  @@index([status, uploadExpiredAt, uploadCleanupAttemptedAt])
 }
 
 model DocumentVersion {

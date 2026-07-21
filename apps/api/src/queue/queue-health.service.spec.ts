@@ -3,10 +3,12 @@ import type { DocumentProcessingQueueService } from "./document-processing-queue
 import type { PacketGenerationQueueService } from "./packet-generation-queue.service.js";
 import { QueueHealthService } from "./queue-health.service.js";
 import type { ReminderDeliveryQueueService } from "./reminder-delivery-queue.service.js";
+import type { UploadCleanupQueueService } from "./upload-cleanup-queue.service.js";
 
 type DocumentQueueMock = ReturnType<typeof createQueueMock>;
 type PacketQueueMock = ReturnType<typeof createQueueMock>;
 type ReminderQueueMock = ReturnType<typeof createQueueMock>;
+type UploadCleanupQueueMock = ReturnType<typeof createQueueMock>;
 
 function createQueueMock() {
   return {
@@ -17,12 +19,14 @@ function createQueueMock() {
 function createService(
   documentQueue: DocumentQueueMock,
   packetQueue: PacketQueueMock,
-  reminderQueue: ReminderQueueMock
+  reminderQueue: ReminderQueueMock,
+  uploadCleanupQueue: UploadCleanupQueueMock
 ) {
   return new QueueHealthService(
     documentQueue as unknown as DocumentProcessingQueueService,
     packetQueue as unknown as PacketGenerationQueueService,
-    reminderQueue as unknown as ReminderDeliveryQueueService
+    reminderQueue as unknown as ReminderDeliveryQueueService,
+    uploadCleanupQueue as unknown as UploadCleanupQueueService
   );
 }
 
@@ -48,19 +52,22 @@ describe("QueueHealthService", () => {
   let documentQueue: DocumentQueueMock;
   let packetQueue: PacketQueueMock;
   let reminderQueue: ReminderQueueMock;
+  let uploadCleanupQueue: UploadCleanupQueueMock;
   let service: QueueHealthService;
 
   beforeEach(() => {
     documentQueue = createQueueMock();
     packetQueue = createQueueMock();
     reminderQueue = createQueueMock();
-    service = createService(documentQueue, packetQueue, reminderQueue);
+    uploadCleanupQueue = createQueueMock();
+    service = createService(documentQueue, packetQueue, reminderQueue, uploadCleanupQueue);
   });
 
   it("returns ok when every queue responds with an ok snapshot", async () => {
     documentQueue.getHealthSnapshot.mockResolvedValue(okSnapshot("document-processing"));
     packetQueue.getHealthSnapshot.mockResolvedValue(okSnapshot("packet-generation"));
     reminderQueue.getHealthSnapshot.mockResolvedValue(okSnapshot("reminder-delivery"));
+    uploadCleanupQueue.getHealthSnapshot.mockResolvedValue(okSnapshot("upload-cleanup"));
 
     const result = await service.getHealth();
 
@@ -68,7 +75,8 @@ describe("QueueHealthService", () => {
     expect(result.queues).toEqual([
       okSnapshot("document-processing"),
       okSnapshot("packet-generation"),
-      okSnapshot("reminder-delivery")
+      okSnapshot("reminder-delivery"),
+      okSnapshot("upload-cleanup")
     ]);
     expect(Date.parse(result.timestamp)).not.toBeNaN();
   });
@@ -77,6 +85,7 @@ describe("QueueHealthService", () => {
     documentQueue.getHealthSnapshot.mockResolvedValue(okSnapshot("document-processing"));
     packetQueue.getHealthSnapshot.mockRejectedValue(new Error("Redis is unavailable"));
     reminderQueue.getHealthSnapshot.mockResolvedValue(okSnapshot("reminder-delivery"));
+    uploadCleanupQueue.getHealthSnapshot.mockResolvedValue(okSnapshot("upload-cleanup"));
 
     const result = await service.getHealth();
 
@@ -88,7 +97,8 @@ describe("QueueHealthService", () => {
         name: "packet-generation",
         status: "degraded"
       },
-      okSnapshot("reminder-delivery")
+      okSnapshot("reminder-delivery"),
+      okSnapshot("upload-cleanup")
     ]);
   });
 });

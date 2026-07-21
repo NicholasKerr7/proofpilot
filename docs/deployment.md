@@ -4,7 +4,7 @@ ProofPilot runs as three production services:
 
 - `apps/web`: Next.js frontend, intended for Vercel.
 - `apps/api`: NestJS API, container target `api`.
-- `apps/worker`: BullMQ document processor, packet generator, and reminder scheduler, container target `worker`.
+- `apps/worker`: BullMQ document processor, packet generator, reminder scheduler, and upload-cleanup scheduler, container target `worker`.
 
 The provider-specific staging topology, Railway service configs, variable references, cost gate, and deployment order are documented in [staging-deployment.md](staging-deployment.md).
 
@@ -56,7 +56,7 @@ Set these for the worker service:
 - `OCR_CACHE_PATH=/tmp/proofpilot-ocr`
 - `TESSERACT_LANG_PATH` optional path or URL for pre-hosted Tesseract traineddata files
 
-Image OCR, packet PDF generation, and reminder delivery run in the worker service. Keep at least one worker replica active so the idempotent `reminder-delivery` scheduler can enqueue its one-minute jobs. Give `OCR_CACHE_PATH` writable storage so language data can be reused between jobs; for locked-down production networks, provide `TESSERACT_LANG_PATH` instead of relying on the default language-data download path.
+Image OCR, packet PDF generation, reminder delivery, and staging-upload cleanup run in the worker service. Keep at least one worker replica active so the idempotent one-minute reminder and hourly cleanup schedulers can enqueue work. Give `OCR_CACHE_PATH` writable storage so language data can be reused between jobs; for locked-down production networks, provide `TESSERACT_LANG_PATH` instead of relying on the default language-data download path.
 
 Set this for the web service:
 
@@ -108,7 +108,7 @@ Evidence uploads are limited to PDF, PNG, JPG, JPEG, TXT, DOCX, EML, CSV, and XL
 
 Invalid completed uploads are marked `FAILED`, logged as `upload_validation`, and are not queued. The API never issues download URLs while a document remains `UPLOADED`. After metadata validation, it streams the private staging object to ClamAV using `INSTREAM`. A clean result is conditionally copied by ETag to a deterministic processing key before the staging object is deleted and work is queued. This keeps a still-valid upload URL from replacing the bytes accepted by the scanner. Detected threats are quarantined, denied download and reprocessing access, and deleted from storage. Scanner or promotion errors return `503` without queueing work so the upload can be retried.
 
-Configure a bucket lifecycle rule to expire objects under `users/*/cases/*/upload-staging/` after 24 hours. The API deletes staging objects after promotion, but the lifecycle rule removes abandoned reservations and objects recreated through unexpired signed URLs.
+The hourly `upload-cleanup` job atomically expires database-tracked staging reservations after 24 hours, deletes their private objects, and retries transient storage failures. Configure a provider lifecycle rule for the `upload-staging/` key segment as defense in depth against untracked objects or application downtime.
 
 Production API startup rejects disabled scanning. Keep the ClamAV TCP socket on a private network because the protocol has no transport encryption or authentication. Size the scanner separately from the API; the [official ClamAV container guidance](https://docs.clamav.net/manual/Installing/Docker.html) recommends 4 GB RAM for current signature databases.
 

@@ -14,7 +14,7 @@ Use the dependency-aware endpoint before routing traffic:
 GET /health/ready
 ```
 
-Readiness checks PostgreSQL and the Redis connections behind all three BullMQ queues. It returns `200` with `status: ok` when both dependencies respond, or `503` with a sanitized `status: degraded` body when either dependency is unavailable or exceeds the three-second timeout. A readiness failure should remove the API replica from traffic without treating the process as dead.
+Readiness checks PostgreSQL and the Redis connections behind all four BullMQ queues. It returns `200` with `status: ok` when both dependencies respond, or `503` with a sanitized `status: degraded` body when either dependency is unavailable or exceeds the three-second timeout. A readiness failure should remove the API replica from traffic without treating the process as dead.
 
 If readiness is degraded, inspect `checks.database`, `checks.queues`, and the API `readiness_check_failed` structured log. Confirm `DATABASE_URL` and `REDIS_URL`, network policy, provider status, and credentials before restoring traffic. A retained failed queue job does not fail readiness; use the queue-health runbook below to diagnose job failures.
 
@@ -31,6 +31,7 @@ The response contains one entry each for:
 - `document-processing`
 - `packet-generation`
 - `reminder-delivery`
+- `upload-cleanup`
 
 Each queue reports BullMQ counts for `waiting`, `active`, `delayed`, `completed`, `failed`, `paused`, `prioritized`, and `waiting-children`. The aggregate status is `degraded` when any queue is paused, has retained failed jobs, or cannot be read from Redis.
 
@@ -80,7 +81,9 @@ Wait for `PONG`, set `VIRUS_SCAN_MODE=clamav`, and restart the API. The profile 
 
 If scans report unavailable, inspect `docker compose logs clamav`, confirm `CLAMAV_HOST`, `CLAMAV_PORT`, and network policy, then retry the document completion call. An `UPLOAD_ETAG_CHANGED` audit error means the staging object changed between metadata validation and scanning; retry completion only after confirming the intended upload. The upload is intentionally not sent to BullMQ until a clean result is recorded and the scanned ETag is promoted.
 
-Apply a 24-hour storage lifecycle expiration to the `upload-staging/` key segment. This is a cleanup backstop for abandoned upload reservations and for a signed URL reused after its original object was promoted.
+The worker registers `expire-abandoned-uploads-hourly` on the `upload-cleanup` queue. It claims staging reservations only after 24 hours without an update, then deletes the object and metadata. A failed object deletion leaves the document marked `FAILED`, records `upload_cleanup`, and becomes eligible for another attempt after 15 minutes.
+
+If stale uploads accumulate, confirm `upload-cleanup` is not paused, verify the hourly scheduler exists, and inspect worker failures for `expire_abandoned_uploads`. Confirm worker storage credentials with `pnpm storage:bootstrap`. A provider lifecycle rule for the `upload-staging/` key segment remains recommended as a cleanup backstop for untracked objects and prolonged worker downtime.
 
 ## Rate Limit Runbook
 
