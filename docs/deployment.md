@@ -147,22 +147,23 @@ The API exposes:
 
 ```txt
 GET /health
+GET /health/ready
 GET /health/queues
 ```
 
-Use `GET /health` for platform health checks and load balancer probes. Use `GET /health/queues` for Redis and BullMQ operational checks. Queue operations guidance is in [operations.md](operations.md).
+Use `GET /health` as the dependency-free liveness probe that confirms the API process can serve HTTP. Use `GET /health/ready` for container health and load balancer readiness; it returns `503` when PostgreSQL or the Redis-backed queue connections cannot respond within three seconds. Use `GET /health/queues` for BullMQ backlog, paused-state, and retained-failure diagnostics. Queue failures are operational warnings rather than readiness failures unless the queue connection itself is unavailable. Queue operations guidance is in [operations.md](operations.md).
 
 ## Request Logging And Rate Limits
 
 The API emits structured JSON request logs with method, path, status, duration, IP, user agent, and `x-request-id`. Request bodies and authorization headers are not logged.
 
-Process-local rate limiting is enabled for API routes with `RATE_LIMIT_MAX` requests per `RATE_LIMIT_WINDOW_MS`; health endpoints are bypassed so platform probes are not throttled. For multi-instance production deployments, place a shared edge or gateway rate limiter in front of the API.
+Process-local rate limiting is enabled for API routes with `RATE_LIMIT_MAX` requests per `RATE_LIMIT_WINDOW_MS`; liveness, readiness, and queue-health endpoints are bypassed so platform probes are not throttled. For multi-instance production deployments, place a shared edge or gateway rate limiter in front of the API.
 
 ## Error Monitoring And Alerts
 
 Unhandled API errors are normalized by a global exception filter. Client responses receive a sanitized `500` body with `x-request-id`; server logs receive a structured error event with service, environment, method, path, status, request ID, error name, message, and stack.
 
-Set `ERROR_MONITORING_WEBHOOK_URL` to forward sanitized 500-level events to an external monitor or alert router. Configure alerts for repeated 500s, queue health degradation from `GET /health/queues`, and packet generation failures in worker logs.
+Set `ERROR_MONITORING_WEBHOOK_URL` to forward sanitized 500-level events to an external monitor or alert router. Configure alerts for repeated 500s, readiness failures from `GET /health/ready`, queue health degradation from `GET /health/queues`, and packet generation failures in worker logs.
 
 ## Accessibility And Responsive QA
 

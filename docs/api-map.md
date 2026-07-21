@@ -3,7 +3,10 @@
 ## Health
 
 - `GET /health`
+- `GET /health/ready`
 - `GET /health/queues`
+
+`GET /health` is a dependency-free process liveness check. `GET /health/ready` returns `200` only when PostgreSQL responds and all BullMQ queue connections can be read within the readiness timeout; it returns a sanitized `503` response otherwise. Retained failed jobs do not remove the API from service and remain visible through `GET /health/queues`.
 
 All database-backed route parameters and resource-ID fields in request bodies or queries must be 1 to 128 characters and contain only letters, numbers, underscores, or hyphens. Malformed identifiers return `400` before a database or storage lookup; well-formed identifiers still pass through the endpoint's authenticated ownership checks.
 

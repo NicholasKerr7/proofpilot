@@ -10,7 +10,7 @@ import { ConnectionsModule } from "./connections/connections.module.js";
 import { RateLimitMiddleware } from "./common/middleware/rate-limit.middleware.js";
 import { RequestLoggingMiddleware } from "./common/middleware/request-logging.middleware.js";
 import { DocumentsModule } from "./documents/documents.module.js";
-import { HealthController } from "./health/health.controller.js";
+import { HealthModule } from "./health/health.module.js";
 import { MonitoringModule } from "./monitoring/monitoring.module.js";
 import { NotificationsModule } from "./notifications/notifications.module.js";
 import { PacketSharingModule } from "./packet-sharing/packet-sharing.module.js";
@@ -27,6 +27,7 @@ import { SupportModule } from "./support/support.module.js";
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     QueueModule,
+    HealthModule,
     MonitoringModule,
     AssistantModule,
     AuthModule,
@@ -43,8 +44,7 @@ import { SupportModule } from "./support/support.module.js";
     SecurityModule,
     SettingsModule,
     SupportModule
-  ],
-  controllers: [HealthController]
+  ]
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

@@ -1,5 +1,23 @@
 # Operations
 
+## API Probes
+
+Use the dependency-free endpoint for liveness checks:
+
+```txt
+GET /health
+```
+
+Use the dependency-aware endpoint before routing traffic:
+
+```txt
+GET /health/ready
+```
+
+Readiness checks PostgreSQL and the Redis connections behind all three BullMQ queues. It returns `200` with `status: ok` when both dependencies respond, or `503` with a sanitized `status: degraded` body when either dependency is unavailable or exceeds the three-second timeout. A readiness failure should remove the API replica from traffic without treating the process as dead.
+
+If readiness is degraded, inspect `checks.database`, `checks.queues`, and the API `readiness_check_failed` structured log. Confirm `DATABASE_URL` and `REDIS_URL`, network policy, provider status, and credentials before restoring traffic. A retained failed queue job does not fail readiness; use the queue-health runbook below to diagnose job failures.
+
 ## Queue Health
 
 Use the API queue health endpoint to check whether Redis-backed BullMQ queues are accepting and processing work:
@@ -74,4 +92,4 @@ If legitimate traffic is throttled, tune `RATE_LIMIT_MAX` and `RATE_LIMIT_WINDOW
 
 For `500` API responses, capture `x-request-id` from the response and search API logs for the same request ID. The API logs sanitized error monitoring events for 500-level exceptions and can forward them to `ERROR_MONITORING_WEBHOOK_URL`.
 
-Alert on repeated 500s for the same route, repeated `ProofPilot worker job failed` events, and `GET /health/queues` returning `degraded`.
+Alert on repeated 500s for the same route, `GET /health/ready` returning `503`, repeated `ProofPilot worker job failed` events, and `GET /health/queues` returning `degraded`.

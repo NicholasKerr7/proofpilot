@@ -83,5 +83,5 @@ export class RateLimitMiddleware implements NestMiddleware {
 
 function isRateLimitBypassed(request: Request) {
   const path = request.path ?? request.url.split("?")[0] ?? "";
-  return path === "/health" || path === "/health/queues";
+  return path === "/health" || path === "/health/ready" || path === "/health/queues";
 }

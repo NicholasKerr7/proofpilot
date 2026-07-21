@@ -59,13 +59,15 @@ describe("RateLimitMiddleware", () => {
   });
 
   it("does not throttle health checks", () => {
-    const request = createRequest({ method: "GET", path: "/health", url: "/health" });
-    const next: NextFunction = vi.fn();
+    for (const path of ["/health", "/health/ready", "/health/queues"]) {
+      const request = createRequest({ method: "GET", path, url: path });
+      const next: NextFunction = vi.fn();
 
-    middleware.use(request, createResponse(), next);
-    middleware.use(request, createResponse(), next);
-    middleware.use(request, createResponse(), next);
+      middleware.use(request, createResponse(), next);
+      middleware.use(request, createResponse(), next);
+      middleware.use(request, createResponse(), next);
 
-    expect(next).toHaveBeenCalledTimes(3);
+      expect(next).toHaveBeenCalledTimes(3);
+    }
   });
 });
