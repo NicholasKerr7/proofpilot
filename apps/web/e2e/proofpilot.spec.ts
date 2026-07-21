@@ -42,6 +42,12 @@ test.describe("ProofPilot responsive workspace", () => {
     await expectNavigationTargets(primaryNavigation);
     await expect(page.getByText("Processed", { exact: true }).first()).toBeVisible();
 
+    const invalidResourceResponse = await page.request.get("/api/cases/case.id");
+    expect(invalidResourceResponse.status()).toBe(400);
+    await expect(invalidResourceResponse.json()).resolves.toMatchObject({
+      message: expect.stringContaining("Resource id must be")
+    });
+
     await page.getByRole("button", { name: "Open account menu" }).click();
     const accountDetails = page.getByRole("region", { name: "Account details" });
     await expect(accountDetails).toContainText("Nicholas Kerr");

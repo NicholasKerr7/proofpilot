@@ -8,6 +8,7 @@ import {
   MinLength
 } from "class-validator";
 import { reportExportSections } from "@proofpilot/types";
+import { resourceIdPattern } from "../../common/validation/resource-id.js";
 
 const reportDatePattern = /^\d{4}-\d{2}-\d{2}$/;
 const reportSectionsPattern = new RegExp(
@@ -20,6 +21,7 @@ export class ReportExportQueryDto {
   @IsString()
   @MinLength(1)
   @MaxLength(128)
+  @Matches(resourceIdPattern)
   caseId?: string;
 
   @ApiPropertyOptional({ example: "2026-06-01" })

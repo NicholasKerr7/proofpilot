@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   Headers,
-  Param,
   Post,
   UseGuards
 } from "@nestjs/common";
@@ -12,6 +11,7 @@ import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { CurrentUser } from "../common/decorators/current-user.decorator.js";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard.js";
 import type { RequestUser } from "../common/types/request-user.js";
+import { ResourceIdParam } from "../common/validation/resource-id.js";
 import { AccessPacketShareDto } from "./dto/access-packet-share.dto.js";
 import { CreatePacketShareCommentDto } from "./dto/create-packet-share-comment.dto.js";
 import { CreatePacketShareDto } from "./dto/create-packet-share.dto.js";
@@ -26,14 +26,14 @@ export class PacketSharingController {
   constructor(private readonly packetSharingService: PacketSharingService) {}
 
   @Get("prepare")
-  prepare(@CurrentUser() user: RequestUser, @Param("caseId") caseId: string) {
+  prepare(@CurrentUser() user: RequestUser, @ResourceIdParam("caseId") caseId: string) {
     return this.packetSharingService.prepare(user.id, caseId);
   }
 
   @Post()
   create(
     @CurrentUser() user: RequestUser,
-    @Param("caseId") caseId: string,
+    @ResourceIdParam("caseId") caseId: string,
     @Body() input: CreatePacketShareDto
   ) {
     return this.packetSharingService.create(user.id, caseId, input);
@@ -42,8 +42,8 @@ export class PacketSharingController {
   @Delete(":shareId")
   revoke(
     @CurrentUser() user: RequestUser,
-    @Param("caseId") caseId: string,
-    @Param("shareId") shareId: string
+    @ResourceIdParam("caseId") caseId: string,
+    @ResourceIdParam("shareId") shareId: string
   ) {
     return this.packetSharingService.revoke(user.id, caseId, shareId);
   }

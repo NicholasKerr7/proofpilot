@@ -86,6 +86,10 @@ pnpm storage:bootstrap
 
 The command loads `.env` and `.env.local`, uses the same `STORAGE_*` variables as the API and worker, and is idempotent. For production providers that do not allow application credentials to create buckets, pre-create `STORAGE_BUCKET` in the provider console and run the command as a verification step.
 
+## Input Validation
+
+The API's global validation pipe strips no unknown input silently: it rejects non-whitelisted fields and transforms only declared DTO values. Database-backed route parameters and resource IDs in queries, bodies, and ID arrays use the same bounded character rule. Malformed identifiers return `400` before ownership-aware database or private-storage lookups; a syntactically valid identifier never bypasses the authenticated owner filter.
+
 ## Upload Security
 
 Evidence uploads are limited to PDF, PNG, JPG, JPEG, TXT, DOCX, EML, CSV, and XLSX files under 25 MB. The API validates the requested upload metadata before issuing a signed URL and validates the stored object size and content type before queueing document processing.

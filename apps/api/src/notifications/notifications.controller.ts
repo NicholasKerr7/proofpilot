@@ -1,8 +1,9 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Patch, Post, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { CurrentUser } from "../common/decorators/current-user.decorator.js";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard.js";
 import type { RequestUser } from "../common/types/request-user.js";
+import { ResourceIdParam } from "../common/validation/resource-id.js";
 import { CreateReminderDto } from "./dto/create-reminder.dto.js";
 import { UpdateReminderDto } from "./dto/update-reminder.dto.js";
 import { NotificationsService } from "./notifications.service.js";
@@ -20,7 +21,10 @@ export class NotificationsController {
   }
 
   @Patch("notifications/:notificationId/read")
-  markRead(@CurrentUser() user: RequestUser, @Param("notificationId") notificationId: string) {
+  markRead(
+    @CurrentUser() user: RequestUser,
+    @ResourceIdParam("notificationId") notificationId: string
+  ) {
     return this.notificationsService.markRead(user.id, notificationId);
   }
 
@@ -30,14 +34,17 @@ export class NotificationsController {
   }
 
   @Get("cases/:caseId/reminders")
-  listCaseReminders(@CurrentUser() user: RequestUser, @Param("caseId") caseId: string) {
+  listCaseReminders(
+    @CurrentUser() user: RequestUser,
+    @ResourceIdParam("caseId") caseId: string
+  ) {
     return this.notificationsService.listCaseReminders(user.id, caseId);
   }
 
   @Post("cases/:caseId/reminders")
   createCaseReminder(
     @CurrentUser() user: RequestUser,
-    @Param("caseId") caseId: string,
+    @ResourceIdParam("caseId") caseId: string,
     @Body() input: CreateReminderDto
   ) {
     return this.notificationsService.createCaseReminder(user.id, caseId, input);
@@ -46,14 +53,17 @@ export class NotificationsController {
   @Patch("reminders/:reminderId")
   updateReminder(
     @CurrentUser() user: RequestUser,
-    @Param("reminderId") reminderId: string,
+    @ResourceIdParam("reminderId") reminderId: string,
     @Body() input: UpdateReminderDto
   ) {
     return this.notificationsService.updateReminder(user.id, reminderId, input);
   }
 
   @Delete("reminders/:reminderId")
-  deleteReminder(@CurrentUser() user: RequestUser, @Param("reminderId") reminderId: string) {
+  deleteReminder(
+    @CurrentUser() user: RequestUser,
+    @ResourceIdParam("reminderId") reminderId: string
+  ) {
     return this.notificationsService.deleteReminder(user.id, reminderId);
   }
 }

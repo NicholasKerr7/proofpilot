@@ -30,6 +30,7 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 - Invoice downloads resolve ownership through the authenticated user's billing subscription.
 - Demo billing records keep display-only card metadata: brand, last four digits, and expiry. Full card numbers, security codes, and provider payment tokens are not stored.
 - All request DTOs are validated with Nest validation pipes.
+- Database-backed route, query, body, and array identifiers share one bounded resource-ID rule before ownership-aware service lookups.
 - Passwords are hashed with bcryptjs.
 - API auth uses JWT bearer tokens for the MVP foundation.
 - Password changes update a dedicated `passwordChangedAt` timestamp.

@@ -1,8 +1,9 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Patch, Post, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { CurrentUser } from "../common/decorators/current-user.decorator.js";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard.js";
 import type { RequestUser } from "../common/types/request-user.js";
+import { ResourceIdParam } from "../common/validation/resource-id.js";
 import { CollaborationService } from "./collaboration.service.js";
 import { InviteCaseCollaboratorDto } from "./dto/invite-case-collaborator.dto.js";
 import { UpdateCaseCollaborationSettingsDto } from "./dto/update-case-collaboration-settings.dto.js";
@@ -18,7 +19,7 @@ export class CollaborationController {
   @Get()
   getCollaboration(
     @CurrentUser() user: RequestUser,
-    @Param("caseId") caseId: string
+    @ResourceIdParam("caseId") caseId: string
   ) {
     return this.collaborationService.getCollaboration(user.id, caseId);
   }
@@ -26,7 +27,7 @@ export class CollaborationController {
   @Post("invitations")
   inviteCollaborator(
     @CurrentUser() user: RequestUser,
-    @Param("caseId") caseId: string,
+    @ResourceIdParam("caseId") caseId: string,
     @Body() input: InviteCaseCollaboratorDto
   ) {
     return this.collaborationService.inviteCollaborator(user.id, caseId, input);
@@ -35,8 +36,8 @@ export class CollaborationController {
   @Patch("collaborators/:collaboratorId")
   updateCollaborator(
     @CurrentUser() user: RequestUser,
-    @Param("caseId") caseId: string,
-    @Param("collaboratorId") collaboratorId: string,
+    @ResourceIdParam("caseId") caseId: string,
+    @ResourceIdParam("collaboratorId") collaboratorId: string,
     @Body() input: UpdateCaseCollaboratorDto
   ) {
     return this.collaborationService.updateCollaborator(
@@ -50,8 +51,8 @@ export class CollaborationController {
   @Delete("collaborators/:collaboratorId")
   removeCollaborator(
     @CurrentUser() user: RequestUser,
-    @Param("caseId") caseId: string,
-    @Param("collaboratorId") collaboratorId: string
+    @ResourceIdParam("caseId") caseId: string,
+    @ResourceIdParam("collaboratorId") collaboratorId: string
   ) {
     return this.collaborationService.removeCollaborator(user.id, caseId, collaboratorId);
   }
@@ -59,7 +60,7 @@ export class CollaborationController {
   @Patch("settings")
   updateSettings(
     @CurrentUser() user: RequestUser,
-    @Param("caseId") caseId: string,
+    @ResourceIdParam("caseId") caseId: string,
     @Body() input: UpdateCaseCollaborationSettingsDto
   ) {
     return this.collaborationService.updateSettings(user.id, caseId, input);

@@ -3,7 +3,6 @@ import {
   Controller,
   Get,
   Header,
-  Param,
   Post,
   StreamableFile,
   UseGuards
@@ -12,6 +11,7 @@ import { ApiBearerAuth, ApiProduces, ApiTags } from "@nestjs/swagger";
 import { CurrentUser } from "../common/decorators/current-user.decorator.js";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard.js";
 import type { RequestUser } from "../common/types/request-user.js";
+import { ResourceIdParam } from "../common/validation/resource-id.js";
 import { BillingService } from "./billing.service.js";
 import { CreateBillingPortalDto } from "./dto/create-billing-portal.dto.js";
 import { createInvoicePdf } from "./invoice-pdf.js";
@@ -38,7 +38,7 @@ export class BillingController {
   @Header("Cache-Control", "private, no-store")
   async downloadInvoice(
     @CurrentUser() user: RequestUser,
-    @Param("invoiceId") invoiceId: string
+    @ResourceIdParam("invoiceId") invoiceId: string
   ) {
     const invoice = await this.billingService.getInvoiceDocument(user.id, invoiceId);
     const pdf = await createInvoicePdf(invoice);

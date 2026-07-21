@@ -9,6 +9,7 @@ import {
   IsIn,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
   ValidateIf,
   ValidateNested
@@ -18,6 +19,7 @@ import {
   packetSharePermissions,
   type PacketSharePermission
 } from "@proofpilot/types";
+import { resourceIdPattern } from "../../common/validation/resource-id.js";
 
 export class CreatePacketShareRecipientDto {
   @ApiProperty({ example: "advisor@example.com" })
@@ -34,6 +36,7 @@ export class CreatePacketShareDto {
   @ApiProperty({ example: "packet-export-id" })
   @IsString()
   @MaxLength(128)
+  @Matches(resourceIdPattern)
   packetExportId!: string;
 
   @ApiProperty({ type: [CreatePacketShareRecipientDto] })

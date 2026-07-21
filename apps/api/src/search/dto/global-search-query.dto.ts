@@ -19,6 +19,7 @@ import {
   type GlobalSearchSort,
   type GlobalSearchStatusFilter
 } from "@proofpilot/types";
+import { resourceIdPattern } from "../../common/validation/resource-id.js";
 
 const searchDatePattern = /^\d{4}-\d{2}-\d{2}$/;
 const searchTypesPattern = new RegExp(
@@ -37,6 +38,7 @@ export class GlobalSearchQueryDto {
   @IsString()
   @MinLength(1)
   @MaxLength(128)
+  @Matches(resourceIdPattern)
   caseId?: string;
 
   @ApiPropertyOptional({ example: "CASE,DOCUMENT,TIMELINE" })

@@ -5,6 +5,8 @@
 - `GET /health`
 - `GET /health/queues`
 
+All database-backed route parameters and resource-ID fields in request bodies or queries must be 1 to 128 characters and contain only letters, numbers, underscores, or hyphens. Malformed identifiers return `400` before a database or storage lookup; well-formed identifiers still pass through the endpoint's authenticated ownership checks.
+
 ## Auth
 
 - `POST /auth/register`

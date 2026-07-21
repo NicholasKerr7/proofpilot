@@ -1,5 +1,13 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsString } from "class-validator";
+import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  ArrayUnique,
+  IsArray,
+  IsString,
+  Matches
+} from "class-validator";
+import { resourceIdPattern } from "../../common/validation/resource-id.js";
 
 export class ReorderTimelineEventsDto {
   @ApiProperty({
@@ -11,5 +19,6 @@ export class ReorderTimelineEventsDto {
   @ArrayMaxSize(500)
   @ArrayUnique()
   @IsString({ each: true })
+  @Matches(resourceIdPattern, { each: true })
   eventIds!: string[];
 }

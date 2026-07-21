@@ -13,6 +13,7 @@ import {
   type SupportRequestCategory,
   type SupportRequestPriority
 } from "@proofpilot/types";
+import { resourceIdPattern } from "../../common/validation/resource-id.js";
 
 export class CreateSupportRequestDto {
   @ApiPropertyOptional({ description: "An active case owned by the current user." })
@@ -20,6 +21,7 @@ export class CreateSupportRequestDto {
   @IsString()
   @MinLength(1)
   @MaxLength(128)
+  @Matches(resourceIdPattern)
   caseId?: string;
 
   @ApiProperty({ enum: supportRequestCategories, example: "CASE_ASSISTANCE" })

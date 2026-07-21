@@ -3,7 +3,6 @@ import {
   Controller,
   Delete,
   Get,
-  Param,
   Patch,
   Post,
   Put,
@@ -14,6 +13,7 @@ import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { CurrentUser } from "../common/decorators/current-user.decorator.js";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard.js";
 import type { RequestUser } from "../common/types/request-user.js";
+import { ResourceIdParam } from "../common/validation/resource-id.js";
 import { CasesService } from "./cases.service.js";
 import { CreateCaseDto } from "./dto/create-case.dto.js";
 import { CreateTimelineEventDto } from "./dto/create-timeline-event.dto.js";
@@ -43,42 +43,42 @@ export class CasesController {
   }
 
   @Get(":id")
-  get(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+  get(@CurrentUser() user: RequestUser, @ResourceIdParam("id") id: string) {
     return this.casesService.get(user.id, id);
   }
 
   @Get(":id/activity")
   listActivity(
     @CurrentUser() user: RequestUser,
-    @Param("id") id: string,
+    @ResourceIdParam("id") id: string,
     @Query() query: ListCaseActivityQueryDto
   ) {
     return this.casesService.listActivity(user.id, id, query);
   }
 
   @Get(":id/timeline")
-  listTimeline(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+  listTimeline(@CurrentUser() user: RequestUser, @ResourceIdParam("id") id: string) {
     return this.casesService.listTimeline(user.id, id);
   }
 
   @Post(":id/timeline")
   createTimelineEvent(
     @CurrentUser() user: RequestUser,
-    @Param("id") id: string,
+    @ResourceIdParam("id") id: string,
     @Body() input: CreateTimelineEventDto
   ) {
     return this.casesService.createTimelineEvent(user.id, id, input);
   }
 
   @Post(":id/timeline/analyze")
-  analyzeTimeline(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+  analyzeTimeline(@CurrentUser() user: RequestUser, @ResourceIdParam("id") id: string) {
     return this.casesService.analyzeTimeline(user.id, id);
   }
 
   @Put(":id/timeline/order")
   reorderTimeline(
     @CurrentUser() user: RequestUser,
-    @Param("id") id: string,
+    @ResourceIdParam("id") id: string,
     @Body() input: ReorderTimelineEventsDto
   ) {
     return this.casesService.reorderTimeline(user.id, id, input);
@@ -87,8 +87,8 @@ export class CasesController {
   @Patch(":id/timeline/:eventId")
   updateTimelineEvent(
     @CurrentUser() user: RequestUser,
-    @Param("id") id: string,
-    @Param("eventId") eventId: string,
+    @ResourceIdParam("id") id: string,
+    @ResourceIdParam("eventId") eventId: string,
     @Body() input: UpdateTimelineEventDto
   ) {
     return this.casesService.updateTimelineEvent(user.id, id, eventId, input);
@@ -97,41 +97,41 @@ export class CasesController {
   @Delete(":id/timeline/:eventId")
   deleteTimelineEvent(
     @CurrentUser() user: RequestUser,
-    @Param("id") id: string,
-    @Param("eventId") eventId: string
+    @ResourceIdParam("id") id: string,
+    @ResourceIdParam("eventId") eventId: string
   ) {
     return this.casesService.deleteTimelineEvent(user.id, id, eventId);
   }
 
   @Get(":id/checklist")
-  listChecklist(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+  listChecklist(@CurrentUser() user: RequestUser, @ResourceIdParam("id") id: string) {
     return this.casesService.listChecklist(user.id, id);
   }
 
   @Post(":id/checklist/analyze")
-  analyzeChecklist(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+  analyzeChecklist(@CurrentUser() user: RequestUser, @ResourceIdParam("id") id: string) {
     return this.casesService.analyzeChecklist(user.id, id);
   }
 
   @Patch(":id/checklist/:itemId")
   updateChecklistItem(
     @CurrentUser() user: RequestUser,
-    @Param("id") id: string,
-    @Param("itemId") itemId: string,
+    @ResourceIdParam("id") id: string,
+    @ResourceIdParam("itemId") itemId: string,
     @Body() input: UpdateChecklistItemDto
   ) {
     return this.casesService.updateChecklistItem(user.id, id, itemId, input);
   }
 
   @Get(":id/statement")
-  getStatement(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+  getStatement(@CurrentUser() user: RequestUser, @ResourceIdParam("id") id: string) {
     return this.casesService.getStatement(user.id, id);
   }
 
   @Put(":id/statement")
   saveStatement(
     @CurrentUser() user: RequestUser,
-    @Param("id") id: string,
+    @ResourceIdParam("id") id: string,
     @Body() input: SaveStatementDto
   ) {
     return this.casesService.saveStatement(user.id, id, input);
@@ -140,52 +140,52 @@ export class CasesController {
   @Put(":id/statement/guidance")
   saveStatementGuidance(
     @CurrentUser() user: RequestUser,
-    @Param("id") id: string,
+    @ResourceIdParam("id") id: string,
     @Body() input: SaveStatementGuidanceDto
   ) {
     return this.casesService.saveStatementGuidance(user.id, id, input);
   }
 
   @Post(":id/statement/generate")
-  generateStatement(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+  generateStatement(@CurrentUser() user: RequestUser, @ResourceIdParam("id") id: string) {
     return this.casesService.generateStatement(user.id, id);
   }
 
   @Post(":id/statement/versions/:versionId/restore")
   restoreStatementVersion(
     @CurrentUser() user: RequestUser,
-    @Param("id") id: string,
-    @Param("versionId") versionId: string
+    @ResourceIdParam("id") id: string,
+    @ResourceIdParam("versionId") versionId: string
   ) {
     return this.casesService.restoreStatementVersion(user.id, id, versionId);
   }
 
   @Post(":id/summary/generate")
-  generateSummary(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+  generateSummary(@CurrentUser() user: RequestUser, @ResourceIdParam("id") id: string) {
     return this.casesService.generateSummary(user.id, id);
   }
 
   @Get(":id/packets")
-  listPackets(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+  listPackets(@CurrentUser() user: RequestUser, @ResourceIdParam("id") id: string) {
     return this.casesService.listPackets(user.id, id);
   }
 
   @Post(":id/packet/generate")
-  generatePacket(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+  generatePacket(@CurrentUser() user: RequestUser, @ResourceIdParam("id") id: string) {
     return this.casesService.generatePacket(user.id, id);
   }
 
   @Patch(":id")
   update(
     @CurrentUser() user: RequestUser,
-    @Param("id") id: string,
+    @ResourceIdParam("id") id: string,
     @Body() input: UpdateCaseDto
   ) {
     return this.casesService.update(user.id, id, input);
   }
 
   @Delete(":id")
-  archive(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+  archive(@CurrentUser() user: RequestUser, @ResourceIdParam("id") id: string) {
     return this.casesService.archive(user.id, id);
   }
 }
