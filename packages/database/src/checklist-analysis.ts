@@ -47,6 +47,7 @@ export interface ChecklistAnalysisMatch {
 }
 
 export interface AnalyzeCaseChecklistOptions {
+  actorId?: string;
   auditAction?: "case.checklist_analyzed" | "case.checklist_auto_analyzed" | null;
   caseId: string;
   ownerId: string;
@@ -181,6 +182,7 @@ export async function analyzeCaseChecklist(
 export async function analyzeCaseChecklistTransaction(
   prisma: Prisma.TransactionClient,
   {
+    actorId,
     auditAction = "case.checklist_analyzed",
     caseId,
     ownerId,
@@ -303,7 +305,7 @@ export async function analyzeCaseChecklistTransaction(
   if (auditAction) {
     await prisma.auditLog.create({
       data: {
-        userId: ownerId,
+        userId: actorId ?? ownerId,
         caseId: foundCase.id,
         action: auditAction,
         metadata: {

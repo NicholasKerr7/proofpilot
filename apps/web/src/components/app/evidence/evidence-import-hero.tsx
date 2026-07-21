@@ -15,6 +15,12 @@ interface EvidenceImportHeroProps {
 export function EvidenceImportHero({ caseRecord }: EvidenceImportHeroProps) {
   const statusVariant = getCaseStatusVariant(caseRecord.status);
   const StatusIcon = statusVariant === "success" ? CheckCircle2 : AlertTriangle;
+  const accessLabel =
+    caseRecord.access?.role === "EDITOR"
+      ? "Shared editor"
+      : caseRecord.access?.role === "VIEWER"
+        ? "Shared viewer"
+        : "Primary case";
 
   return (
     <section
@@ -28,7 +34,7 @@ export function EvidenceImportHero({ caseRecord }: EvidenceImportHeroProps) {
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-primary">
             <BriefcaseBusiness className="hidden h-4 w-4 sm:block" aria-hidden="true" />
-            <p className="text-xs font-semibold uppercase">Primary case</p>
+            <p className="text-xs font-semibold uppercase">{accessLabel}</p>
           </div>
           <h2 className="mt-2 break-words text-lg font-semibold leading-6 sm:text-xl sm:leading-7">
             {caseRecord.title}

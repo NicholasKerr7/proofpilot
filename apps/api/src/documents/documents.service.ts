@@ -21,6 +21,12 @@ import {
 } from "@proofpilot/types/evidence";
 import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
+import {
+  buildCaseAccessSelect,
+  buildCaseAccessWhere,
+  createCaseAccess,
+  type CaseAccessRequirement
+} from "../common/case-access.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import {
   DocumentProcessingQueueService,
@@ -57,17 +63,17 @@ export class DocumentsService {
     const foundCase = await this.prisma.case.findFirst({
       where: {
         id: caseId,
-        ownerId,
+        ...buildCaseAccessWhere(ownerId, "EDIT"),
         archivedAt: null
       },
-      select: { id: true }
+      select: { id: true, ownerId: true }
     });
 
     if (!foundCase) {
       throw new NotFoundException("Case not found.");
     }
 
-    const storageKey = this.createStorageKey(ownerId, caseId, input.originalName);
+    const storageKey = this.createStorageKey(foundCase.ownerId, caseId, input.originalName);
 
     const document = await this.prisma.document.create({
       data: {
@@ -131,7 +137,10 @@ export class DocumentsService {
     const document = await this.prisma.document.findFirst({
       where: {
         id: documentId,
-        case: { ownerId }
+        case: {
+          ...buildCaseAccessWhere(ownerId, "EDIT"),
+          archivedAt: null
+        }
       },
       select: {
         id: true,
@@ -140,7 +149,10 @@ export class DocumentsService {
         mimeType: true,
         originalName: true,
         storageKey: true,
-        status: true
+        status: true,
+        case: {
+          select: { ownerId: true }
+        }
       }
     });
 
@@ -166,13 +178,18 @@ export class DocumentsService {
     }
 
     const objectMetadata = await this.assertCompletedUploadAllowed(ownerId, document);
-    await this.scanCompletedUpload(ownerId, document, objectMetadata.etag);
+    await this.scanCompletedUpload(
+      ownerId,
+      document.case.ownerId,
+      document,
+      objectMetadata.etag
+    );
 
     const job = await this.documentProcessingQueue.addProcessDocumentJob(
       {
         documentId: document.id,
         caseId: document.caseId,
-        ownerId
+        ownerId: document.case.ownerId
       },
       { jobId: document.id }
     );
@@ -220,7 +237,10 @@ export class DocumentsService {
     const document = await this.prisma.document.findFirst({
       where: {
         id: documentId,
-        case: { ownerId }
+        case: {
+          ...buildCaseAccessWhere(ownerId, "READ"),
+          archivedAt: null
+        }
       },
       select: {
         id: true,
@@ -251,7 +271,10 @@ export class DocumentsService {
     const document = await this.prisma.document.findFirst({
       where: {
         id: documentId,
-        case: { ownerId }
+        case: {
+          ...buildCaseAccessWhere(ownerId, "EDIT"),
+          archivedAt: null
+        }
       },
       select: {
         id: true,
@@ -261,7 +284,10 @@ export class DocumentsService {
         originalName: true,
         quarantinedAt: true,
         storageKey: true,
-        updatedAt: true
+        updatedAt: true,
+        case: {
+          select: { ownerId: true }
+        }
       }
     });
 
@@ -274,12 +300,17 @@ export class DocumentsService {
     }
 
     const objectMetadata = await this.assertCompletedUploadAllowed(ownerId, document);
-    await this.scanCompletedUpload(ownerId, document, objectMetadata.etag);
+    await this.scanCompletedUpload(
+      ownerId,
+      document.case.ownerId,
+      document,
+      objectMetadata.etag
+    );
 
     const job = await this.documentProcessingQueue.addProcessDocumentJob({
       documentId: document.id,
       caseId: document.caseId,
-      ownerId
+      ownerId: document.case.ownerId
     });
 
     await this.prisma.document.updateMany({
@@ -322,7 +353,7 @@ export class DocumentsService {
   }
 
   async listForCase(ownerId: string, caseId: string) {
-    await this.assertCaseOwnership(ownerId, caseId);
+    await this.assertCaseAccess(ownerId, caseId, "READ");
 
     return this.prisma.document.findMany({
       where: { caseId },
@@ -343,7 +374,10 @@ export class DocumentsService {
     const document = await this.prisma.document.findFirst({
       where: {
         id: documentId,
-        case: { ownerId }
+        case: {
+          ...buildCaseAccessWhere(ownerId, "READ"),
+          archivedAt: null
+        }
       },
       select: {
         id: true,
@@ -355,6 +389,9 @@ export class DocumentsService {
         extractedText: true,
         quarantinedAt: true,
         storageKey: true,
+        case: {
+          select: buildCaseAccessSelect(ownerId)
+        },
         createdAt: true,
         updatedAt: true,
         entities: {
@@ -385,11 +422,12 @@ export class DocumentsService {
       throw new NotFoundException("Document not found.");
     }
 
-    const { storageKey, ...publicDocument } = document;
+    const { case: caseAccess, storageKey, ...publicDocument } = document;
+    const canDownload = createCaseAccess(ownerId, caseAccess).canDownload;
 
     return {
       ...publicDocument,
-      downloadUrl: document.quarantinedAt || document.status === DocumentStatus.UPLOADED
+      downloadUrl: !canDownload || document.quarantinedAt || document.status === DocumentStatus.UPLOADED
         ? null
         : await createPresignedDownloadUrl({ key: storageKey })
     };
@@ -399,13 +437,19 @@ export class DocumentsService {
     const document = await this.prisma.document.findFirst({
       where: {
         id: documentId,
-        case: { ownerId }
+        case: {
+          ...buildCaseAccessWhere(ownerId, "EDIT"),
+          archivedAt: null
+        }
       },
       select: {
         id: true,
         caseId: true,
         originalName: true,
         storageKey: true,
+        case: {
+          select: { ownerId: true }
+        },
         versions: {
           select: { storageKey: true }
         }
@@ -439,9 +483,10 @@ export class DocumentsService {
 
     try {
       await analyzeCaseChecklist(this.prisma, {
+        actorId: ownerId,
         auditAction: "case.checklist_auto_analyzed",
         caseId: document.caseId,
-        ownerId,
+        ownerId: document.case.ownerId,
         triggerDocumentId: document.id
       });
     } catch (error) {
@@ -586,7 +631,8 @@ export class DocumentsService {
   }
 
   private async scanCompletedUpload(
-    ownerId: string,
+    actorId: string,
+    storageOwnerId: string,
     document: CompletedUploadDocument,
     metadataEtag: string | null
   ) {
@@ -595,7 +641,7 @@ export class DocumentsService {
     try {
       scan = await this.virusScanner.scanStoredObject({ key: document.storageKey });
     } catch (error) {
-      await this.recordVirusScanFailure(ownerId, document, error);
+      await this.recordVirusScanFailure(actorId, document, error);
       throw new ServiceUnavailableException(
         "Upload security scanning is temporarily unavailable. Try completing the upload again shortly."
       );
@@ -604,7 +650,7 @@ export class DocumentsService {
     const { result } = scan;
 
     if (result.status === "infected") {
-      await this.rejectInfectedUpload(ownerId, document, result);
+      await this.rejectInfectedUpload(actorId, document, result);
       throw new BadRequestException(
         "The uploaded file did not pass security scanning and was quarantined."
       );
@@ -624,12 +670,12 @@ export class DocumentsService {
       }
 
       promotion = await this.promoteCompletedUpload(
-        ownerId,
+        storageOwnerId,
         document,
         scan.sourceEtag ?? metadataEtag
       );
     } catch (error) {
-      await this.recordVirusScanFailure(ownerId, document, error);
+      await this.recordVirusScanFailure(actorId, document, error);
       throw new ServiceUnavailableException(
         "The scanned upload could not be secured for processing. Try completing the upload again."
       );
@@ -649,7 +695,7 @@ export class DocumentsService {
       }),
       this.prisma.auditLog.create({
         data: {
-          userId: ownerId,
+          userId: actorId,
           caseId: document.caseId,
           action: skipped ? "document.virus_scan_skipped" : "document.virus_scan_completed",
           metadata: {
@@ -788,19 +834,25 @@ export class DocumentsService {
     return { deleteError, objectDeleted };
   }
 
-  private async assertCaseOwnership(ownerId: string, caseId: string) {
+  private async assertCaseAccess(
+    ownerId: string,
+    caseId: string,
+    requirement: CaseAccessRequirement
+  ) {
     const foundCase = await this.prisma.case.findFirst({
       where: {
         id: caseId,
-        ownerId,
+        ...buildCaseAccessWhere(ownerId, requirement),
         archivedAt: null
       },
-      select: { id: true }
+      select: { id: true, ownerId: true }
     });
 
     if (!foundCase) {
       throw new NotFoundException("Case not found.");
     }
+
+    return foundCase;
   }
 
   private createStorageKey(ownerId: string, caseId: string, originalName: string) {

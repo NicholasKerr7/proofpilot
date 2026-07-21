@@ -136,7 +136,7 @@ describe("AssistantService", () => {
       where: {
         archivedAt: null,
         id: caseId,
-        ownerId: userId
+        OR: expect.any(Array)
       },
       select: expect.any(Object)
     });

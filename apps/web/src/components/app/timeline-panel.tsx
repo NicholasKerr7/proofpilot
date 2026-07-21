@@ -26,6 +26,7 @@ type TimelineFilter = (typeof timelineFilters)[number]["value"];
 interface TimelinePanelProps {
   confirmBeforeDelete: boolean;
   onCaseChanged: (caseId: string) => Promise<unknown>;
+  readOnly: boolean;
   selectedCase: CaseRecord;
 }
 
@@ -37,6 +38,7 @@ type TimelineNotice = {
 export function TimelinePanel({
   confirmBeforeDelete,
   onCaseChanged,
+  readOnly,
   selectedCase
 }: TimelinePanelProps) {
   const [filter, setFilter] = useState<TimelineFilter>("all");
@@ -254,31 +256,33 @@ export function TimelinePanel({
           </div>
           <CardDescription>Chronology from evidence and important manual dates.</CardDescription>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:flex">
-          <Button
-            disabled={isAnalyzingTimeline || Boolean(busyEventId)}
-            onClick={() => {
-              void handleAnalyzeTimeline();
-            }}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            <RefreshCcw className="h-4 w-4" aria-hidden="true" />
-            {isAnalyzingTimeline ? "Analyzing..." : "Analyze"}
-          </Button>
-          <Button
-            aria-expanded={isComposerOpen}
-            disabled={isAnalyzingTimeline || Boolean(busyEventId)}
-            onClick={handleOpenComposer}
-            size="sm"
-            type="button"
-            variant={isComposerOpen ? "secondary" : "default"}
-          >
-            <CalendarPlus className="h-4 w-4" aria-hidden="true" />
-            Add event
-          </Button>
-        </div>
+        {!readOnly ? (
+          <div className="grid grid-cols-2 gap-2 sm:flex">
+            <Button
+              disabled={isAnalyzingTimeline || Boolean(busyEventId)}
+              onClick={() => {
+                void handleAnalyzeTimeline();
+              }}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              <RefreshCcw className="h-4 w-4" aria-hidden="true" />
+              {isAnalyzingTimeline ? "Analyzing..." : "Analyze"}
+            </Button>
+            <Button
+              aria-expanded={isComposerOpen}
+              disabled={isAnalyzingTimeline || Boolean(busyEventId)}
+              onClick={handleOpenComposer}
+              size="sm"
+              type="button"
+              variant={isComposerOpen ? "secondary" : "default"}
+            >
+              <CalendarPlus className="h-4 w-4" aria-hidden="true" />
+              Add event
+            </Button>
+          </div>
+        ) : null}
       </CardHeader>
       <CardContent className="grid gap-4">
         {timelineNotice ? (
@@ -294,7 +298,7 @@ export function TimelinePanel({
           </p>
         ) : null}
 
-        {isComposerOpen ? (
+        {!readOnly && isComposerOpen ? (
           <TimelineEventComposer
             documents={documents}
             isLoadingDocuments={isLoadingDocuments}
@@ -339,10 +343,10 @@ export function TimelinePanel({
 
             <TimelineEventList
               busyEventId={isAnalyzingTimeline ? "timeline-analysis" : busyEventId}
-              canReorder={filter === "all"}
+              canReorder={!readOnly && filter === "all"}
               editingEventId={editingEventId}
               editor={
-                editingEvent ? (
+                !readOnly && editingEvent ? (
                   <TimelineEventComposer
                     documents={documents}
                     event={editingEvent}
@@ -361,6 +365,7 @@ export function TimelinePanel({
               onRequestDelete={handleRequestDelete}
               orderedEventIds={timelineEvents.map((event) => event.id)}
               pendingDeleteEventId={pendingDeleteEventId}
+              readOnly={readOnly}
               showPlaceholders={timelineEvents.length === 0}
             />
           </div>

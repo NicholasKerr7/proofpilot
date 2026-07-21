@@ -35,6 +35,7 @@ interface TimelineEventListProps {
   onRequestDelete: (event: CaseEvent) => void;
   orderedEventIds: string[];
   pendingDeleteEventId: string | null;
+  readOnly: boolean;
   showPlaceholders: boolean;
 }
 
@@ -51,6 +52,7 @@ export function TimelineEventList({
   onRequestDelete,
   orderedEventIds,
   pendingDeleteEventId,
+  readOnly,
   showPlaceholders
 }: TimelineEventListProps) {
   if (showPlaceholders) {
@@ -154,6 +156,7 @@ export function TimelineEventList({
                       </span>
                     </Badge>
 
+                    {!readOnly ? (
                     <div className="flex flex-wrap justify-end gap-0 sm:gap-1" aria-label={`Actions for ${timelineEvent.title}`}>
                       {canReorder ? (
                         <>
@@ -210,11 +213,12 @@ export function TimelineEventList({
                         <Trash2 className="h-4 w-4" aria-hidden="true" />
                       </Button>
                     </div>
+                    ) : null}
                   </div>
                 </div>
               </article>
 
-              {isPendingDelete ? (
+              {!readOnly && isPendingDelete ? (
                 <TimelineDeleteConfirmation
                   isDeleting={isBusy}
                   onCancel={onCancelDelete}
@@ -222,7 +226,7 @@ export function TimelineEventList({
                 />
               ) : null}
 
-              {editingEventId === timelineEvent.id ? editor : null}
+              {!readOnly && editingEventId === timelineEvent.id ? editor : null}
             </div>
           </li>
         );

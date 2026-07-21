@@ -33,6 +33,7 @@ const reminderFilters = [
 interface ReminderPanelProps {
   confirmBeforeDelete: boolean;
   onNotificationsChanged: () => void;
+  readOnly: boolean;
   selectedCase: CaseRecord;
 }
 
@@ -44,6 +45,7 @@ type Notice = {
 export function ReminderPanel({
   confirmBeforeDelete,
   onNotificationsChanged,
+  readOnly,
   selectedCase
 }: ReminderPanelProps) {
   const [reminders, setReminders] = useState<CaseReminder[]>([]);
@@ -225,16 +227,18 @@ export function ReminderPanel({
           </div>
           <CardDescription>Schedule deadline and review prompts for this case.</CardDescription>
         </div>
-        <Button
-          aria-expanded={isComposerOpen}
-          onClick={handleToggleComposer}
-          size="sm"
-          type="button"
-          variant={isComposerOpen ? "secondary" : "default"}
-        >
-          <BellPlus className="h-4 w-4" aria-hidden="true" />
-          Add reminder
-        </Button>
+        {!readOnly ? (
+          <Button
+            aria-expanded={isComposerOpen}
+            onClick={handleToggleComposer}
+            size="sm"
+            type="button"
+            variant={isComposerOpen ? "secondary" : "default"}
+          >
+            <BellPlus className="h-4 w-4" aria-hidden="true" />
+            Add reminder
+          </Button>
+        ) : null}
       </CardHeader>
       <CardContent className="grid gap-4">
         {notice ? (
@@ -268,7 +272,7 @@ export function ReminderPanel({
           />
         </dl>
 
-        {isComposerOpen ? (
+        {!readOnly && isComposerOpen ? (
           <ReminderComposer
             caseId={selectedCase.id}
             defaultRemindAt={getDefaultReminderValue(selectedCase)}
@@ -331,6 +335,7 @@ export function ReminderPanel({
           onUpdateReminder={handleUpdateReminder}
           reminderToDeleteId={reminderToDeleteId}
           reminders={filteredReminders}
+          readOnly={readOnly}
           selectedCase={selectedCase}
         />
       </CardContent>

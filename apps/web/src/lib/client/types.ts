@@ -1,3 +1,5 @@
+import type { CaseAccess } from "@proofpilot/types";
+
 export interface AuthUser {
   id: string;
   email: string;
@@ -13,6 +15,7 @@ export interface CaseType {
 }
 
 export interface CaseRecord {
+  access?: CaseAccess;
   id: string;
   title: string;
   platform: string;
@@ -22,6 +25,10 @@ export interface CaseRecord {
   createdAt: string;
   updatedAt: string;
   caseType: CaseType;
+  owner?: {
+    email: string;
+    name: string | null;
+  };
   documentStats?: {
     failed: number;
     processed: number;

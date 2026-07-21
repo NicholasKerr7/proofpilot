@@ -31,6 +31,7 @@ interface ChecklistGroupProps {
   items: ChecklistItem[];
   onSetCompleted: (itemId: string, completed: boolean) => Promise<void>;
   onToggleItem: (itemId: string) => void;
+  readOnly: boolean;
   updatingItemId: string | null;
 }
 
@@ -40,6 +41,7 @@ export function ChecklistGroup({
   items,
   onSetCompleted,
   onToggleItem,
+  readOnly,
   updatingItemId
 }: ChecklistGroupProps) {
   if (!items.length) {
@@ -86,6 +88,7 @@ export function ChecklistGroup({
             isUpdating={updatingItemId === item.id}
             onSetCompleted={(completed) => onSetCompleted(item.id, completed)}
             onToggle={() => onToggleItem(item.id)}
+            readOnly={readOnly}
           />
         ))}
       </div>

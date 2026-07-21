@@ -15,6 +15,13 @@ import {
 } from "@proofpilot/database";
 import { createPresignedDownloadUrl } from "@proofpilot/storage";
 import type { CaseActivityResponse } from "@proofpilot/types";
+import {
+  buildCaseAccessInclude,
+  buildCaseAccessSelect,
+  buildCaseAccessWhere,
+  createCaseAccess,
+  type CaseAccessRequirement
+} from "../common/case-access.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { PacketGenerationQueueService } from "../queue/packet-generation-queue.service.js";
 import { getCaseActivityActionFilter, toCaseActivityItem } from "./case-activity.js";
@@ -159,14 +166,15 @@ export class CasesService {
     });
   }
 
-  list(ownerId: string) {
-    return this.prisma.case.findMany({
+  async list(userId: string) {
+    const caseRecords = await this.prisma.case.findMany({
       where: {
-        ownerId,
+        ...buildCaseAccessWhere(userId, "READ"),
         archivedAt: null
       },
       orderBy: { updatedAt: "desc" },
       include: {
+        ...buildCaseAccessInclude(userId),
         caseType: true,
         _count: {
           select: {
@@ -178,16 +186,26 @@ export class CasesService {
         }
       }
     });
+
+    return caseRecords.map(({ collaborators, sharingSettings, ...caseRecord }) => ({
+      ...caseRecord,
+      access: createCaseAccess(userId, {
+        collaborators,
+        ownerId: caseRecord.ownerId,
+        sharingSettings
+      })
+    }));
   }
 
-  async get(ownerId: string, caseId: string) {
+  async get(userId: string, caseId: string) {
     const foundCase = await this.prisma.case.findFirst({
       where: {
         id: caseId,
-        ownerId,
+        ...buildCaseAccessWhere(userId, "READ"),
         archivedAt: null
       },
       include: {
+        ...buildCaseAccessInclude(userId),
         caseType: true,
         documents: {
           select: {
@@ -212,10 +230,15 @@ export class CasesService {
       throw new NotFoundException("Case not found.");
     }
 
-    const { documents, ...caseRecord } = foundCase;
+    const { collaborators, documents, sharingSettings, ...caseRecord } = foundCase;
 
     return {
       ...caseRecord,
+      access: createCaseAccess(userId, {
+        collaborators,
+        ownerId: caseRecord.ownerId,
+        sharingSettings
+      }),
       documentStats: {
         failed: documents.filter((document) => document.status === DocumentStatus.FAILED).length,
         processed: documents.filter((document) => document.status === DocumentStatus.PROCESSED)
@@ -230,7 +253,7 @@ export class CasesService {
     caseId: string,
     query: ListCaseActivityQueryDto
   ): Promise<CaseActivityResponse> {
-    await this.assertCaseOwnership(ownerId, caseId);
+    await this.assertCaseAccess(ownerId, caseId, "READ");
 
     const actionFilter = getCaseActivityActionFilter(query.category);
     const where: Prisma.AuditLogWhereInput = {
@@ -262,7 +285,7 @@ export class CasesService {
   }
 
   async listTimeline(ownerId: string, caseId: string) {
-    await this.assertCaseOwnership(ownerId, caseId);
+    await this.assertCaseAccess(ownerId, caseId, "READ");
 
     return this.prisma.caseEvent.findMany({
       where: { caseId },
@@ -271,7 +294,7 @@ export class CasesService {
   }
 
   async createTimelineEvent(ownerId: string, caseId: string, input: CreateTimelineEventDto) {
-    await this.assertCaseOwnership(ownerId, caseId);
+    await this.assertCaseAccess(ownerId, caseId, "EDIT");
 
     const title = input.title.trim();
     const description = input.description?.trim();
@@ -282,7 +305,7 @@ export class CasesService {
       throw new BadRequestException("Timeline event title is required.");
     }
 
-    await this.assertTimelineDocumentOwnership(ownerId, caseId, documentIds);
+    await this.assertTimelineDocumentOwnership(caseId, documentIds);
 
     return this.prisma.$transaction(async (tx) => {
       const nextChronologicalEvent = await tx.caseEvent.findFirst({
@@ -356,14 +379,11 @@ export class CasesService {
     eventId: string,
     input: UpdateTimelineEventDto
   ) {
+    await this.assertCaseAccess(ownerId, caseId, "EDIT");
     const existingEvent = await this.prisma.caseEvent.findFirst({
       where: {
         id: eventId,
-        caseId,
-        case: {
-          ownerId,
-          archivedAt: null
-        }
+        caseId
       },
       select: {
         id: true,
@@ -395,7 +415,7 @@ export class CasesService {
     }
 
     if (input.documentIds !== undefined) {
-      await this.assertTimelineDocumentOwnership(ownerId, caseId, documentIds);
+      await this.assertTimelineDocumentOwnership(caseId, documentIds);
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -460,14 +480,11 @@ export class CasesService {
   }
 
   async deleteTimelineEvent(ownerId: string, caseId: string, eventId: string) {
+    await this.assertCaseAccess(ownerId, caseId, "EDIT");
     const existingEvent = await this.prisma.caseEvent.findFirst({
       where: {
         id: eventId,
-        caseId,
-        case: {
-          ownerId,
-          archivedAt: null
-        }
+        caseId
       },
       select: {
         id: true,
@@ -498,7 +515,7 @@ export class CasesService {
   }
 
   async reorderTimeline(ownerId: string, caseId: string, input: ReorderTimelineEventsDto) {
-    await this.assertCaseOwnership(ownerId, caseId);
+    await this.assertCaseAccess(ownerId, caseId, "EDIT");
 
     const events = await this.prisma.caseEvent.findMany({
       where: { caseId },
@@ -544,7 +561,7 @@ export class CasesService {
     const foundCase = await this.prisma.case.findFirst({
       where: {
         id: caseId,
-        ownerId,
+        ...buildCaseAccessWhere(ownerId, "EDIT"),
         archivedAt: null
       },
       select: {
@@ -633,7 +650,7 @@ export class CasesService {
   }
 
   async listChecklist(ownerId: string, caseId: string) {
-    await this.assertCaseOwnership(ownerId, caseId);
+    await this.assertCaseAccess(ownerId, caseId, "READ");
 
     return this.prisma.caseChecklistItem.findMany({
       where: { caseId },
@@ -642,9 +659,11 @@ export class CasesService {
   }
 
   async analyzeChecklist(ownerId: string, caseId: string) {
+    const caseAccess = await this.assertCaseAccess(ownerId, caseId, "EDIT");
     const analysis = await analyzeCaseChecklist(this.prisma, {
+      actorId: ownerId,
       caseId,
-      ownerId
+      ownerId: caseAccess.ownerId
     });
 
     if (!analysis) {
@@ -660,15 +679,13 @@ export class CasesService {
     itemId: string,
     input: UpdateChecklistItemDto
   ) {
+    const caseAccess = await this.assertCaseAccess(ownerId, caseId, "EDIT");
+
     await this.prisma.$transaction(async (tx) => {
       const checklistItem = await tx.caseChecklistItem.findFirst({
         where: {
           id: itemId,
-          caseId,
-          case: {
-            ownerId,
-            archivedAt: null
-          }
+          caseId
         },
         select: {
           id: true,
@@ -712,8 +729,9 @@ export class CasesService {
 
       const analysis = await analyzeCaseChecklistTransaction(tx, {
         auditAction: null,
+        actorId: ownerId,
         caseId,
-        ownerId
+        ownerId: caseAccess.ownerId
       });
 
       if (!analysis) {
@@ -725,7 +743,7 @@ export class CasesService {
   }
 
   async getStatement(ownerId: string, caseId: string) {
-    await this.assertCaseOwnership(ownerId, caseId);
+    await this.assertCaseAccess(ownerId, caseId, "READ");
 
     const [statement, guidance, summaryHistory] = await Promise.all([
       this.prisma.caseStatement.findFirst({
@@ -754,7 +772,7 @@ export class CasesService {
   }
 
   async saveStatement(ownerId: string, caseId: string, input: SaveStatementDto) {
-    await this.assertCaseOwnership(ownerId, caseId);
+    await this.assertCaseAccess(ownerId, caseId, "EDIT");
     return this.upsertStatementDraft(ownerId, caseId, input.content, "case.statement_saved");
   }
 
@@ -763,7 +781,7 @@ export class CasesService {
     caseId: string,
     input: SaveStatementGuidanceDto
   ) {
-    await this.assertCaseOwnership(ownerId, caseId);
+    await this.assertCaseAccess(ownerId, caseId, "EDIT");
     const data = this.normalizeStatementGuidance(input);
 
     const guidance = await this.prisma.$transaction(async (tx) => {
@@ -799,7 +817,7 @@ export class CasesService {
     const foundCase = await this.prisma.case.findFirst({
       where: {
         id: caseId,
-        ownerId,
+        ...buildCaseAccessWhere(ownerId, "EDIT"),
         archivedAt: null
       },
       select: {
@@ -856,15 +874,12 @@ export class CasesService {
   }
 
   async restoreStatementVersion(ownerId: string, caseId: string, versionId: string) {
+    await this.assertCaseAccess(ownerId, caseId, "EDIT");
     const version = await this.prisma.statementVersion.findFirst({
       where: {
         id: versionId,
         statement: {
-          caseId,
-          case: {
-            ownerId,
-            archivedAt: null
-          }
+          caseId
         }
       },
       select: {
@@ -890,7 +905,7 @@ export class CasesService {
     const foundCase = await this.prisma.case.findFirst({
       where: {
         id: caseId,
-        ownerId,
+        ...buildCaseAccessWhere(ownerId, "EDIT"),
         archivedAt: null
       },
       select: {
@@ -973,7 +988,11 @@ export class CasesService {
   }
 
   async listPackets(ownerId: string, caseId: string) {
-    await this.assertCaseOwnership(ownerId, caseId);
+    const caseAccess = await this.assertCaseAccess(ownerId, caseId, "READ");
+
+    if (!createCaseAccess(ownerId, caseAccess).canDownload) {
+      throw new NotFoundException("Packet exports are not available for this collaborator.");
+    }
 
     const packets = await this.prisma.casePacket.findMany({
       where: { caseId },
@@ -988,11 +1007,12 @@ export class CasesService {
     const foundCase = await this.prisma.case.findFirst({
       where: {
         id: caseId,
-        ownerId,
+        ...buildCaseAccessWhere(ownerId, "EDIT"),
         archivedAt: null
       },
       select: {
-        id: true
+        id: true,
+        ownerId: true
       }
     });
 
@@ -1026,7 +1046,7 @@ export class CasesService {
     try {
       const job = await this.packetGenerationQueue.addGeneratePacketJob({
         caseId: foundCase.id,
-        ownerId,
+        ownerId: foundCase.ownerId,
         packetId: packet.id
       });
       jobId = job.id ?? null;
@@ -1073,11 +1093,12 @@ export class CasesService {
     const existingCase = await this.prisma.case.findFirst({
       where: {
         id: caseId,
-        ownerId,
+        ...buildCaseAccessWhere(ownerId, "EDIT"),
         archivedAt: null
       },
       select: {
         id: true,
+        ownerId: true,
         status: true,
         owner: {
           select: {
@@ -1146,7 +1167,7 @@ export class CasesService {
       if (shouldNotifyStatusChange) {
         await tx.notification.create({
           data: {
-            userId: ownerId,
+            userId: existingCase.ownerId,
             caseId,
             type: "case_status_updated",
             title: "Case status updated",
@@ -1162,7 +1183,7 @@ export class CasesService {
   }
 
   async archive(ownerId: string, caseId: string) {
-    await this.assertCaseOwnership(ownerId, caseId);
+    await this.assertCaseAccess(ownerId, caseId, "OWNER");
 
     const archivedCase = await this.prisma.case.update({
       where: { id: caseId },
@@ -1184,23 +1205,28 @@ export class CasesService {
     return { id: caseId, archived: true };
   }
 
-  private async assertCaseOwnership(ownerId: string, caseId: string) {
+  private async assertCaseAccess(
+    ownerId: string,
+    caseId: string,
+    requirement: CaseAccessRequirement
+  ) {
     const foundCase = await this.prisma.case.findFirst({
       where: {
         id: caseId,
-        ownerId,
+        ...buildCaseAccessWhere(ownerId, requirement),
         archivedAt: null
       },
-      select: { id: true }
+      select: buildCaseAccessSelect(ownerId)
     });
 
     if (!foundCase) {
       throw new NotFoundException("Case not found.");
     }
+
+    return foundCase;
   }
 
   private async assertTimelineDocumentOwnership(
-    ownerId: string,
     caseId: string,
     documentIds: string[]
   ) {
@@ -1211,11 +1237,7 @@ export class CasesService {
     const documents = await this.prisma.document.findMany({
       where: {
         id: { in: documentIds },
-        caseId,
-        case: {
-          ownerId,
-          archivedAt: null
-        }
+        caseId
       },
       select: { id: true }
     });

@@ -86,6 +86,48 @@ test.describe("ProofPilot responsive workspace", () => {
     await expectAccessible(page, "password reset form");
   });
 
+  test("collaboration invitation is responsive and preserves invited identity through sign in", async ({
+    page
+  }) => {
+    const invitationToken = "I".repeat(43);
+    await page.route(
+      `**/api/public/collaboration/invitations/${invitationToken}`,
+      async (route) => {
+        await route.fulfill({
+          body: JSON.stringify({
+            caseTitle: "PayPal account appeal",
+            expiresAt: "2099-07-28T16:00:00.000Z",
+            invitedEmail: "advisor@proofpilot.test",
+            ownerName: "Nicholas Kerr",
+            role: "EDITOR",
+            status: "PENDING"
+          }),
+          contentType: "application/json",
+          status: 200
+        });
+      }
+    );
+
+    await page.goto(`/?inviteToken=${invitationToken}`);
+    await expect(
+      page.getByRole("heading", { exact: true, name: "Join PayPal account appeal" })
+    ).toBeVisible();
+    await expect(page.getByText("Secure case invitation", { exact: true })).toBeVisible();
+    await expect(page.getByText("advisor@proofpilot.test", { exact: true })).toBeVisible();
+    await expect(page.getByText("Edit case", { exact: true })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await expectTouchTargets(page, "collaboration invitation");
+    await expectAccessible(page, "collaboration invitation");
+
+    await page.getByRole("button", { exact: true, name: "Sign in to review" }).click();
+    await expect(page.getByRole("heading", { exact: true, name: "Welcome back" })).toBeVisible();
+    await expect(page.getByLabel("Email address")).toHaveValue("advisor@proofpilot.test");
+    await page.getByRole("button", { exact: true, name: "Back to invitation" }).click();
+    await expect(
+      page.getByRole("heading", { exact: true, name: "Join PayPal account appeal" })
+    ).toBeVisible();
+  });
+
   test("demo user can navigate the signed-in shell", async ({ page }) => {
     await loginAsDemoUser(page);
 

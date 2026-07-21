@@ -1,4 +1,6 @@
 import { Injectable, type NestMiddleware } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { createHash } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import { getRateLimitEnv } from "../../config/env.js";
 
@@ -13,7 +15,9 @@ export class RateLimitMiddleware implements NestMiddleware {
   private readonly buckets = new Map<string, RateLimitBucket>();
   private lastCleanupAt = 0;
 
-  use(request: Request, response: Response, next: NextFunction) {
+  constructor(private readonly jwtService: JwtService) {}
+
+  async use(request: Request, response: Response, next: NextFunction) {
     if (isRateLimitBypassed(request)) {
       next();
       return;
@@ -22,7 +26,7 @@ export class RateLimitMiddleware implements NestMiddleware {
     const now = Date.now();
     this.cleanupExpiredBuckets(now);
 
-    const key = this.getBucketKey(request);
+    const key = await this.getBucketKey(request);
     const bucket = this.getBucket(key, now);
 
     if (bucket.count >= this.config.RATE_LIMIT_MAX) {
@@ -40,8 +44,29 @@ export class RateLimitMiddleware implements NestMiddleware {
     next();
   }
 
-  private getBucketKey(request: Request) {
-    return request.ip ?? request.socket.remoteAddress ?? "unknown";
+  private async getBucketKey(request: Request) {
+    const authorization = request.headers.authorization;
+
+    if (
+      typeof authorization === "string" &&
+      authorization.startsWith("Bearer ") &&
+      authorization.length <= 8_192
+    ) {
+      try {
+        const payload = await this.jwtService.verifyAsync<{ sid?: unknown }>(
+          authorization.slice("Bearer ".length)
+        );
+
+        if (typeof payload.sid === "string" && payload.sid.length > 0) {
+          const sessionHash = createHash("sha256").update(payload.sid).digest("hex");
+          return `session:${sessionHash}`;
+        }
+      } catch {
+        // Invalid bearer values remain subject to the unauthenticated IP bucket.
+      }
+    }
+
+    return `ip:${request.ip ?? request.socket.remoteAddress ?? "unknown"}`;
   }
 
   private getBucket(key: string, now: number) {
@@ -82,6 +107,6 @@ export class RateLimitMiddleware implements NestMiddleware {
 }
 
 function isRateLimitBypassed(request: Request) {
-  const path = request.path ?? request.url.split("?")[0] ?? "";
+  const path = (request.originalUrl || request.url || request.path).split("?")[0];
   return path === "/health" || path === "/health/ready" || path === "/health/queues";
 }

@@ -37,6 +37,14 @@ const caseId = "case-1";
 const packetCreatedAt = new Date("2026-01-01T12:00:00.000Z");
 const packetUpdatedAt = new Date("2026-01-01T12:01:00.000Z");
 
+function createOwnerAccess() {
+  return {
+    ownerId,
+    collaborators: [],
+    sharingSettings: { preventDownloads: false }
+  };
+}
+
 function createPacketRecord(overrides: Partial<ReturnType<typeof basePacketRecord>> = {}) {
   return {
     ...basePacketRecord(),
@@ -177,6 +185,7 @@ describe("CasesService", () => {
 
   it("returns owned case document status totals without exposing document rows", async () => {
     prisma.case.findFirst.mockResolvedValue({
+      ...createOwnerAccess(),
       id: caseId,
       title: "PayPal appeal",
       documents: [
@@ -203,7 +212,7 @@ describe("CasesService", () => {
       expect.objectContaining({
         where: {
           id: caseId,
-          ownerId,
+          OR: expect.any(Array),
           archivedAt: null
         },
         include: expect.objectContaining({
@@ -229,6 +238,7 @@ describe("CasesService", () => {
   it("notifies the owner when an enabled case status changes", async () => {
     prisma.case.findFirst.mockResolvedValue({
       id: caseId,
+      ownerId,
       status: CaseStatus.DRAFT,
       owner: {
         preference: {
@@ -268,6 +278,7 @@ describe("CasesService", () => {
   it("does not create a case status alert when case notifications are disabled", async () => {
     prisma.case.findFirst.mockResolvedValue({
       id: caseId,
+      ownerId,
       status: CaseStatus.DRAFT,
       owner: {
         preference: {
@@ -291,7 +302,12 @@ describe("CasesService", () => {
   });
 
   it("manually completes an owned checklist item and refreshes case readiness", async () => {
-    const caseRecord = { id: caseId, checklist: [], documents: [] };
+    const caseRecord = {
+      ...createOwnerAccess(),
+      id: caseId,
+      checklist: [],
+      documents: []
+    };
     prisma.caseChecklistItem.findFirst.mockResolvedValue({
       id: "item-1",
       label: "Support conversation",
@@ -306,11 +322,7 @@ describe("CasesService", () => {
     expect(prisma.caseChecklistItem.findFirst).toHaveBeenCalledWith({
       where: {
         id: "item-1",
-        caseId,
-        case: {
-          ownerId,
-          archivedAt: null
-        }
+        caseId
       },
       select: {
         id: true,
@@ -329,12 +341,19 @@ describe("CasesService", () => {
     });
     expect(databaseMocks.analyzeCaseChecklistTransaction).toHaveBeenCalledWith(prisma, {
       auditAction: null,
+      actorId: ownerId,
       caseId,
       ownerId
     });
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       id: caseId,
       checklist: [],
+      access: {
+        canDownload: true,
+        canEdit: true,
+        canManage: true,
+        role: "OWNER"
+      },
       documentStats: {
         failed: 0,
         processed: 0,
@@ -349,7 +368,12 @@ describe("CasesService", () => {
       label: "Additional context",
       requirement: { required: false }
     });
-    prisma.case.findFirst.mockResolvedValue({ id: caseId, checklist: [], documents: [] });
+    prisma.case.findFirst.mockResolvedValue({
+      ...createOwnerAccess(),
+      id: caseId,
+      checklist: [],
+      documents: []
+    });
 
     await service.updateChecklistItem(ownerId, caseId, "item-1", {
       completed: false
@@ -480,6 +504,7 @@ describe("CasesService", () => {
       content: "Earlier statement content",
       version: 1
     });
+    prisma.case.findFirst.mockResolvedValue(createOwnerAccess());
     prisma.caseStatement.findFirst.mockResolvedValue({ id: "statement-1" });
     prisma.statementVersion.aggregate.mockResolvedValue({ _max: { version: 2 } });
     prisma.caseStatement.update.mockResolvedValue(restoredStatement);
@@ -490,11 +515,7 @@ describe("CasesService", () => {
       where: {
         id: "version-1",
         statement: {
-          caseId,
-          case: {
-            ownerId,
-            archivedAt: null
-          }
+          caseId
         }
       },
       select: {
@@ -602,7 +623,7 @@ describe("CasesService", () => {
 
   it("creates a generating packet and enqueues packet generation", async () => {
     const packet = createPacketRecord();
-    prisma.case.findFirst.mockResolvedValue({ id: caseId });
+    prisma.case.findFirst.mockResolvedValue({ id: caseId, ownerId });
     prisma.casePacket.findFirst.mockResolvedValue(null);
     prisma.casePacket.create.mockResolvedValue(packet);
     queue.addGeneratePacketJob.mockResolvedValue({ id: "job-1", name: "generate_case_packet" });
@@ -613,9 +634,9 @@ describe("CasesService", () => {
       where: {
         archivedAt: null,
         id: caseId,
-        ownerId
+        OR: expect.any(Array)
       },
-      select: { id: true }
+      select: { id: true, ownerId: true }
     });
     expect(prisma.casePacket.create).toHaveBeenCalledWith({
       data: {
@@ -652,7 +673,7 @@ describe("CasesService", () => {
 
   it("lists owned packet exports with separate preview and download URLs", async () => {
     const packetExportCreatedAt = new Date("2026-01-01T12:02:00.000Z");
-    prisma.case.findFirst.mockResolvedValue({ id: caseId });
+    prisma.case.findFirst.mockResolvedValue(createOwnerAccess());
     prisma.casePacket.findMany.mockResolvedValue([
       createPacketRecord({
         status: PacketStatus.READY,
@@ -679,10 +700,10 @@ describe("CasesService", () => {
     expect(prisma.case.findFirst).toHaveBeenCalledWith({
       where: {
         id: caseId,
-        ownerId,
+        OR: expect.any(Array),
         archivedAt: null
       },
-      select: { id: true }
+      select: expect.objectContaining({ ownerId: true })
     });
     expect(prisma.casePacket.findMany).toHaveBeenCalledWith({
       where: { caseId },
@@ -716,7 +737,7 @@ describe("CasesService", () => {
 
   it("returns an existing generating packet without enqueueing a duplicate job", async () => {
     const existingPacket = createPacketRecord({ id: "packet-existing" });
-    prisma.case.findFirst.mockResolvedValue({ id: caseId });
+    prisma.case.findFirst.mockResolvedValue({ id: caseId, ownerId });
     prisma.casePacket.findFirst.mockResolvedValue(existingPacket);
 
     const result = await service.generatePacket(ownerId, caseId);
@@ -739,7 +760,7 @@ describe("CasesService", () => {
 
   it("marks the packet failed when enqueueing the job fails", async () => {
     const packet = createPacketRecord();
-    prisma.case.findFirst.mockResolvedValue({ id: caseId });
+    prisma.case.findFirst.mockResolvedValue({ id: caseId, ownerId });
     prisma.casePacket.findFirst.mockResolvedValue(null);
     prisma.casePacket.create.mockResolvedValue(packet);
     queue.addGeneratePacketJob.mockRejectedValue(new Error("Redis is unavailable"));
@@ -769,7 +790,7 @@ describe("CasesService", () => {
   it("returns paginated, sanitized case activity for the owner", async () => {
     const firstCreatedAt = new Date("2026-05-13T14:30:00.000Z");
     const secondCreatedAt = new Date("2026-05-13T14:20:00.000Z");
-    prisma.case.findFirst.mockResolvedValue({ id: caseId });
+    prisma.case.findFirst.mockResolvedValue(createOwnerAccess());
     prisma.auditLog.findMany.mockResolvedValue([
       {
         id: "activity-1",
@@ -808,9 +829,9 @@ describe("CasesService", () => {
       where: {
         archivedAt: null,
         id: caseId,
-        ownerId
+        OR: expect.any(Array)
       },
-      select: { id: true }
+      select: expect.objectContaining({ ownerId: true })
     });
     expect(prisma.auditLog.findMany).toHaveBeenCalledWith({
       where,
@@ -900,11 +921,7 @@ describe("CasesService", () => {
     expect(prisma.document.findMany).toHaveBeenCalledWith({
       where: {
         id: { in: ["document-1"] },
-        caseId,
-        case: {
-          ownerId,
-          archivedAt: null
-        }
+        caseId
       },
       select: { id: true }
     });
@@ -984,6 +1001,7 @@ describe("CasesService", () => {
       ]
     };
     prisma.caseEvent.findFirst.mockResolvedValue({ id: "event-1", title: "Old title" });
+    prisma.case.findFirst.mockResolvedValue(createOwnerAccess());
     prisma.document.findMany.mockResolvedValue([{ id: "document-2" }]);
     prisma.caseEvent.update.mockResolvedValue({});
     prisma.eventSource.deleteMany.mockResolvedValue({ count: 1 });
@@ -1028,7 +1046,13 @@ describe("CasesService", () => {
   it("removes stale analyzed events when timeline analysis has no current documents", async () => {
     prisma.case.findFirst
       .mockResolvedValueOnce({ id: caseId, documents: [] })
-      .mockResolvedValueOnce({ id: caseId, documents: [] });
+      .mockResolvedValueOnce({
+        ...createOwnerAccess(),
+        id: caseId,
+        checklist: [],
+        documents: [],
+        events: []
+      });
     prisma.caseEvent.deleteMany.mockResolvedValue({ count: 2 });
     prisma.caseEvent.findMany.mockResolvedValue([]);
 

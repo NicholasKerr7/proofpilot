@@ -1,6 +1,9 @@
 export const caseCollaboratorRoles = ["EDITOR", "VIEWER"] as const;
 export type CaseCollaboratorRole = (typeof caseCollaboratorRoles)[number];
 
+export const caseAccessRoles = ["OWNER", ...caseCollaboratorRoles] as const;
+export type CaseAccessRole = (typeof caseAccessRoles)[number];
+
 export const caseCollaboratorStatuses = ["ACTIVE", "PENDING", "EXPIRED"] as const;
 export type CaseCollaboratorStatus = (typeof caseCollaboratorStatuses)[number];
 
@@ -9,6 +12,8 @@ export type CaseInvitationExpiryDays = (typeof caseInvitationExpiryOptions)[numb
 
 export const caseCollaborationActivityActions = [
   "INVITED",
+  "ACCEPTED",
+  "DECLINED",
   "ROLE_UPDATED",
   "REMOVED",
   "SETTINGS_UPDATED"
@@ -54,6 +59,30 @@ export interface CaseCollaborationResponse {
   seatLimit: number;
   seatsUsed: number;
   settings: CaseCollaborationSettings;
+}
+
+export interface CaseAccess {
+  canDownload: boolean;
+  canEdit: boolean;
+  canManage: boolean;
+  role: CaseAccessRole;
+}
+
+export interface CaseInvitationPreview {
+  caseTitle: string;
+  expiresAt: string;
+  invitedEmail: string;
+  ownerName: string;
+  role: CaseCollaboratorRole;
+  status: "EXPIRED" | "PENDING";
+}
+
+export interface CaseInvitationDecisionResponse {
+  caseId: string | null;
+  caseTitle: string;
+  message: string;
+  ok: true;
+  role: CaseCollaboratorRole;
 }
 
 export interface InviteCaseCollaboratorInput {

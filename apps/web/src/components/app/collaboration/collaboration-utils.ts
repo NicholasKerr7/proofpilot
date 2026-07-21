@@ -32,6 +32,8 @@ export function formatCollaborationDate(value: string) {
 }
 
 export function getCollaborationActivityLabel(action: CaseCollaborationActivityAction) {
+  if (action === "ACCEPTED") return "Invitation accepted";
+  if (action === "DECLINED") return "Invitation declined";
   if (action === "INVITED") return "Invitation created";
   if (action === "ROLE_UPDATED") return "Role updated";
   if (action === "REMOVED") return "Collaborator removed";

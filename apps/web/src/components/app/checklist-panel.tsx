@@ -10,6 +10,7 @@ import type { CaseRecord, ChecklistItem } from "@/lib/client/types";
 
 interface ChecklistPanelProps {
   onCaseChanged: (caseId: string) => Promise<unknown>;
+  readOnly: boolean;
   selectedCase: CaseRecord;
 }
 
@@ -31,7 +32,7 @@ const checklistPlaceholders = [
   "Transaction or activity context"
 ];
 
-export function ChecklistPanel({ onCaseChanged, selectedCase }: ChecklistPanelProps) {
+export function ChecklistPanel({ onCaseChanged, readOnly, selectedCase }: ChecklistPanelProps) {
   const initialItems = getChecklistItems(selectedCase);
   const selectedCaseId = selectedCase.id;
   const selectedChecklistRevision = getChecklistRevision(selectedCase.checklist ?? []);
@@ -171,18 +172,20 @@ export function ChecklistPanel({ onCaseChanged, selectedCase }: ChecklistPanelPr
           <CardTitle>Evidence checklist</CardTitle>
           <CardDescription>Review missing proof and matched evidence.</CardDescription>
         </div>
-        <Button
-          disabled={isAnalyzingChecklist}
-          onClick={() => {
-            void handleAnalyzeChecklist();
-          }}
-          size="sm"
-          type="button"
-          variant="outline"
-        >
-          <RefreshCcw className="h-4 w-4" aria-hidden="true" />
-          {isAnalyzingChecklist ? "Analyzing..." : "Analyze evidence"}
-        </Button>
+        {!readOnly ? (
+          <Button
+            disabled={isAnalyzingChecklist}
+            onClick={() => {
+              void handleAnalyzeChecklist();
+            }}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            <RefreshCcw className="h-4 w-4" aria-hidden="true" />
+            {isAnalyzingChecklist ? "Analyzing..." : "Analyze evidence"}
+          </Button>
+        ) : null}
       </CardHeader>
       <CardContent className="grid gap-4">
         {checklistNotice ? (
@@ -212,6 +215,7 @@ export function ChecklistPanel({ onCaseChanged, selectedCase }: ChecklistPanelPr
             setExpandedItemId((currentId) => (currentId === itemId ? null : itemId))
           }
           updatingItemId={updatingItemId}
+          readOnly={readOnly}
         />
       </CardContent>
     </Card>

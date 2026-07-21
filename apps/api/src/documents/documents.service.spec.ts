@@ -98,6 +98,11 @@ function baseUploadedDocument() {
   return {
     id: documentId,
     caseId,
+    case: {
+      ownerId,
+      collaborators: [],
+      sharingSettings: { preventDownloads: false }
+    },
     byteSize: 1024,
     mimeType: "image/png",
     originalName: "proof.png",
@@ -533,6 +538,7 @@ describe("DocumentsService upload hardening", () => {
     prisma.document.findFirst.mockResolvedValue({
       id: documentId,
       caseId,
+      case: { ownerId },
       originalName: "proof.png",
       storageKey,
       versions: [{ storageKey: `${storageKey}.previous` }]
@@ -544,11 +550,15 @@ describe("DocumentsService upload hardening", () => {
     expect(prisma.document.findFirst).toHaveBeenCalledWith({
       where: {
         id: documentId,
-        case: { ownerId }
+        case: {
+          OR: expect.any(Array),
+          archivedAt: null
+        }
       },
       select: expect.any(Object)
     });
     expect(databaseMocks.analyzeCaseChecklist).toHaveBeenCalledWith(prisma, {
+      actorId: ownerId,
       auditAction: "case.checklist_auto_analyzed",
       caseId,
       ownerId,

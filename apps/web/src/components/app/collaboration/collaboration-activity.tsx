@@ -1,8 +1,10 @@
 import {
+  CheckCircle2,
   Settings2,
   ShieldCheck,
   UserMinus,
   UserPlus,
+  UserX,
   type LucideIcon
 } from "lucide-react";
 import type {
@@ -16,6 +18,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const activityIcons: Record<CaseCollaborationActivityAction, LucideIcon> = {
+  ACCEPTED: CheckCircle2,
+  DECLINED: UserX,
   INVITED: UserPlus,
   ROLE_UPDATED: ShieldCheck,
   REMOVED: UserMinus,

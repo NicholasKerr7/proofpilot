@@ -74,6 +74,7 @@ export function EvidencePanel({
   onDocumentsChanged,
   onCaptureStateChange
 }: EvidencePanelProps) {
+  const readOnly = selectedCase.access?.canEdit === false;
   const [documents, setDocuments] = useState<EvidenceDocument[]>([]);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<EvidenceDocumentDetail | null>(null);
@@ -321,7 +322,7 @@ export function EvidencePanel({
         syncQueueDocumentStatus(selectedDocumentId, detail.status);
 
         try {
-          if (shouldAnalyzeChecklistAfterProcessing(detail.status)) {
+          if (!readOnly && shouldAnalyzeChecklistAfterProcessing(detail.status)) {
             await Promise.all([
               analyzeCaseChecklist(selectedCase.id),
               analyzeCaseTimeline(selectedCase.id)
@@ -367,6 +368,7 @@ export function EvidencePanel({
     };
   }, [
     onDocumentsChanged,
+    readOnly,
     selectedCase.id,
     selectedDocument?.status,
     selectedDocumentId,
@@ -440,6 +442,7 @@ export function EvidencePanel({
         }
 
         if (
+          !readOnly &&
           settledUpdates.some((update) =>
             shouldAnalyzeChecklistAfterProcessing(update.status.status)
           )
@@ -478,6 +481,7 @@ export function EvidencePanel({
   }, [
     onDocumentsChanged,
     processingQueueDocumentIdsKey,
+    readOnly,
     selectedCase.id,
     syncQueueDocumentStatus
   ]);
@@ -782,26 +786,34 @@ export function EvidencePanel({
 
   return (
     <div id="evidence-intake" className="grid scroll-mt-28 gap-5 lg:scroll-mt-24">
-      <EvidenceSourcePicker
-        onFilesSelected={enqueueFiles}
-        onScanRequested={openCamera}
-      />
+      {!readOnly ? (
+        <>
+          <EvidenceSourcePicker
+            onFilesSelected={enqueueFiles}
+            onScanRequested={openCamera}
+          />
 
-      <EvidenceUploadQueue
-        activeUploadId={activeUploadId}
-        items={uploadQueue}
-        onClearFinished={() =>
-          setUploadQueue((currentQueue) =>
-            currentQueue.filter((item) => !isFinishedQueueStatus(item.status))
-          )
-        }
-        onRemove={(itemId) =>
-          setUploadQueue((currentQueue) =>
-            currentQueue.filter((item) => item.id !== itemId)
-          )
-        }
-        onRetry={handleRetryUpload}
-      />
+          <EvidenceUploadQueue
+            activeUploadId={activeUploadId}
+            items={uploadQueue}
+            onClearFinished={() =>
+              setUploadQueue((currentQueue) =>
+                currentQueue.filter((item) => !isFinishedQueueStatus(item.status))
+              )
+            }
+            onRemove={(itemId) =>
+              setUploadQueue((currentQueue) =>
+                currentQueue.filter((item) => item.id !== itemId)
+              )
+            }
+            onRetry={handleRetryUpload}
+          />
+        </>
+      ) : (
+        <p className="rounded-md border border-primary/25 bg-primary/10 px-3 py-2 text-sm text-muted-foreground">
+          Viewer access is read-only. You can inspect the evidence already saved to this case.
+        </p>
+      )}
 
       {notice ? (
         <p
@@ -839,7 +851,9 @@ export function EvidencePanel({
                 Evidence library
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Search, inspect, reprocess, and remove case evidence.
+                {readOnly
+                  ? "Search and inspect case evidence."
+                  : "Search, inspect, reprocess, and remove case evidence."}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -867,6 +881,7 @@ export function EvidencePanel({
               onReprocess={handleReprocess}
               onRequestDelete={handleRequestDelete}
               onSelectDocument={setSelectedDocumentId}
+              readOnly={readOnly}
               selectedDocument={selectedDocument}
               selectedDocumentId={selectedDocumentId}
             />

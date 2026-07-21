@@ -31,6 +31,7 @@ interface StatementGuidanceProps {
   onAnswersChange: (answers: SaveStatementGuidanceInput) => void;
   onSave: () => void;
   platform: string;
+  readOnly: boolean;
 }
 
 interface GuidancePrompt {
@@ -124,7 +125,8 @@ export function StatementGuidance({
   isSaving,
   onAnswersChange,
   onSave,
-  platform
+  platform,
+  readOnly
 }: StatementGuidanceProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const activePrompt = guidancePrompts[activeIndex] ?? guidancePrompts[0];
@@ -141,6 +143,10 @@ export function StatementGuidance({
   const activeValue = answers[activePrompt.field];
 
   function updateAnswer(value: string) {
+    if (readOnly) {
+      return;
+    }
+
     onAnswersChange({
       ...answers,
       [activePrompt.field]: value
@@ -223,6 +229,7 @@ export function StatementGuidance({
                 maxLength={activePrompt.maxLength}
                 onChange={(event) => updateAnswer(event.target.value)}
                 placeholder={activePrompt.placeholder}
+                readOnly={readOnly}
                 value={activeValue}
               />
             ) : (
@@ -233,6 +240,7 @@ export function StatementGuidance({
                 maxLength={activePrompt.maxLength}
                 onChange={(event) => updateAnswer(event.target.value)}
                 placeholder={activePrompt.placeholder}
+                readOnly={readOnly}
                 value={activeValue}
               />
             )}
@@ -268,17 +276,23 @@ export function StatementGuidance({
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
         <span className="text-xs text-muted-foreground">
-          {isDirty ? "Answers have unsaved changes" : "Guided answers are saved"}
+          {readOnly
+            ? "Viewer access is read-only"
+            : isDirty
+              ? "Answers have unsaved changes"
+              : "Guided answers are saved"}
         </span>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={disabled || !isDirty}
-          onClick={onSave}
-        >
-          <Save className="h-4 w-4" aria-hidden="true" />
-          {isSaving ? "Saving..." : "Save answers"}
-        </Button>
+        {!readOnly ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={disabled || !isDirty}
+            onClick={onSave}
+          >
+            <Save className="h-4 w-4" aria-hidden="true" />
+            {isSaving ? "Saving..." : "Save answers"}
+          </Button>
+        ) : null}
       </div>
     </section>
   );

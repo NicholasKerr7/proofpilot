@@ -1,5 +1,6 @@
 import { ValidationPipe, type INestApplication } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
+import { createHash, randomBytes } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import { loadEnvFile } from "node:process";
 import { resolve } from "node:path";
@@ -30,6 +31,7 @@ interface AuthResponse {
 let app: INestApplication | undefined;
 let apiBaseUrl = "";
 let attackerToken = "";
+let attackerId = "";
 let prisma: PrismaService | undefined;
 let protectedStateBefore: unknown;
 
@@ -89,6 +91,16 @@ describe.sequential("API access isolation", () => {
       201
     );
     attackerToken = registration.accessToken;
+    const attacker = await prismaClient.user.findUnique({
+      where: { email: attackerEmail },
+      select: { id: true }
+    });
+
+    if (!attacker) {
+      throw new Error("Integration collaborator account was not created.");
+    }
+
+    attackerId = attacker.id;
   }, 30_000);
 
   afterAll(async () => {
@@ -129,6 +141,210 @@ describe.sequential("API access isolation", () => {
 
   it("leaves every protected foreign record unchanged after denied requests", async () => {
     expect(await readProtectedState(requirePrisma())).toEqual(protectedStateBefore);
+  });
+
+  it("accepts a matching invitation once and binds it to the authenticated account", async () => {
+    const rawToken = randomBytes(32).toString("base64url");
+    const inviteTokenHash = createHash("sha256").update(rawToken).digest("hex");
+    await requirePrisma().caseCollaborator.update({
+      where: { id: isolationIds.collaborator },
+      data: {
+        acceptedAt: null,
+        email: attackerEmail,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        inviteTokenHash,
+        invitedAt: new Date(),
+        name: null,
+        role: "VIEWER",
+        status: "PENDING",
+        userId: null
+      }
+    });
+
+    const preview = await send<{
+      caseTitle: string;
+      invitedEmail: string;
+      role: string;
+      status: string;
+    }>({ path: `/collaboration/invitations/${rawToken}` }, null, 200);
+    expect(preview).toMatchObject({
+      caseTitle: "Foreign ownership fixture",
+      invitedEmail: attackerEmail,
+      role: "VIEWER",
+      status: "PENDING"
+    });
+
+    const acceptance = await send<{ caseId: string; ok: boolean; role: string }>(
+      {
+        method: "POST",
+        path: `/collaboration/invitations/${rawToken}/accept`
+      },
+      attackerToken,
+      200
+    );
+    expect(acceptance).toMatchObject({
+      caseId: isolationIds.case,
+      ok: true,
+      role: "VIEWER"
+    });
+    await send({ path: `/collaboration/invitations/${rawToken}` }, null, 404);
+    await send(
+      {
+        method: "POST",
+        path: `/collaboration/invitations/${rawToken}/accept`
+      },
+      attackerToken,
+      404
+    );
+
+    const collaborator = await requirePrisma().caseCollaborator.findUnique({
+      where: { id: isolationIds.collaborator },
+      select: {
+        acceptedAt: true,
+        expiresAt: true,
+        inviteTokenHash: true,
+        status: true,
+        userId: true
+      }
+    });
+    expect(collaborator).toMatchObject({
+      expiresAt: null,
+      inviteTokenHash: null,
+      status: "ACTIVE",
+      userId: attackerId
+    });
+    expect(collaborator?.acceptedAt).toBeInstanceOf(Date);
+  });
+
+  it("allows viewer reads while denying writes, downloads, and owner controls", async () => {
+    await requirePrisma().caseSharingSettings.update({
+      where: { caseId: isolationIds.case },
+      data: { preventDownloads: true }
+    });
+
+    const caseRecord = await send<{
+      access: {
+        canDownload: boolean;
+        canEdit: boolean;
+        canManage: boolean;
+        role: string;
+      };
+      id: string;
+    }>({ path: `/cases/${isolationIds.case}` }, attackerToken, 200);
+    expect(caseRecord).toMatchObject({
+      id: isolationIds.case,
+      access: {
+        canDownload: false,
+        canEdit: false,
+        canManage: false,
+        role: "VIEWER"
+      }
+    });
+
+    const cases = await send<Array<{ access: { role: string }; id: string }>>(
+      { path: "/cases" },
+      attackerToken,
+      200
+    );
+    expect(cases).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: isolationIds.case,
+          access: expect.objectContaining({ role: "VIEWER" })
+        })
+      ])
+    );
+    await send({ path: `/cases/${isolationIds.case}/documents` }, attackerToken, 200);
+    const document = await send<{ downloadUrl: string | null }>(
+      { path: `/documents/${isolationIds.document}` },
+      attackerToken,
+      200
+    );
+    expect(document.downloadUrl).toBeNull();
+    await send({ path: `/cases/${isolationIds.case}/packets` }, attackerToken, 404);
+    await send(
+      {
+        body: { title: "Viewer write must fail" },
+        method: "PATCH",
+        path: `/cases/${isolationIds.case}`
+      },
+      attackerToken,
+      404
+    );
+    await send(
+      {
+        body: {
+          message: "Viewer reminder must fail",
+          remindAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        },
+        method: "POST",
+        path: `/cases/${isolationIds.case}/reminders`
+      },
+      attackerToken,
+      404
+    );
+    await send(
+      { path: `/cases/${isolationIds.case}/collaboration` },
+      attackerToken,
+      404
+    );
+    await send(
+      { method: "DELETE", path: `/cases/${isolationIds.case}` },
+      attackerToken,
+      404
+    );
+  });
+
+  it("allows editor writes while preserving owner-only management", async () => {
+    await requirePrisma().caseCollaborator.update({
+      where: { id: isolationIds.collaborator },
+      data: { role: "EDITOR" }
+    });
+
+    await send(
+      {
+        body: { title: "Editor-updated collaboration fixture" },
+        method: "PATCH",
+        path: `/cases/${isolationIds.case}`
+      },
+      attackerToken,
+      200
+    );
+    const caseRecord = await send<{
+      access: {
+        canDownload: boolean;
+        canEdit: boolean;
+        canManage: boolean;
+        role: string;
+      };
+    }>({ path: `/cases/${isolationIds.case}` }, attackerToken, 200);
+    expect(caseRecord.access).toEqual({
+      canDownload: true,
+      canEdit: true,
+      canManage: false,
+      role: "EDITOR"
+    });
+    await send(
+      { path: `/cases/${isolationIds.case}/collaboration` },
+      attackerToken,
+      404
+    );
+    await send(
+      { method: "DELETE", path: `/cases/${isolationIds.case}` },
+      attackerToken,
+      404
+    );
+
+    const editorAudit = await requirePrisma().auditLog.findFirst({
+      where: {
+        action: "case.updated",
+        caseId: isolationIds.case,
+        userId: attackerId
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true }
+    });
+    expect(editorAudit).not.toBeNull();
   });
 });
 

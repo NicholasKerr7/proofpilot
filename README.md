@@ -75,5 +75,6 @@ The first product slice is Account Ban / Appeal Builder:
 6. Get persisted, case-aware guidance without sending records to an external model provider.
 7. Draft a professional statement.
 8. Generate a downloadable PDF packet.
+9. Invite Viewers or Editors to review or work on a case.
 
-The local MVP now covers the owned case flow from authentication and evidence processing through checklist, timeline, statement, packet export, reminders, and in-app notifications. Production-only provider integrations and hardening work remain documented in the [project docs](docs/).
+The local MVP now covers the case flow from authentication and evidence processing through checklist, timeline, statement, packet export, reminders, in-app notifications, and secure collaborator invitations. Viewers have read-only case access, Editors can update case work, and only Owners can manage collaborators, archives, and packet sharing. Production-only provider integrations and hardening work remain documented in the [project docs](docs/).

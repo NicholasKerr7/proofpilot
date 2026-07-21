@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { buildCaseAccessWhere } from "../common/case-access.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import type { CreateReminderDto } from "./dto/create-reminder.dto.js";
 import type { UpdateReminderDto } from "./dto/update-reminder.dto.js";
@@ -43,7 +44,7 @@ export class NotificationsService {
     return this.prisma.reminder.findMany({
       where: {
         case: {
-          ownerId,
+          ...buildCaseAccessWhere(ownerId, "READ"),
           archivedAt: null
         }
       },
@@ -63,7 +64,7 @@ export class NotificationsService {
   }
 
   async listCaseReminders(ownerId: string, caseId: string) {
-    await this.assertCaseOwnership(ownerId, caseId);
+    await this.assertCaseAccess(ownerId, caseId, "READ");
 
     return this.prisma.reminder.findMany({
       where: { caseId },
@@ -76,7 +77,7 @@ export class NotificationsService {
     const foundCase = await this.prisma.case.findFirst({
       where: {
         id: caseId,
-        ownerId,
+        ...buildCaseAccessWhere(ownerId, "EDIT"),
         archivedAt: null
       },
       select: {
@@ -146,7 +147,7 @@ export class NotificationsService {
       where: {
         id: reminderId,
         case: {
-          ownerId,
+          ...buildCaseAccessWhere(ownerId, "EDIT"),
           archivedAt: null
         }
       },
@@ -202,7 +203,7 @@ export class NotificationsService {
       where: {
         id: reminderId,
         case: {
-          ownerId,
+          ...buildCaseAccessWhere(ownerId, "EDIT"),
           archivedAt: null
         }
       },
@@ -237,11 +238,15 @@ export class NotificationsService {
     return { id: reminder.id, deleted: true };
   }
 
-  private async assertCaseOwnership(ownerId: string, caseId: string) {
+  private async assertCaseAccess(
+    ownerId: string,
+    caseId: string,
+    requirement: "EDIT" | "READ"
+  ) {
     const foundCase = await this.prisma.case.findFirst({
       where: {
         id: caseId,
-        ownerId,
+        ...buildCaseAccessWhere(ownerId, requirement),
         archivedAt: null
       },
       select: { id: true }

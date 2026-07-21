@@ -66,6 +66,8 @@ export function EvidenceUploadView({
     );
   }
 
+  const readOnly = selectedCase.access?.canEdit === false;
+
   return (
     <section aria-labelledby="upload-view-heading" className="grid gap-5">
       {captureState === "idle" ? (
@@ -86,10 +88,12 @@ export function EvidenceUploadView({
               id="upload-view-heading"
               className="text-2xl font-semibold leading-8 sm:text-3xl"
             >
-              Import evidence
+              {readOnly ? "Case evidence" : "Import evidence"}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Bring files, emails, and documents into your case.
+              {readOnly
+                ? "Review the files and extracted details shared with you."
+                : "Bring files, emails, and documents into your case."}
             </p>
           </div>
         </header>

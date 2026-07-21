@@ -84,6 +84,14 @@ export function CaseWorkspace({
   }
 
   const readiness = getCaseReadiness(selectedCase);
+  const canEdit = selectedCase.access?.canEdit ?? true;
+  const canManage = selectedCase.access?.canManage ?? true;
+  const accessLabel =
+    selectedCase.access?.role === "EDITOR"
+      ? "Shared editor"
+      : selectedCase.access?.role === "VIEWER"
+        ? "Shared viewer"
+        : "Primary case";
 
   return (
     <div className="grid grid-cols-1 gap-5">
@@ -101,16 +109,18 @@ export function CaseWorkspace({
                   All cases
                 </Button>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    onClick={onOpenCollaboration}
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                  >
-                    <UsersRound className="h-4 w-4" aria-hidden="true" />
-                    Collaborators
-                  </Button>
-                  <Badge>Primary case</Badge>
+                  {canManage ? (
+                    <Button
+                      onClick={onOpenCollaboration}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      <UsersRound className="h-4 w-4" aria-hidden="true" />
+                      Collaborators
+                    </Button>
+                  ) : null}
+                  <Badge variant={canManage ? "default" : "secondary"}>{accessLabel}</Badge>
                   <Badge variant={getCaseStatusVariant(selectedCase.status)}>
                     {formatCaseStatus(selectedCase.status)}
                   </Badge>
@@ -185,20 +195,27 @@ export function CaseWorkspace({
           key={`timeline-${selectedCase.id}`}
           selectedCase={selectedCase}
           onCaseChanged={onCaseChanged}
+          readOnly={!canEdit}
         />
         <ChecklistPanel
           key={`checklist-${selectedCase.id}`}
           selectedCase={selectedCase}
           onCaseChanged={onCaseChanged}
+          readOnly={!canEdit}
         />
 
         <ReminderPanel
           confirmBeforeDelete={confirmBeforeDelete}
           key={`reminder-${selectedCase.id}`}
           onNotificationsChanged={onNotificationsChanged}
+          readOnly={!canEdit}
           selectedCase={selectedCase}
         />
-        <StatementBuilder onCaseChanged={onCaseChanged} selectedCase={selectedCase} />
+        <StatementBuilder
+          onCaseChanged={onCaseChanged}
+          readOnly={!canEdit}
+          selectedCase={selectedCase}
+        />
 
         <PacketExportPanel
           onNotificationsChanged={onNotificationsChanged}

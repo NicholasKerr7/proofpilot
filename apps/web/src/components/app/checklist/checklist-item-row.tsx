@@ -24,6 +24,7 @@ interface ChecklistItemRowProps {
   item: ChecklistItem;
   onSetCompleted: (completed: boolean) => Promise<void>;
   onToggle: () => void;
+  readOnly: boolean;
 }
 
 export function ChecklistItemRow({
@@ -31,7 +32,8 @@ export function ChecklistItemRow({
   isUpdating,
   item,
   onSetCompleted,
-  onToggle
+  onToggle,
+  readOnly
 }: ChecklistItemRowProps) {
   const firstMatch = item.matches?.[0];
   const isReady = isChecklistReady(item.status);
@@ -132,7 +134,7 @@ export function ChecklistItemRow({
                   ? "This item can strengthen the packet but is not required."
                   : "Add supporting evidence, then run Analyze evidence to check the requirement again."}
               </p>
-              {isMissing ? (
+              {!readOnly && isMissing ? (
                 <Button asChild className="mt-1 w-full sm:w-fit" size="sm" variant="outline">
                   <a href="#evidence-intake">
                     <UploadCloud className="h-4 w-4" aria-hidden="true" />
@@ -143,7 +145,7 @@ export function ChecklistItemRow({
             </section>
           )}
 
-          {canSetManualCompletion ? (
+          {!readOnly && canSetManualCompletion ? (
             <div className="flex border-t border-border pt-3 md:col-span-2">
               <Button
                 className="w-full sm:w-fit"

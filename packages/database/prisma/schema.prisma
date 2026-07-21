@@ -315,20 +315,21 @@ model Case {
 }
 
 model CaseCollaborator {
-  id         String                 @id @default(cuid())
-  caseId     String
-  case       Case                   @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  userId     String?
-  user       User?                  @relation("CaseCollaboratorUser", fields: [userId], references: [id], onDelete: SetNull)
-  email      String
-  name       String?
-  role       CaseCollaboratorRole
-  status     CaseCollaboratorStatus @default(PENDING)
-  invitedAt  DateTime               @default(now())
-  expiresAt  DateTime?
-  acceptedAt DateTime?
-  createdAt  DateTime               @default(now())
-  updatedAt  DateTime               @updatedAt
+  id              String                 @id @default(cuid())
+  caseId          String
+  case            Case                   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  userId          String?
+  user            User?                  @relation("CaseCollaboratorUser", fields: [userId], references: [id], onDelete: SetNull)
+  email           String
+  name            String?
+  role            CaseCollaboratorRole
+  status          CaseCollaboratorStatus @default(PENDING)
+  inviteTokenHash String?                @unique
+  invitedAt       DateTime               @default(now())
+  expiresAt       DateTime?
+  acceptedAt      DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
 
   @@unique([caseId, email])
   @@index([caseId, status])

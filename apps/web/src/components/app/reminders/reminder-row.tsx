@@ -26,6 +26,7 @@ interface ReminderRowProps {
   onRequestDelete: () => void;
   onToggle: () => void;
   onUpdate: (input: UpdateReminderInput) => Promise<boolean>;
+  readOnly: boolean;
   reminder: CaseReminder;
   selectedCase: CaseRecord;
 }
@@ -40,6 +41,7 @@ export function ReminderRow({
   onRequestDelete,
   onToggle,
   onUpdate,
+  readOnly,
   reminder,
   selectedCase
 }: ReminderRowProps) {
@@ -111,6 +113,7 @@ export function ReminderRow({
           onConfirmDelete={onConfirmDelete}
           onRequestDelete={onRequestDelete}
           onUpdate={onUpdate}
+          readOnly={readOnly}
           reminder={reminder}
           selectedCase={selectedCase}
         />

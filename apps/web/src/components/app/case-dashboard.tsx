@@ -319,6 +319,11 @@ function CaseListItem({
           <span className="min-w-0">
             <span className="flex flex-wrap items-center gap-2">
               {isSelected ? <Badge>Primary case</Badge> : null}
+              {caseRecord.access?.role && caseRecord.access.role !== "OWNER" ? (
+                <Badge variant="secondary">
+                  Shared {caseRecord.access.role === "EDITOR" ? "editor" : "viewer"}
+                </Badge>
+              ) : null}
               <Badge className="xl:hidden" variant={getCaseStatusVariant(caseRecord.status)}>
                 {formatCaseStatus(caseRecord.status)}
               </Badge>
@@ -369,17 +374,19 @@ function CaseListItem({
           />
         </button>
 
-        <Button
-          aria-label={`Archive ${caseRecord.title}`}
-          disabled={isArchiving}
-          onClick={onRequestArchive}
-          size="icon"
-          title={`Archive ${caseRecord.title}`}
-          type="button"
-          variant="ghost"
-        >
-          <Archive className="h-4 w-4" aria-hidden="true" />
-        </Button>
+        {caseRecord.access?.canManage !== false ? (
+          <Button
+            aria-label={`Archive ${caseRecord.title}`}
+            disabled={isArchiving}
+            onClick={onRequestArchive}
+            size="icon"
+            title={`Archive ${caseRecord.title}`}
+            type="button"
+            variant="ghost"
+          >
+            <Archive className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        ) : null}
       </div>
 
       {isPendingArchive ? (

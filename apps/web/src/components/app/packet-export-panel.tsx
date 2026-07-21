@@ -34,12 +34,25 @@ export function PacketExportPanel({
   const [notice, setNotice] = useState<Notice | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const canDownload = selectedCase.access?.canDownload ?? true;
+  const canGenerate = selectedCase.access?.canEdit ?? true;
+  const canShare = selectedCase.access?.canManage ?? true;
   const hasGeneratingPacket = packets.some((packet) => packet.status === "GENERATING");
 
   useEffect(() => {
     let isMounted = true;
 
     async function loadPackets() {
+      if (!canDownload) {
+        setPackets([]);
+        setIsLoading(false);
+        setNotice({
+          tone: "info",
+          text: "The case owner disabled packet downloads for viewer access."
+        });
+        return;
+      }
+
       setIsLoading(true);
       setNotice(null);
 
@@ -68,7 +81,7 @@ export function PacketExportPanel({
     return () => {
       isMounted = false;
     };
-  }, [selectedCase.id]);
+  }, [canDownload, selectedCase.id]);
 
   useEffect(() => {
     if (!hasGeneratingPacket) {
@@ -203,8 +216,11 @@ export function PacketExportPanel({
         ) : null}
 
         <PacketExportContent
+          canDownload={canDownload}
+          canGenerate={canGenerate}
+          canShare={canShare}
           generateLabel={generateLabel}
-          isGenerateDisabled={isGenerating || hasGeneratingPacket}
+          isGenerateDisabled={!canGenerate || isGenerating || hasGeneratingPacket}
           isLoading={isLoading}
           latestExport={latestExport}
           latestReadyPacket={latestReadyPacket ?? null}

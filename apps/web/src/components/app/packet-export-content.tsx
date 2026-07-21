@@ -39,6 +39,9 @@ export type PacketReadinessState = {
 };
 
 interface PacketExportContentProps {
+  canDownload: boolean;
+  canGenerate: boolean;
+  canShare: boolean;
   generateLabel: string;
   isGenerateDisabled: boolean;
   isLoading: boolean;
@@ -53,6 +56,9 @@ interface PacketExportContentProps {
 }
 
 export function PacketExportContent({
+  canDownload,
+  canGenerate,
+  canShare,
   generateLabel,
   isGenerateDisabled,
   isLoading,
@@ -82,6 +88,9 @@ export function PacketExportContent({
 
         <aside className="grid content-start gap-4 border-t border-border pt-4 md:border-l md:border-t-0 md:pl-5 md:pt-0">
           <PacketExportActions
+            canDownload={canDownload}
+            canGenerate={canGenerate}
+            canShare={canShare}
             generateLabel={generateLabel}
             isGenerateDisabled={isGenerateDisabled}
             latestExport={latestExport}
@@ -89,7 +98,11 @@ export function PacketExportContent({
             onGenerate={onGenerate}
             onOpenPacketShare={onOpenPacketShare}
           />
-          <PacketExportHistory isLoading={isLoading} packets={packets} />
+          <PacketExportHistory
+            canDownload={canDownload}
+            isLoading={isLoading}
+            packets={packets}
+          />
         </aside>
       </div>
     </>
@@ -182,6 +195,9 @@ function PacketSectionManifest({ sections }: { sections: PacketSection[] }) {
 }
 
 interface PacketExportActionsProps {
+  canDownload: boolean;
+  canGenerate: boolean;
+  canShare: boolean;
   generateLabel: string;
   isGenerateDisabled: boolean;
   latestExport: CasePacketExport | null;
@@ -191,6 +207,9 @@ interface PacketExportActionsProps {
 }
 
 function PacketExportActions({
+  canDownload,
+  canGenerate,
+  canShare,
   generateLabel,
   isGenerateDisabled,
   latestExport,
@@ -207,35 +226,41 @@ function PacketExportActions({
         Export actions
       </h4>
       <div className="mt-2 grid gap-2">
-        <Button
-          type="button"
-          onClick={() => {
-            void onGenerate();
-          }}
-          disabled={isGenerateDisabled}
-        >
-          <FileArchive className="h-4 w-4" aria-hidden="true" />
-          {generateLabel}
-        </Button>
+        {canGenerate ? (
+          <Button
+            type="button"
+            onClick={() => {
+              void onGenerate();
+            }}
+            disabled={isGenerateDisabled}
+          >
+            <FileArchive className="h-4 w-4" aria-hidden="true" />
+            {generateLabel}
+          </Button>
+        ) : null}
         {latestExport ? (
           <>
-            <Button onClick={onOpenPacketShare} type="button" variant="secondary">
-              <Share2 className="h-4 w-4" aria-hidden="true" />
-              Share latest packet
-            </Button>
-            <Button asChild variant="secondary">
-              <a href={latestExport.downloadUrl} target="_blank" rel="noreferrer">
-                <Download className="h-4 w-4" aria-hidden="true" />
-                Download latest PDF
-              </a>
-            </Button>
+            {canShare ? (
+              <Button onClick={onOpenPacketShare} type="button" variant="secondary">
+                <Share2 className="h-4 w-4" aria-hidden="true" />
+                Share latest packet
+              </Button>
+            ) : null}
+            {canDownload ? (
+              <Button asChild variant="secondary">
+                <a href={latestExport.downloadUrl} target="_blank" rel="noreferrer">
+                  <Download className="h-4 w-4" aria-hidden="true" />
+                  Download latest PDF
+                </a>
+              </Button>
+            ) : null}
           </>
-        ) : (
+        ) : canDownload ? (
           <Button type="button" variant="secondary" disabled>
             <Download className="h-4 w-4" aria-hidden="true" />
             Download latest PDF
           </Button>
-        )}
+        ) : null}
       </div>
       {latestReadyPacket && latestExport ? (
         <dl className="mt-3 grid gap-2 border-t border-border pt-3 text-xs">
@@ -272,9 +297,11 @@ function PacketExportActions({
 }
 
 function PacketExportHistory({
+  canDownload,
   isLoading,
   packets
 }: {
+  canDownload: boolean;
   isLoading: boolean;
   packets: CasePacket[];
 }) {
@@ -317,7 +344,7 @@ function PacketExportHistory({
                     {getPacketHistoryLabel(packet)}
                   </p>
                 </div>
-                {packetExport ? (
+                {canDownload && packetExport ? (
                   <Button asChild className="shrink-0" size="icon" variant="ghost">
                     <a
                       aria-label={`Download packet generated ${formatDateTime(packet.createdAt)}`}

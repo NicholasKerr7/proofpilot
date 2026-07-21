@@ -39,13 +39,14 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 - Password changes update a dedicated `passwordChangedAt` timestamp and revoke every other session. Password reset completion revokes all sessions.
 - Password reset links carry 256-bit random tokens; PostgreSQL stores only SHA-256 hashes with expiry and one-time-use state.
 - Successful registration and login events store sanitized client context in owner-linked audit logs. User-agent and IP metadata are display context only and never authorization inputs.
+- Unauthenticated API traffic is rate-limited by client address. Traffic with a signature-verified JWT uses a SHA-256 digest of its session ID as the in-memory bucket key so users behind the web proxy do not share one global limit; invalid bearer values remain in the IP bucket and raw tokens are never retained in limiter state.
 - Storage helpers generate signed upload/download URLs instead of exposing private object URLs.
 - The API streams completed uploads from private staging storage to ClamAV, then conditionally promotes the exact scanned ETag to a non-uploadable processing key before queueing work.
-- Assistant threads use a compound user-and-case key, and every assistant request resolves the case through the authenticated owner's ID before thread access.
+- Assistant threads use a compound user-and-case key, and every assistant request resolves authenticated read access before thread access.
 - Assistant audit events record IDs, response mode, intent, and prompt length without duplicating message content in audit metadata.
 - Collaboration management resolves every case through the authenticated owner ID. Audit metadata records collaborator IDs, roles, and changed setting names without storing invited email addresses.
 - Packet-share creation and revocation resolve the ready export through the authenticated case owner. Audit metadata stores share IDs, recipient counts, permissions, and expiry without storing raw tokens or recipient addresses.
-- Statement guidance, version restore, and summary generation resolve the active case through the authenticated owner. Audit metadata stores record IDs, answer counts, and source counts without duplicating answers, drafts, or summary text.
+- Statement guidance, version restore, and summary generation resolve authenticated edit access to the active case. Audit metadata stores record IDs, answer counts, and source counts without duplicating answers, drafts, or summary text.
 
 Extracted document text is source evidence rather than user-authored application metadata, so processing preserves it for review and search. It is still rendered only through escaped text contexts and normalized before PDF drawing; it is never inserted as executable HTML.
 
@@ -67,7 +68,9 @@ Before packet details are returned, the recipient must submit an address on the 
 
 Case owners can maintain a ten-seat roster, create expiring invitations, assign Editor or Viewer roles, remove collaborators, and persist sharing controls. The API derives expired invitation state at read time and excludes expired invitations from seat usage.
 
-The current MVP intentionally keeps all case, document, packet, and assistant resources owner-only. A collaboration record does not grant resource access until invitation acceptance, collaborator-session authorization, and permission enforcement are implemented end to end. The prevent-download setting is persisted for that future enforcement boundary and is not presented as active protection for owner downloads.
+Invitation links contain 256-bit random bearer tokens, while PostgreSQL stores only SHA-256 hashes. Acceptance and decline require a signed-in account with the invited email address and consume the token atomically. Delivery failures invalidate the token and expire the pending roster entry.
+
+An active Viewer has read-only access to the case, documents, checklist, timeline, statement, reminders, packets, and guided assistant context. An active Editor also has mutation access. Ownership remains required for archiving, collaboration management, and packet-share management. Audit entries attribute shared edits to the acting collaborator while storage keys, queue jobs, status notifications, and case records remain owned by the case owner. The prevent-download setting withholds signed document and packet URLs from Viewers; it is an authorization control, not DRM.
 
 ## Security And Privacy Foundation
 

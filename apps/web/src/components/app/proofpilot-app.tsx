@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  type CaseInvitationDecisionResponse,
+  type CaseInvitationPreview,
   defaultUserSettingsValues,
   type GlobalSearchResult,
   type UpdateUserSettingsInput,
@@ -18,6 +20,7 @@ import type { AuthMode } from "@/components/app/auth-panel";
 import { BillingPanel } from "@/components/app/billing/billing-panel";
 import { CaseDashboard } from "@/components/app/case-dashboard";
 import { CaseCollaborationPanel } from "@/components/app/collaboration/case-collaboration-panel";
+import { CollaborationInvitationPanel } from "@/components/app/collaboration/collaboration-invitation-panel";
 import { CaseWorkspace } from "@/components/app/case-workspace";
 import { CalendarDeadlinesPanel } from "@/components/app/calendar-deadlines-panel";
 import type { CaseDestinationId } from "@/components/app/cases/case-utils";
@@ -60,6 +63,11 @@ export function ProofPilotApp() {
   const [publicView, setPublicView] = useState<"landing" | "auth">("landing");
   const [publicAuthMode, setPublicAuthMode] = useState<AuthMode>("login");
   const [passwordResetToken, setPasswordResetToken] = useState<string | null>(null);
+  const [invitationToken, setInvitationToken] = useState<string | null>(null);
+  const [invitation, setInvitation] = useState<CaseInvitationPreview | null>(null);
+  const [invitationError, setInvitationError] = useState<string | null>(null);
+  const [isInvitationLoading, setIsInvitationLoading] = useState(false);
+  const [isInvitationSubmitting, setIsInvitationSubmitting] = useState(false);
   const [cases, setCases] = useState<CaseRecord[]>([]);
   const [caseTypes, setCaseTypes] = useState<CaseType[]>(fallbackCaseTypes);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
@@ -186,7 +194,8 @@ export function ProofPilotApp() {
     let isMounted = true;
 
     async function boot() {
-      const resetToken = new URL(window.location.href).searchParams.get("resetToken");
+      const searchParams = new URL(window.location.href).searchParams;
+      const resetToken = searchParams.get("resetToken");
 
       if (resetToken) {
         if (isMounted) {
@@ -196,6 +205,34 @@ export function ProofPilotApp() {
           setIsBooting(false);
         }
         return;
+      }
+
+      const nextInvitationToken = searchParams.get("inviteToken");
+
+      if (nextInvitationToken) {
+        setInvitationToken(nextInvitationToken);
+        setIsInvitationLoading(true);
+
+        try {
+          const invitationPreview = await apiRequest<CaseInvitationPreview>(
+            `/api/public/collaboration/invitations/${encodeURIComponent(nextInvitationToken)}`
+          );
+
+          if (isMounted) {
+            setInvitation(invitationPreview);
+            setInvitationError(null);
+          }
+        } catch (error) {
+          if (isMounted) {
+            setInvitationError(
+              error instanceof Error ? error.message : "Invitation could not be loaded."
+            );
+          }
+        } finally {
+          if (isMounted) {
+            setIsInvitationLoading(false);
+          }
+        }
       }
 
       try {
@@ -277,6 +314,65 @@ export function ProofPilotApp() {
     const url = new URL(window.location.href);
     url.searchParams.delete("resetToken");
     window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  }
+
+  function clearInvitationToken() {
+    setInvitationToken(null);
+    setInvitation(null);
+    setInvitationError(null);
+    setIsInvitationLoading(false);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("inviteToken");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  }
+
+  async function handleInvitationDecision(decision: "accept" | "decline") {
+    if (!invitationToken) {
+      return;
+    }
+
+    setIsInvitationSubmitting(true);
+    setInvitationError(null);
+
+    try {
+      const response = await apiRequest<CaseInvitationDecisionResponse>(
+        `/api/collaboration/invitations/${encodeURIComponent(invitationToken)}/${decision}`,
+        { method: "POST" }
+      );
+      clearInvitationToken();
+      setMessage(response.message);
+
+      if (response.caseId) {
+        await loadCases();
+        await loadCaseDetail(response.caseId);
+        setActiveCaseDestinationId("case-overview");
+        setActiveView("case");
+        refreshNotifications();
+        scrollToPageTop();
+      }
+    } catch (error) {
+      setInvitationError(
+        error instanceof Error ? error.message : "Invitation response could not be saved."
+      );
+    } finally {
+      setIsInvitationSubmitting(false);
+    }
+  }
+
+  async function handleSwitchInvitationAccount() {
+    setIsInvitationSubmitting(true);
+    setInvitationError(null);
+
+    try {
+      await handleLogout();
+      setPublicAuthMode("login");
+      setPublicView("auth");
+      scrollToPageTop();
+    } catch (error) {
+      setInvitationError(error instanceof Error ? error.message : "Account switch failed.");
+    } finally {
+      setIsInvitationSubmitting(false);
+    }
   }
 
   async function handleCreateCase(payload: CreateCasePayload) {
@@ -439,9 +535,23 @@ export function ProofPilotApp() {
       return;
     }
 
+    if (selectedCase.access?.canManage === false) {
+      setMessage("Only the case owner can manage packet sharing.");
+      return;
+    }
+
     setMessage(null);
     setActiveView("share-packet");
     scrollToPageTop();
+  }
+
+  function handleOpenCollaboration() {
+    if (!selectedCase || selectedCase.access?.canManage === false) {
+      setMessage("Only the case owner can manage collaborators.");
+      return;
+    }
+
+    handleNavigate("collaboration");
   }
 
   function handleClosePacketShare() {
@@ -470,6 +580,31 @@ export function ProofPilotApp() {
   }
 
   if (!user) {
+    if (invitationToken && publicView !== "auth") {
+      return (
+        <CollaborationInvitationPanel
+          error={invitationError}
+          invitation={invitation}
+          isLoading={isInvitationLoading}
+          isSubmitting={isInvitationSubmitting}
+          onAccept={() => handleInvitationDecision("accept")}
+          onAuthenticate={(mode) => {
+            setPublicAuthMode(mode);
+            setPublicView("auth");
+            scrollToPageTop();
+          }}
+          onDecline={() => handleInvitationDecision("decline")}
+          onDismiss={() => {
+            clearInvitationToken();
+            setPublicView("landing");
+            scrollToPageTop();
+          }}
+          onSwitchAccount={handleSwitchInvitationAccount}
+          user={null}
+        />
+      );
+    }
+
     if (publicView === "landing") {
       return (
         <PublicLanding
@@ -484,11 +619,13 @@ export function ProofPilotApp() {
 
     return (
       <AuthPanel
+        backLabel={invitationToken ? "Back to invitation" : "Back to overview"}
         error={message}
+        initialEmail={invitation?.invitedEmail}
         initialMode={publicAuthMode}
         initialResetToken={passwordResetToken}
         isSubmitting={isSubmitting}
-        key={`${publicAuthMode}:${passwordResetToken ?? ""}`}
+        key={`${publicAuthMode}:${passwordResetToken ?? ""}:${invitationToken ?? ""}`}
         onBack={() => {
           setMessage(null);
           clearPasswordResetToken();
@@ -500,6 +637,26 @@ export function ProofPilotApp() {
         onDemoLogin={() => authenticate("/api/auth/demo", {})}
         onLogin={(input) => authenticate("/api/auth/login", input)}
         onRegister={(input) => authenticate("/api/auth/register", input)}
+      />
+    );
+  }
+
+  if (invitationToken) {
+    return (
+      <CollaborationInvitationPanel
+        error={invitationError}
+        invitation={invitation}
+        isLoading={isInvitationLoading}
+        isSubmitting={isInvitationSubmitting}
+        onAccept={() => handleInvitationDecision("accept")}
+        onAuthenticate={(mode) => {
+          setPublicAuthMode(mode);
+          setPublicView("auth");
+        }}
+        onDecline={() => handleInvitationDecision("decline")}
+        onDismiss={clearInvitationToken}
+        onSwitchAccount={handleSwitchInvitationAccount}
+        user={user}
       />
     );
   }
@@ -570,14 +727,16 @@ export function ProofPilotApp() {
           onBackToCases={() => handleNavigate("cases")}
           onCaseChanged={loadCaseDetail}
           onNotificationsChanged={refreshNotifications}
-          onOpenCollaboration={() => handleNavigate("collaboration")}
+          onOpenCollaboration={handleOpenCollaboration}
           onOpenPacketShare={handleOpenPacketShare}
           onSectionChange={setActiveCaseDestinationId}
           selectedCase={selectedCase}
         />
       ) : null}
 
-      {activeView === "collaboration" && selectedCase ? (
+      {activeView === "collaboration" &&
+      selectedCase &&
+      selectedCase.access?.canManage !== false ? (
         <CaseCollaborationPanel
           caseRecord={selectedCase}
           key={selectedCase.id}
@@ -585,7 +744,9 @@ export function ProofPilotApp() {
         />
       ) : null}
 
-      {activeView === "share-packet" && selectedCase ? (
+      {activeView === "share-packet" &&
+      selectedCase &&
+      selectedCase.access?.canManage !== false ? (
         <PacketSharePanel
           caseRecord={selectedCase}
           key={selectedCase.id}

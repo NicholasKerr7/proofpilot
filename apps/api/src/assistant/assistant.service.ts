@@ -8,6 +8,7 @@ import type {
   AssistantMessage,
   AssistantWorkspace
 } from "@proofpilot/types";
+import { buildCaseAccessWhere } from "../common/case-access.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import {
   assistantCaseSelect,
@@ -33,7 +34,7 @@ export class AssistantService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getWorkspace(userId: string, caseId: string): Promise<AssistantWorkspace> {
-    const caseRecord = await this.getOwnedCase(userId, caseId);
+    const caseRecord = await this.getAccessibleCase(userId, caseId);
     const thread = await this.prisma.assistantThread.findUnique({
       where: {
         userId_caseId: { userId, caseId }
@@ -63,7 +64,7 @@ export class AssistantService {
     caseId: string,
     input: CreateAssistantMessageDto
   ): Promise<AssistantExchange> {
-    const caseRecord = await this.getOwnedCase(userId, caseId);
+    const caseRecord = await this.getAccessibleCase(userId, caseId);
     const content = input.content.trim();
     const response = createGuidedAssistantResponse(caseRecord, content);
 
@@ -121,7 +122,7 @@ export class AssistantService {
     });
   }
 
-  private async getOwnedCase(
+  private async getAccessibleCase(
     userId: string,
     caseId: string
   ): Promise<AssistantCaseContext> {
@@ -129,7 +130,7 @@ export class AssistantService {
       where: {
         archivedAt: null,
         id: caseId,
-        ownerId: userId
+        ...buildCaseAccessWhere(userId, "READ")
       },
       select: assistantCaseSelect
     });

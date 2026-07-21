@@ -38,6 +38,7 @@ import type {
 
 interface StatementBuilderProps {
   onCaseChanged: (caseId: string) => Promise<unknown>;
+  readOnly: boolean;
   selectedCase: CaseRecord;
 }
 
@@ -76,7 +77,11 @@ const writingTips: WritingTip[] = [
   }
 ];
 
-export function StatementBuilder({ onCaseChanged, selectedCase }: StatementBuilderProps) {
+export function StatementBuilder({
+  onCaseChanged,
+  readOnly,
+  selectedCase
+}: StatementBuilderProps) {
   const [statement, setStatement] = useState<CaseStatement | null>(null);
   const [draftContent, setDraftContent] = useState("");
   const [savedDraftContent, setSavedDraftContent] = useState("");
@@ -160,7 +165,7 @@ export function StatementBuilder({ onCaseChanged, selectedCase }: StatementBuild
     isSummaryGenerating ||
     restoringVersionId !== null;
   const latestVersion = statement?.versions[0];
-  const canSave = draftContent.trim().length > 0 && draftIsDirty && !isBusy;
+  const canSave = !readOnly && draftContent.trim().length > 0 && draftIsDirty && !isBusy;
   const visibleNotice = notice?.caseId === selectedCase.id ? notice : null;
 
   function showNotice(nextNotice: Omit<Notice, "caseId">) {
@@ -361,6 +366,7 @@ export function StatementBuilder({ onCaseChanged, selectedCase }: StatementBuild
             void handleSaveGuidance();
           }}
           platform={selectedCase.platform}
+          readOnly={readOnly}
         />
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_19rem]">
@@ -397,6 +403,7 @@ export function StatementBuilder({ onCaseChanged, selectedCase }: StatementBuild
                 maxLength={12000}
                 onChange={(event) => setDraftContent(event.target.value)}
                 placeholder="Generate a draft or write the appeal statement."
+                readOnly={readOnly}
                 value={draftContent}
               />
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
@@ -405,6 +412,7 @@ export function StatementBuilder({ onCaseChanged, selectedCase }: StatementBuild
               </div>
             </div>
 
+            {!readOnly ? (
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
               <Button
                 type="button"
@@ -428,12 +436,13 @@ export function StatementBuilder({ onCaseChanged, selectedCase }: StatementBuild
                 {isSaving ? "Saving..." : "Save version"}
               </Button>
             </div>
+            ) : null}
           </section>
 
           <aside className="grid content-start gap-4">
             <WritingTips />
             <StatementSummaryPanel
-              disabled={isBusy}
+              disabled={isBusy || readOnly}
               historyCount={summaryHistoryCount}
               isGenerating={isSummaryGenerating}
               onGenerate={() => {
@@ -445,7 +454,7 @@ export function StatementBuilder({ onCaseChanged, selectedCase }: StatementBuild
         </div>
 
         <StatementVersionHistory
-          disabled={isBusy}
+          disabled={isBusy || readOnly}
           onRestore={(versionId) => {
             void handleRestore(versionId);
           }}

@@ -25,6 +25,7 @@ interface EvidenceDocumentDetailPanelProps {
   onConfirmDelete: () => Promise<void>;
   onReprocess: () => Promise<void>;
   onRequestDelete: (document: EvidenceDocument) => void;
+  readOnly: boolean;
   selectedDocument: EvidenceDocumentDetail | null;
 }
 
@@ -37,6 +38,7 @@ export function EvidenceDocumentDetailPanel({
   onConfirmDelete,
   onReprocess,
   onRequestDelete,
+  readOnly,
   selectedDocument
 }: EvidenceDocumentDetailPanelProps) {
   if (isDetailLoading) {
@@ -117,33 +119,37 @@ export function EvidenceDocumentDetailPanel({
                 Download
               </a>
             </Button>
-            <Button
-              disabled={isReprocessing || isProcessing}
-              onClick={() => {
-                void onReprocess();
-              }}
-              size="sm"
-              type="button"
-              variant="ghost"
-            >
-              <RefreshCcw className="h-4 w-4" aria-hidden="true" />
-              {isReprocessing ? "Queueing..." : "Reprocess"}
-            </Button>
+            {!readOnly ? (
+              <Button
+                disabled={isReprocessing || isProcessing}
+                onClick={() => {
+                  void onReprocess();
+                }}
+                size="sm"
+                type="button"
+                variant="ghost"
+              >
+                <RefreshCcw className="h-4 w-4" aria-hidden="true" />
+                {isReprocessing ? "Queueing..." : "Reprocess"}
+              </Button>
+            ) : null}
           </>
         ) : null}
-        <Button
-          className={!selectedDocument.downloadUrl ? "col-span-2" : undefined}
-          onClick={() => onRequestDelete(selectedDocument)}
-          size="sm"
-          type="button"
-          variant="ghost"
-        >
-          <Trash2 className="h-4 w-4" aria-hidden="true" />
-          Delete
-        </Button>
+        {!readOnly ? (
+          <Button
+            className={!selectedDocument.downloadUrl ? "col-span-2" : undefined}
+            onClick={() => onRequestDelete(selectedDocument)}
+            size="sm"
+            type="button"
+            variant="ghost"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+            Delete
+          </Button>
+        ) : null}
       </div>
 
-      {isPendingDelete ? (
+      {!readOnly && isPendingDelete ? (
         <div className="mt-3">
           <EvidenceDeleteConfirmation
             isDeleting={isDeleting}

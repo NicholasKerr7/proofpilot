@@ -28,6 +28,7 @@ interface ChecklistWorkspaceProps {
   items: ChecklistItem[];
   onSetCompleted: (itemId: string, completed: boolean) => Promise<void>;
   onToggleItem: (itemId: string) => void;
+  readOnly: boolean;
   updatingItemId: string | null;
 }
 
@@ -36,6 +37,7 @@ export function ChecklistWorkspace({
   items,
   onSetCompleted,
   onToggleItem,
+  readOnly,
   updatingItemId
 }: ChecklistWorkspaceProps) {
   const [filter, setFilter] = useState<ChecklistFilter>("all");
@@ -137,6 +139,7 @@ export function ChecklistWorkspace({
                   items={groupedItems[group]}
                   onSetCompleted={onSetCompleted}
                   onToggleItem={onToggleItem}
+                  readOnly={readOnly}
                   updatingItemId={updatingItemId}
                 />
               ))}

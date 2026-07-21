@@ -44,6 +44,7 @@ interface ReminderDetailProps {
   onConfirmDelete: () => Promise<void>;
   onRequestDelete: () => void;
   onUpdate: (input: UpdateReminderInput) => Promise<boolean>;
+  readOnly: boolean;
   reminder: CaseReminder;
   selectedCase: CaseRecord;
 }
@@ -56,6 +57,7 @@ export function ReminderDetail({
   onConfirmDelete,
   onRequestDelete,
   onUpdate,
+  readOnly,
   reminder,
   selectedCase
 }: ReminderDetailProps) {
@@ -127,52 +129,58 @@ export function ReminderDetail({
       </section>
 
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        <Button
-          disabled={isUpdating}
-          onClick={() => {
-            void onUpdate({ completed: status !== "completed" });
-          }}
-          type="button"
-        >
-          {status === "completed" ? (
-            <RotateCcw aria-hidden="true" className="h-4 w-4" />
-          ) : (
-            <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
-          )}
-          {isUpdating
-            ? "Updating..."
-            : status === "completed"
-              ? "Reopen reminder"
-              : "Mark complete"}
-        </Button>
-        <Button
-          aria-expanded={isRescheduling}
-          disabled={isUpdating}
-          onClick={() => setIsRescheduling((current) => !current)}
-          type="button"
-          variant="outline"
-        >
-          <RefreshCcw aria-hidden="true" className="h-4 w-4" />
-          Reschedule
-        </Button>
+        {!readOnly ? (
+          <Button
+            disabled={isUpdating}
+            onClick={() => {
+              void onUpdate({ completed: status !== "completed" });
+            }}
+            type="button"
+          >
+            {status === "completed" ? (
+              <RotateCcw aria-hidden="true" className="h-4 w-4" />
+            ) : (
+              <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
+            )}
+            {isUpdating
+              ? "Updating..."
+              : status === "completed"
+                ? "Reopen reminder"
+                : "Mark complete"}
+          </Button>
+        ) : null}
+        {!readOnly ? (
+          <Button
+            aria-expanded={isRescheduling}
+            disabled={isUpdating}
+            onClick={() => setIsRescheduling((current) => !current)}
+            type="button"
+            variant="outline"
+          >
+            <RefreshCcw aria-hidden="true" className="h-4 w-4" />
+            Reschedule
+          </Button>
+        ) : null}
         <Button asChild variant="outline">
           <a href="#evidence-checklist">
             <ClipboardCheck aria-hidden="true" className="h-4 w-4" />
             Open checklist
           </a>
         </Button>
-        <Button
-          disabled={isDeleting || isUpdating}
-          onClick={onRequestDelete}
-          type="button"
-          variant="ghost"
-        >
-          <Trash2 aria-hidden="true" className="h-4 w-4" />
-          Remove
-        </Button>
+        {!readOnly ? (
+          <Button
+            disabled={isDeleting || isUpdating}
+            onClick={onRequestDelete}
+            type="button"
+            variant="ghost"
+          >
+            <Trash2 aria-hidden="true" className="h-4 w-4" />
+            Remove
+          </Button>
+        ) : null}
       </div>
 
-      {isRescheduling ? (
+      {!readOnly && isRescheduling ? (
         <ReminderRescheduleForm
           isUpdating={isUpdating}
           onCancel={() => setIsRescheduling(false)}
@@ -189,7 +197,7 @@ export function ReminderDetail({
         />
       ) : null}
 
-      {isPendingDelete ? (
+      {!readOnly && isPendingDelete ? (
         <ReminderDeleteConfirmation
           isDeleting={isDeleting}
           onCancel={onCancelDelete}

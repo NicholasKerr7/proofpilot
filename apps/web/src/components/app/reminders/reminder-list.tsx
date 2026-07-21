@@ -17,6 +17,7 @@ interface ReminderListProps {
   ) => Promise<boolean>;
   reminderToDeleteId: string | null;
   reminders: CaseReminder[];
+  readOnly: boolean;
   selectedCase: CaseRecord;
 }
 
@@ -32,6 +33,7 @@ export function ReminderList({
   onUpdateReminder,
   reminderToDeleteId,
   reminders,
+  readOnly,
   selectedCase
 }: ReminderListProps) {
   if (!isLoading && !reminders.length) {
@@ -57,6 +59,7 @@ export function ReminderList({
           onToggle={() => onToggleReminder(reminder.id)}
           onUpdate={(input) => onUpdateReminder(reminder.id, input)}
           reminder={reminder}
+          readOnly={readOnly}
           selectedCase={selectedCase}
         />
       ))}

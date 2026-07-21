@@ -30,7 +30,9 @@ export type AuthMode = "login" | "register";
 const authModes = ["login", "register"] as const satisfies readonly AuthMode[];
 
 interface AuthPanelProps {
+  backLabel?: string;
   error: string | null;
+  initialEmail?: string;
   initialMode?: AuthMode;
   initialResetToken?: string | null;
   isSubmitting: boolean;
@@ -43,7 +45,9 @@ interface AuthPanelProps {
 }
 
 export function AuthPanel({
+  backLabel = "Back to overview",
   error,
+  initialEmail = "",
   initialMode = "login",
   initialResetToken = null,
   isSubmitting,
@@ -56,7 +60,7 @@ export function AuthPanel({
 }: AuthPanelProps) {
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [recoveryToken, setRecoveryToken] = useState<string | null>(initialResetToken);
@@ -167,7 +171,7 @@ export function AuthPanel({
             {onBack ? (
               <Button onClick={onBack} type="button" variant="ghost">
                 <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                Back to overview
+                {backLabel}
               </Button>
             ) : null}
             <div className="lg:hidden">

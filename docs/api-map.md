@@ -57,7 +57,7 @@ Authenticated cross-user lookups return `404` rather than confirming that anothe
 - `GET /cases/:caseId/packets`
 - `POST /cases/:caseId/packet/generate`
 
-Statement routes resolve the active case through the authenticated owner. Guided answers are stored separately from statement versions, draft generation uses only saved case context, and restoration creates a new current version instead of overwriting history. Summary generation versions the result in `CaseSummary` and updates the case's current summary for packet export.
+Statement routes resolve the active case through authenticated case access. Editors and Owners can mutate statement data; Viewers can read it. Guided answers are stored separately from statement versions, draft generation uses only saved case context, and restoration creates a new current version instead of overwriting history. Summary generation versions the result in `CaseSummary` and updates the case's current summary for packet export.
 
 ## Case Collaboration
 
@@ -66,8 +66,11 @@ Statement routes resolve the active case through the authenticated owner. Guided
 - `PATCH /cases/:caseId/collaboration/collaborators/:collaboratorId`
 - `DELETE /cases/:caseId/collaboration/collaborators/:collaboratorId`
 - `PATCH /cases/:caseId/collaboration/settings`
+- `GET /collaboration/invitations/:token`
+- `POST /collaboration/invitations/:token/accept`
+- `POST /collaboration/invitations/:token/decline`
 
-These management endpoints require an authenticated case-owner match. Invitations and active demo roster records do not grant case or document access in the current MVP; invitation acceptance and collaborator-session authorization remain future work.
+Case roster and settings endpoints require an authenticated Owner. Invitation previews are public bearer-token lookups; acceptance and decline require an authenticated account whose normalized email matches the invited address. Invitation tokens are single-use and expire. An accepted Viewer can read the case and its resources, while an accepted Editor can also mutate case work. Only the Owner can archive the case, manage collaborators, or manage packet shares. A Viewer receives document and packet download URLs only when the Owner has not enabled download prevention.
 
 ## Packet Sharing
 
@@ -171,5 +174,4 @@ Report summaries include open cases, uploaded evidence, missing required checkli
 
 - Add provider-backed payments, OAuth connections, and model generation.
 - Add two-factor and WebAuthn enrollment.
-- Complete invitation acceptance and collaborator-session authorization.
 - Add packet email delivery, recipient email verification, and PDF watermarking.

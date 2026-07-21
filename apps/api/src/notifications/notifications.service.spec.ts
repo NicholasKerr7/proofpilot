@@ -71,7 +71,7 @@ describe("NotificationsService", () => {
     expect(prisma.reminder.findMany).toHaveBeenCalledWith({
       where: {
         case: {
-          ownerId,
+          OR: expect.any(Array),
           archivedAt: null
         }
       },
@@ -131,7 +131,7 @@ describe("NotificationsService", () => {
       where: {
         id: reminderId,
         case: {
-          ownerId,
+          OR: expect.any(Array),
           archivedAt: null
         }
       },

@@ -46,6 +46,7 @@ interface EvidenceReviewWorkspaceProps {
   onReprocess: () => Promise<void>;
   onRequestDelete: (document: EvidenceDocument) => void;
   onSelectDocument: (documentId: string) => void;
+  readOnly: boolean;
   selectedDocument: EvidenceDocumentDetail | null;
   selectedDocumentId: string | null;
 }
@@ -63,6 +64,7 @@ export function EvidenceReviewWorkspace({
   onReprocess,
   onRequestDelete,
   onSelectDocument,
+  readOnly,
   selectedDocument,
   selectedDocumentId
 }: EvidenceReviewWorkspaceProps) {
@@ -168,6 +170,7 @@ export function EvidenceReviewWorkspace({
                 onConfirmDelete={onConfirmDelete}
                 onRequestDelete={onRequestDelete}
                 onSelectDocument={onSelectDocument}
+                readOnly={readOnly}
               />
             ))}
           </div>
@@ -182,6 +185,7 @@ export function EvidenceReviewWorkspace({
           onConfirmDelete={onConfirmDelete}
           onReprocess={onReprocess}
           onRequestDelete={onRequestDelete}
+          readOnly={readOnly}
           selectedDocument={selectedDocument}
         />
       </div>
@@ -198,6 +202,7 @@ interface EvidenceListItemProps {
   onConfirmDelete: () => Promise<void>;
   onRequestDelete: (document: EvidenceDocument) => void;
   onSelectDocument: (documentId: string) => void;
+  readOnly: boolean;
 }
 
 function EvidenceListItem({
@@ -208,7 +213,8 @@ function EvidenceListItem({
   onCancelDelete,
   onConfirmDelete,
   onRequestDelete,
-  onSelectDocument
+  onSelectDocument,
+  readOnly
 }: EvidenceListItemProps) {
   return (
     <div
@@ -241,19 +247,21 @@ function EvidenceListItem({
             </Badge>
           </span>
         </button>
-        <Button
-          aria-label={`Delete ${document.originalName}`}
-          onClick={() => onRequestDelete(document)}
-          size="icon"
-          title={`Delete ${document.originalName}`}
-          type="button"
-          variant="ghost"
-        >
-          <Trash2 className="h-4 w-4" aria-hidden="true" />
-        </Button>
+        {!readOnly ? (
+          <Button
+            aria-label={`Delete ${document.originalName}`}
+            onClick={() => onRequestDelete(document)}
+            size="icon"
+            title={`Delete ${document.originalName}`}
+            type="button"
+            variant="ghost"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        ) : null}
       </div>
 
-      {isPendingDelete ? (
+      {!readOnly && isPendingDelete ? (
         <EvidenceDeleteConfirmation
           isDeleting={isDeleting}
           message="Delete this evidence file?"
