@@ -133,6 +133,9 @@ jobs:
       - name: Build E2E API
         run: pnpm exec turbo build --filter=@proofpilot/api
 
+      - name: Run API access-isolation integration tests
+        run: pnpm test:integration
+
       - name: Install browser
         run: pnpm --filter @proofpilot/web exec playwright install --with-deps chromium
 

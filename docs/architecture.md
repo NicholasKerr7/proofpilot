@@ -24,6 +24,7 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 ## Security Baseline
 
 - API routes that read or mutate user-owned resources must check `ownerId`.
+- A real HTTP/database integration suite creates an independent authenticated principal and temporary foreign case graph, expects `401` without authentication and `404` across cross-user reads and writes, then compares selected protected fields and record counts at the Prisma boundary before cleanup.
 - Connected-account reads and revocations use the authenticated user's compound ownership key.
 - Demo connection records never store OAuth credentials or third-party authorization tokens.
 - Billing usage queries are filtered through the authenticated user's cases, documents, and packet exports.

@@ -9,6 +9,8 @@ All database-backed route parameters and resource-ID fields in request bodies or
 
 User-authored names, case fields, timeline text, statements, guidance, reminder messages, packet comments, support messages, search text, and uploaded filenames are treated as plain text. The API removes markup and unsafe invisible characters before validating the sanitized value. Passwords, tokens, email addresses, IDs, enums, MIME types, and dates are validated by their dedicated rules and are not passed through the content sanitizer.
 
+Authenticated cross-user lookups return `404` rather than confirming that another user's resource exists. `pnpm test:integration` exercises guarded controllers and a two-user read/write denial matrix against PostgreSQL, then verifies the foreign records were not changed.
+
 ## Auth
 
 - `POST /auth/register`

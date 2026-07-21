@@ -55,10 +55,11 @@ Run responsive and accessibility browser checks after PostgreSQL and Redis are r
 
 ```bash
 pnpm --filter @proofpilot/web exec playwright install chromium
+pnpm test:integration
 pnpm test:e2e
 ```
 
-The browser install is a one-time setup per Playwright version. The runner covers public authentication and the signed-in demo shell at mobile, tablet, and desktop viewports. CI provisions and starts its own isolated web/API stack.
+The API integration suite starts an isolated Nest listener against the configured test database, creates a second authenticated user plus temporary foreign resources, verifies cross-user reads and mutations are denied, and removes its fixtures. The browser install is a one-time setup per Playwright version. The browser runner covers public authentication and the signed-in demo shell at mobile, tablet, and desktop viewports. CI provisions and starts its own isolated web/API stack.
 
 ## MVP Scope
 

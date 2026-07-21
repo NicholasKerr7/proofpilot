@@ -94,6 +94,10 @@ Persisted user-authored content is plain text. DTO transforms normalize Unicode 
 
 Text extracted from uploaded evidence is intentionally preserved as source material. Never render extracted text as raw HTML, interpolate it into SQL, shell commands, or storage keys, or send it to a third-party model without the explicit provider controls described above.
 
+## Access-Isolation Verification
+
+Run `pnpm test:integration` against a migrated, seeded PostgreSQL database with Redis available. The suite starts the Nest application on an ephemeral local port, registers a temporary second user, builds a foreign case graph owned by the seeded account, and verifies guarded routes, owner-scoped collections, direct resources, and nested mutations. Cross-user access must return `404`, the protected database state must remain unchanged, and all temporary records are removed during teardown. CI runs this suite before browser tests.
+
 ## Upload Security
 
 Evidence uploads are limited to PDF, PNG, JPG, JPEG, TXT, DOCX, EML, CSV, and XLSX files under 25 MB. The API validates the requested upload metadata before issuing a signed URL and validates the stored object size and content type before queueing document processing.

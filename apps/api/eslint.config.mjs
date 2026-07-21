@@ -8,7 +8,7 @@ export default tseslint.config(
     ignores: ["dist/**"],
     languageOptions: {
       parserOptions: {
-        project: true,
+        project: ["./tsconfig.json", "./tsconfig.integration.json"],
         tsconfigRootDir: import.meta.dirname
       }
     }
