@@ -17,4 +17,3 @@ yarn-debug.log*
 
 apps/web/.next
 apps/web/out
-docs/design/mobile-reference

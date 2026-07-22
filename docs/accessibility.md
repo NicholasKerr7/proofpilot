@@ -31,7 +31,7 @@ The browser install is needed once per Playwright version. The runner checks WCA
 Verify these viewports before release:
 
 - `375 x 812`: mobile capture and bottom navigation.
-- `768 x 1024`: tablet review layout, compared against [tablet-reference.md](design/tablet-reference.md).
+- `768 x 1024`: tablet review layout, navigation behavior, and readable line lengths.
 - `1280 x 900`: desktop command-center layout.
 - `1440 x 1100`: wide desktop density and line lengths.
 
