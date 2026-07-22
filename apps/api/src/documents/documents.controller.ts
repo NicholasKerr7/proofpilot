@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { CurrentUser } from "../common/decorators/current-user.decorator.js";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard.js";
 import type { RequestUser } from "../common/types/request-user.js";
+import { PortfolioDemoPolicyService } from "../common/services/portfolio-demo-policy.service.js";
 import { ResourceIdParam } from "../common/validation/resource-id.js";
 import { CreateDocumentDto } from "./dto/create-document.dto.js";
 import { DocumentsService } from "./documents.service.js";
@@ -12,7 +13,10 @@ import { DocumentsService } from "./documents.service.js";
 @UseGuards(JwtAuthGuard)
 @Controller()
 export class DocumentsController {
-  constructor(private readonly documentsService: DocumentsService) {}
+  constructor(
+    private readonly documentsService: DocumentsService,
+    private readonly portfolioDemoPolicy: PortfolioDemoPolicyService
+  ) {}
 
   @Post("cases/:caseId/documents")
   create(
@@ -20,6 +24,7 @@ export class DocumentsController {
     @ResourceIdParam("caseId") caseId: string,
     @Body() input: CreateDocumentDto
   ) {
+    this.portfolioDemoPolicy.assertDirectUploadAllowed(user);
     return this.documentsService.create(user.id, caseId, input);
   }
 

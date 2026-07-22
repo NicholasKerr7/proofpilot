@@ -18,7 +18,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 interface PublicLandingProps {
+  error: string | null;
+  isDemoStarting: boolean;
+  onExploreDemo: () => Promise<void>;
   onSelectAuth: (mode: AuthMode) => void;
+  portfolioMode: boolean;
 }
 
 const productFeatures: Array<{
@@ -65,7 +69,13 @@ const workflowSteps = [
   }
 ] as const;
 
-export function PublicLanding({ onSelectAuth }: PublicLandingProps) {
+export function PublicLanding({
+  error,
+  isDemoStarting,
+  onExploreDemo,
+  onSelectAuth,
+  portfolioMode
+}: PublicLandingProps) {
   return (
     <main className="min-h-screen overflow-hidden bg-background">
       <header className="relative z-20 border-b border-border/70 bg-background/90 px-4 backdrop-blur sm:px-6 lg:px-10">
@@ -85,17 +95,37 @@ export function PublicLanding({ onSelectAuth }: PublicLandingProps) {
           </nav>
 
           <div className="flex shrink-0 items-center gap-2">
+            {!portfolioMode ? (
+              <Button
+                className="hidden sm:inline-flex"
+                onClick={() => onSelectAuth("login")}
+                type="button"
+                variant="outline"
+              >
+                Sign in
+              </Button>
+            ) : null}
             <Button
-              className="hidden sm:inline-flex"
-              onClick={() => onSelectAuth("login")}
+              disabled={isDemoStarting}
+              onClick={() => {
+                if (portfolioMode) {
+                  void onExploreDemo();
+                } else {
+                  onSelectAuth("register");
+                }
+              }}
               type="button"
-              variant="outline"
             >
-              Sign in
-            </Button>
-            <Button onClick={() => onSelectAuth("register")} type="button">
-              <span className="hidden sm:inline">Create account</span>
-              <span className="sm:hidden">Get started</span>
+              <span className="hidden sm:inline">
+                {portfolioMode
+                  ? isDemoStarting
+                    ? "Preparing demo..."
+                    : "Explore demo"
+                  : "Create account"}
+              </span>
+              <span className="sm:hidden">
+                {portfolioMode ? (isDemoStarting ? "Preparing..." : "Explore") : "Get started"}
+              </span>
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Button>
           </div>
@@ -115,7 +145,7 @@ export function PublicLanding({ onSelectAuth }: PublicLandingProps) {
           <div className="mx-auto max-w-4xl text-center">
             <Badge variant="secondary">
               <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-              Account appeal workspace
+              {portfolioMode ? "Interactive portfolio demo" : "Account appeal workspace"}
             </Badge>
             <h1 className="mt-6 text-4xl font-semibold leading-tight tracking-normal text-foreground sm:text-5xl">
               ProofPilot Account Appeal Builder
@@ -124,30 +154,53 @@ export function PublicLanding({ onSelectAuth }: PublicLandingProps) {
               Turn scattered evidence into a clear timeline, a complete proof checklist, and a
               professional case packet ready for review.
             </p>
-            <div className="mx-auto mt-8 grid max-w-xl gap-3 sm:grid-cols-2 lg:mt-6">
+            <div
+              className={`mx-auto mt-8 grid gap-3 lg:mt-6 ${portfolioMode ? "max-w-sm" : "max-w-xl sm:grid-cols-2"}`}
+            >
               <Button
                 className="w-full"
-                onClick={() => onSelectAuth("register")}
+                disabled={isDemoStarting}
+                onClick={() => {
+                  if (portfolioMode) {
+                    void onExploreDemo();
+                  } else {
+                    onSelectAuth("register");
+                  }
+                }}
                 size="lg"
                 type="button"
               >
-                Create account
+                {portfolioMode
+                  ? isDemoStarting
+                    ? "Preparing workspace..."
+                    : "Explore interactive demo"
+                  : "Create account"}
                 <ArrowRight className="ml-auto h-4 w-4" aria-hidden="true" />
               </Button>
-              <Button
-                className="w-full"
-                onClick={() => onSelectAuth("login")}
-                size="lg"
-                type="button"
-                variant="outline"
-              >
-                Sign in
-              </Button>
+              {!portfolioMode ? (
+                <Button
+                  className="w-full"
+                  onClick={() => onSelectAuth("login")}
+                  size="lg"
+                  type="button"
+                  variant="outline"
+                >
+                  Sign in
+                </Button>
+              ) : null}
             </div>
+            {error ? (
+              <p
+                className="mx-auto mt-4 max-w-xl rounded-md border border-red-400/30 bg-red-400/10 px-3 py-2 text-sm text-red-100"
+                role="alert"
+              >
+                {error}
+              </p>
+            ) : null}
             <ul className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground sm:text-sm lg:mt-4">
               <li className="flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4 text-primary" aria-hidden="true" />
-                Private case workspace
+                {portfolioMode ? "Isolated sample workspace" : "Private case workspace"}
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-teal-300" aria-hidden="true" />
@@ -155,7 +208,7 @@ export function PublicLanding({ onSelectAuth }: PublicLandingProps) {
               </li>
               <li className="flex items-center gap-2">
                 <FileArchive className="h-4 w-4 text-sky-300" aria-hidden="true" />
-                Downloadable PDF packet
+                {portfolioMode ? "Sample data resets automatically" : "Downloadable PDF packet"}
               </li>
             </ul>
           </div>
@@ -237,15 +290,28 @@ export function PublicLanding({ onSelectAuth }: PublicLandingProps) {
               <ShieldCheck className="h-6 w-6" aria-hidden="true" />
             </span>
             <div>
-              <h2 className="text-lg font-semibold">Private by design</h2>
+              <h2 className="text-lg font-semibold">
+                {portfolioMode ? "Temporary by design" : "Private by design"}
+              </h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Cases are owner-scoped, evidence uses private signed access, and important changes
-                are recorded in the case activity log.
+                {portfolioMode
+                  ? "Every visitor receives an isolated sample workspace. Changes are temporary, outbound delivery is disabled, and the workspace is removed automatically."
+                  : "Cases are owner-scoped, evidence uses private signed access, and important changes are recorded in the case activity log."}
               </p>
             </div>
           </div>
-          <Button onClick={() => onSelectAuth("register")} type="button">
-            Start a private case
+          <Button
+            disabled={isDemoStarting}
+            onClick={() => {
+              if (portfolioMode) {
+                void onExploreDemo();
+              } else {
+                onSelectAuth("register");
+              }
+            }}
+            type="button"
+          >
+            {portfolioMode ? "Explore the demo" : "Start a private case"}
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Button>
         </div>

@@ -142,7 +142,7 @@ export function AccountPanel({
         {section === "profile" ? (
           <ProfileForm onUserChanged={onUserChanged} user={user} />
         ) : (
-          <SecurityForm />
+          <SecurityForm portfolioDemo={user.isPortfolioDemo} />
         )}
       </div>
     </section>

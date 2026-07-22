@@ -1,8 +1,25 @@
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Clock3 } from "lucide-react";
 import { PasswordChangeForm } from "@/components/app/account/password-change-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export function SecurityForm() {
+export function SecurityForm({ portfolioDemo }: { portfolioDemo: boolean }) {
+  if (portfolioDemo) {
+    return (
+      <Card>
+        <CardContent className="grid min-h-52 place-items-center p-6 text-center">
+          <div className="max-w-md">
+            <Clock3 className="mx-auto h-7 w-7 text-primary" aria-hidden="true" />
+            <h2 className="mt-4 text-lg font-semibold">Temporary demo credentials</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              This workspace uses a short-lived server session. Password changes and account
+              recovery are disabled because the entire sample workspace resets automatically.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="grid gap-5 md:grid-cols-[minmax(0,1.35fr)_minmax(16rem,0.65fr)]">
       <Card>

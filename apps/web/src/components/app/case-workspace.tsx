@@ -46,6 +46,7 @@ interface CaseWorkspaceProps {
   onOpenCollaboration: () => void;
   onOpenPacketShare: () => void;
   onSectionChange: (destinationId: CaseDestinationId) => void;
+  portfolioDemo: boolean;
   selectedCase: CaseRecord | null;
 }
 
@@ -57,6 +58,7 @@ export function CaseWorkspace({
   onOpenCollaboration,
   onOpenPacketShare,
   onSectionChange,
+  portfolioDemo,
   selectedCase
 }: CaseWorkspaceProps) {
   const [captureState, setCaptureState] = useState<EvidenceCaptureState>("idle");
@@ -186,6 +188,7 @@ export function CaseWorkspace({
         confirmBeforeDelete={confirmBeforeDelete}
         onCaptureStateChange={setCaptureState}
         onDocumentsChanged={handleDocumentsChanged}
+        portfolioDemo={portfolioDemo}
         selectedCase={selectedCase}
       />
 

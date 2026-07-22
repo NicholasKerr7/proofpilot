@@ -37,6 +37,7 @@ interface EvidencePanelProps {
   selectedCase: CaseRecord;
   onDocumentsChanged: () => Promise<void>;
   onCaptureStateChange: (state: EvidenceCaptureState) => void;
+  portfolioDemo: boolean;
 }
 
 export type EvidenceCaptureState =
@@ -79,7 +80,8 @@ export function EvidencePanel({
   confirmBeforeDelete,
   selectedCase,
   onDocumentsChanged,
-  onCaptureStateChange
+  onCaptureStateChange,
+  portfolioDemo
 }: EvidencePanelProps) {
   const readOnly = selectedCase.access?.canEdit === false;
   const [documents, setDocuments] = useState<EvidenceDocument[]>([]);
@@ -841,6 +843,7 @@ export function EvidencePanel({
             onGmailRequested={() => openProviderImport("GMAIL")}
             onGoogleDriveRequested={() => openProviderImport("GOOGLE_DRIVE")}
             onScanRequested={openCamera}
+            trustedSourcesOnly={portfolioDemo}
           />
 
           <EvidenceUploadQueue

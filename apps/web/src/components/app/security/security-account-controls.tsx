@@ -26,6 +26,7 @@ interface SecurityAccountControlsProps {
   onReviewActivity: () => void;
   onSignOutOtherSessions: () => void;
   overview: SecurityOverview;
+  portfolioDemo: boolean;
   revokingOtherSessions: boolean;
 }
 
@@ -35,6 +36,7 @@ export function SecurityAccountControls({
   onReviewActivity,
   onSignOutOtherSessions,
   overview,
+  portfolioDemo,
   revokingOtherSessions
 }: SecurityAccountControlsProps) {
   const [isPasswordEditorOpen, setIsPasswordEditorOpen] = useState(false);
@@ -46,22 +48,34 @@ export function SecurityAccountControls({
       <SecurityControlSection title="Password">
         <ControlRow
           action={
-            <Button
-              aria-controls="security-password-editor"
-              aria-expanded={isPasswordEditorOpen}
-              onClick={() => setIsPasswordEditorOpen((current) => !current)}
-              type="button"
-              variant="outline"
-            >
-              <KeyRound className="h-4 w-4" aria-hidden="true" />
-              {isPasswordEditorOpen ? "Close" : "Change password"}
-            </Button>
+            portfolioDemo ? (
+              <Badge variant="secondary">Managed demo session</Badge>
+            ) : (
+              <Button
+                aria-controls="security-password-editor"
+                aria-expanded={isPasswordEditorOpen}
+                onClick={() => setIsPasswordEditorOpen((current) => !current)}
+                type="button"
+                variant="outline"
+              >
+                <KeyRound className="h-4 w-4" aria-hidden="true" />
+                {isPasswordEditorOpen ? "Close" : "Change password"}
+              </Button>
+            )
           }
-          description="Keep your account protected with a unique password."
+          description={
+            portfolioDemo
+              ? "This temporary workspace uses a short-lived server session and resets automatically."
+              : "Keep your account protected with a unique password."
+          }
           icon={LockKeyhole}
-          meta={`Last changed ${formatSecurityDate(overview.passwordChangedAt)}`}
+          meta={
+            portfolioDemo
+              ? "Password changes disabled"
+              : `Last changed ${formatSecurityDate(overview.passwordChangedAt)}`
+          }
         />
-        {isPasswordEditorOpen ? (
+        {!portfolioDemo && isPasswordEditorOpen ? (
           <div className="mt-4 border-t border-border pt-4" id="security-password-editor">
             <PasswordChangeForm onPasswordChanged={onPasswordChanged} />
           </div>

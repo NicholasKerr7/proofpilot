@@ -19,6 +19,19 @@ describe("getWorkerEnv", () => {
     ).toThrow("NOTIFICATION_EMAIL_DELIVERY_MODE must be resend in production");
   });
 
+  it("allows log-only delivery for an isolated production portfolio demo", () => {
+    expect(
+      getWorkerEnv({
+        ...baseEnv,
+        NODE_ENV: "production",
+        PROOFPILOT_MODE: "portfolio"
+      })
+    ).toMatchObject({
+      NOTIFICATION_EMAIL_DELIVERY_MODE: "log",
+      PROOFPILOT_MODE: "portfolio"
+    });
+  });
+
   it("requires Resend credentials when notification delivery is enabled", () => {
     expect(() =>
       getWorkerEnv({

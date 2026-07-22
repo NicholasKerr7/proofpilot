@@ -14,6 +14,7 @@ interface EvidenceUploadViewProps {
   onCaseChanged: (caseId: string) => Promise<unknown>;
   onCreateCase: () => void;
   onViewCases: () => void;
+  portfolioDemo: boolean;
   selectedCase: CaseRecord | null;
 }
 
@@ -22,6 +23,7 @@ export function EvidenceUploadView({
   onCaseChanged,
   onCreateCase,
   onViewCases,
+  portfolioDemo,
   selectedCase
 }: EvidenceUploadViewProps) {
   const [captureState, setCaptureState] = useState<EvidenceCaptureState>("idle");
@@ -111,6 +113,7 @@ export function EvidenceUploadView({
           key={selectedCase.id}
           onCaptureStateChange={setCaptureState}
           onDocumentsChanged={handleDocumentsChanged}
+          portfolioDemo={portfolioDemo}
           selectedCase={selectedCase}
         />
       </div>

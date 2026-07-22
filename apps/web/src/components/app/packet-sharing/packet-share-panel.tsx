@@ -16,6 +16,7 @@ import type { CaseRecord } from "@/lib/client/types";
 
 interface PacketSharePanelProps {
   caseRecord: CaseRecord;
+  externalSharingDisabled: boolean;
   onBack: () => void;
   onDone: () => void;
   onOpenSupport: () => void;
@@ -24,6 +25,7 @@ interface PacketSharePanelProps {
 
 export function PacketSharePanel({
   caseRecord,
+  externalSharingDisabled,
   onBack,
   onDone,
   onOpenSupport,
@@ -107,6 +109,16 @@ export function PacketSharePanel({
         detail={error ?? "Packet sharing could not be prepared."}
         onBack={onBack}
         title="Share packet unavailable"
+      />
+    );
+  }
+
+  if (externalSharingDisabled) {
+    return (
+      <PacketShareUnavailable
+        detail="Outbound email and public recipient links are disabled in this temporary portfolio workspace."
+        onBack={onBack}
+        title="Sharing is disabled in the demo"
       />
     );
   }

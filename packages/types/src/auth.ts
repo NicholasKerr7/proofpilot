@@ -35,6 +35,8 @@ export interface AuthUser {
   email: string;
   name: string | null;
   createdAt: string;
+  isPortfolioDemo: boolean;
+  portfolioDemoExpiresAt: string | null;
 }
 
 export interface AuthResponse {

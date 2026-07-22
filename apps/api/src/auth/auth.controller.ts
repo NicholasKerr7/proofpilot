@@ -16,6 +16,7 @@ import { JwtAuthGuard } from "../common/guards/jwt-auth.guard.js";
 import type { RequestUser } from "../common/types/request-user.js";
 import { AuthService, type AuthClientContext } from "./auth.service.js";
 import { ChangePasswordDto } from "./dto/change-password.dto.js";
+import { CreatePortfolioDemoDto } from "./dto/create-portfolio-demo.dto.js";
 import { LoginDto } from "./dto/login.dto.js";
 import { RegisterDto } from "./dto/register.dto.js";
 import { RequestPasswordResetDto } from "./dto/request-password-reset.dto.js";
@@ -49,6 +50,22 @@ export class AuthController {
   ) {
     return this.authService.login(
       input,
+      createAuthClientContext(ipAddress, clientUserAgent ?? userAgent)
+    );
+  }
+
+  @Post("portfolio-demo")
+  @HttpCode(HttpStatus.OK)
+  createPortfolioDemo(
+    @Body() input: CreatePortfolioDemoDto,
+    @Headers("x-proofpilot-demo-key") accessKey: string | undefined,
+    @Headers("x-proofpilot-client-user-agent") clientUserAgent?: string,
+    @Headers("user-agent") userAgent?: string,
+    @Ip() ipAddress?: string
+  ) {
+    return this.authService.createPortfolioDemo(
+      input.visitorToken,
+      accessKey,
       createAuthClientContext(ipAddress, clientUserAgent ?? userAgent)
     );
   }

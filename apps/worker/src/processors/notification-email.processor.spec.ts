@@ -69,6 +69,7 @@ function baseNotification() {
     case: { archivedAt: null as Date | null },
     user: {
       email: "nicholas.kerr@proofpilot.test",
+      isPortfolioDemo: false,
       name: "Nicholas Kerr",
       preference: {
         emailNotifications: true,
@@ -198,6 +199,29 @@ describe("deliverNotificationEmailBatch", () => {
         data: expect.objectContaining({
           action: "notification.email_suppressed",
           metadata: expect.objectContaining({ reason: "preference_changed" })
+        })
+      })
+    );
+  });
+
+  it("never sends notification email from a portfolio demo workspace", async () => {
+    const notification = createNotification();
+    notification.user.isPortfolioDemo = true;
+    prepareNotification(prisma, notification);
+
+    await expect(
+      deliverNotificationEmailBatch(
+        prisma as unknown as PrismaClient,
+        now,
+        sender as unknown as NotificationEmailSender
+      )
+    ).resolves.toMatchObject({ claimed: 1, sent: 0, suppressed: 1 });
+
+    expect(sender.send).not.toHaveBeenCalled();
+    expect(prisma.transactionClient.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          metadata: expect.objectContaining({ reason: "portfolio_demo" })
         })
       })
     );

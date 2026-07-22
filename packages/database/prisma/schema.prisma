@@ -157,25 +157,30 @@ enum TaskStatus {
 }
 
 model User {
-  id                  String               @id @default(cuid())
-  email               String               @unique
-  name                String?
-  passwordHash        String
-  passwordChangedAt   DateTime             @default(now())
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  preference          UserPreference?
-  billingSubscription BillingSubscription?
-  connectedAccounts   ConnectedAccount[]
-  cases               Case[]
-  auditLogs           AuditLog[]
-  supportRequests     SupportRequest[]
-  assistantThreads    AssistantThread[]
-  authSessions        AuthSession[]
-  caseCollaborations  CaseCollaborator[]   @relation("CaseCollaboratorUser")
-  packetSharesCreated PacketShare[]        @relation("PacketShareCreator")
-  passwordResetTokens PasswordResetToken[]
-  notifications       Notification[]
+  id                       String               @id @default(cuid())
+  email                    String               @unique
+  name                     String?
+  passwordHash             String
+  passwordChangedAt        DateTime             @default(now())
+  isPortfolioDemo          Boolean              @default(false)
+  portfolioDemoExpiresAt   DateTime?
+  portfolioDemoVisitorHash String?              @unique
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+  preference               UserPreference?
+  billingSubscription      BillingSubscription?
+  connectedAccounts        ConnectedAccount[]
+  cases                    Case[]
+  auditLogs                AuditLog[]
+  supportRequests          SupportRequest[]
+  assistantThreads         AssistantThread[]
+  authSessions             AuthSession[]
+  caseCollaborations       CaseCollaborator[]   @relation("CaseCollaboratorUser")
+  packetSharesCreated      PacketShare[]        @relation("PacketShareCreator")
+  passwordResetTokens      PasswordResetToken[]
+  notifications            Notification[]
+
+  @@index([isPortfolioDemo, portfolioDemoExpiresAt])
 }
 
 model AuthSession {

@@ -11,6 +11,7 @@ import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { CurrentUser } from "../common/decorators/current-user.decorator.js";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard.js";
 import type { RequestUser } from "../common/types/request-user.js";
+import { PortfolioDemoPolicyService } from "../common/services/portfolio-demo-policy.service.js";
 import { ResourceIdParam } from "../common/validation/resource-id.js";
 import { AccessPacketShareDto } from "./dto/access-packet-share.dto.js";
 import { CreatePacketShareCommentDto } from "./dto/create-packet-share-comment.dto.js";
@@ -23,7 +24,10 @@ import { PacketSharingService } from "./packet-sharing.service.js";
 @UseGuards(JwtAuthGuard)
 @Controller("cases/:caseId/packet-shares")
 export class PacketSharingController {
-  constructor(private readonly packetSharingService: PacketSharingService) {}
+  constructor(
+    private readonly packetSharingService: PacketSharingService,
+    private readonly portfolioDemoPolicy: PortfolioDemoPolicyService
+  ) {}
 
   @Get("prepare")
   prepare(@CurrentUser() user: RequestUser, @ResourceIdParam("caseId") caseId: string) {
@@ -36,6 +40,7 @@ export class PacketSharingController {
     @ResourceIdParam("caseId") caseId: string,
     @Body() input: CreatePacketShareDto
   ) {
+    this.portfolioDemoPolicy.assertExternalDeliveryAllowed(user);
     return this.packetSharingService.create(user.id, caseId, input);
   }
 

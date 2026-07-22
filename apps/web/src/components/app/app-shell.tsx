@@ -289,7 +289,9 @@ export function AppShell({
 
           <div className="hidden text-right xl:block">
             <p className="max-w-44 truncate text-sm font-semibold">{user.name ?? "ProofPilot user"}</p>
-            <p className="text-xs text-primary">Private workspace</p>
+            <p className="text-xs text-primary">
+              {user.isPortfolioDemo ? "Portfolio demo" : "Private workspace"}
+            </p>
           </div>
 
           <button
@@ -331,7 +333,9 @@ export function AppShell({
           <div className="relative flex items-center gap-2">
             <div className="hidden text-right sm:block">
               <p className="max-w-40 truncate text-sm font-semibold">{user.name ?? "ProofPilot user"}</p>
-              <p className="text-xs text-primary">Private workspace</p>
+              <p className="text-xs text-primary">
+                {user.isPortfolioDemo ? "Portfolio demo" : "Private workspace"}
+              </p>
             </div>
             <button
               aria-expanded={isAccountMenuOpen}
@@ -371,6 +375,22 @@ export function AppShell({
         tabIndex={-1}
         className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-4 focus:outline-none sm:px-6 md:gap-6 md:px-8 md:py-6 lg:ml-64 lg:w-auto lg:max-w-none lg:px-6 lg:pb-8 lg:pt-24 xl:px-8"
       >
+        {user.isPortfolioDemo ? (
+          <div
+            className="grid gap-2 rounded-md border border-primary/35 bg-primary/10 px-4 py-3 text-sm sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center"
+            role="status"
+          >
+            <Clock3 className="h-5 w-5 text-primary" aria-hidden="true" />
+            <p className="leading-6 text-muted-foreground">
+              <span className="font-semibold text-foreground">Portfolio demo workspace.</span>{" "}
+              Sample data is isolated and resets automatically
+              {user.portfolioDemoExpiresAt
+                ? ` at ${formatPortfolioDemoExpiry(user.portfolioDemoExpiresAt)}`
+                : " after this session"}
+              . Outbound sharing and device uploads are disabled.
+            </p>
+          </div>
+        ) : null}
         {children}
       </main>
 
@@ -451,6 +471,13 @@ function ProofPilotWordmark() {
       </span>
     </div>
   );
+}
+
+function formatPortfolioDemoExpiry(value: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(value));
 }
 
 interface BottomNavigationProps {

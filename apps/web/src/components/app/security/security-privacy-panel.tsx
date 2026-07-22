@@ -19,6 +19,7 @@ interface SecurityPrivacyPanelProps {
   onOpenHelp: () => void;
   onOpenReports: () => void;
   onUpdateSettings: (input: UpdateUserSettingsInput) => Promise<UserSettings>;
+  portfolioDemo: boolean;
   settings: UserSettings | null;
 }
 
@@ -27,6 +28,7 @@ export function SecurityPrivacyPanel({
   onOpenHelp,
   onOpenReports,
   onUpdateSettings,
+  portfolioDemo,
   settings
 }: SecurityPrivacyPanelProps) {
   const [overview, setOverview] = useState<SecurityOverview | null>(null);
@@ -218,6 +220,7 @@ export function SecurityPrivacyPanel({
               onReviewActivity={reviewActivity}
               onSignOutOtherSessions={() => void revokeOtherSessions()}
               overview={overview}
+              portfolioDemo={portfolioDemo}
               revokingOtherSessions={revokingOtherSessions}
             />
             <SecurityPrivacyControls

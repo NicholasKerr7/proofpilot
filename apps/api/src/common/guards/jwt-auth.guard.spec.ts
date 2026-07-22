@@ -35,7 +35,11 @@ function createPrismaMock() {
       findFirst: vi.fn().mockResolvedValue({
         id: "session-1",
         lastSeenAt: new Date(),
-        user: { email: "current@example.com" }
+        user: {
+          email: "current@example.com",
+          isPortfolioDemo: false,
+          portfolioDemoExpiresAt: null
+        }
       }),
       updateMany: vi.fn().mockResolvedValue({ count: 1 })
     }
@@ -71,13 +75,21 @@ describe("JwtAuthGuard", () => {
       select: {
         id: true,
         lastSeenAt: true,
-        user: { select: { email: true } }
+        user: {
+          select: {
+            email: true,
+            isPortfolioDemo: true,
+            portfolioDemoExpiresAt: true
+          }
+        }
       }
     });
     expect(request.user).toEqual({
       email: "current@example.com",
       id: "user-1",
-      sessionId: "session-1"
+      sessionId: "session-1",
+      isPortfolioDemo: false,
+      portfolioDemoExpiresAt: null
     });
   });
 
@@ -105,7 +117,11 @@ describe("JwtAuthGuard", () => {
     prisma.authSession.findFirst.mockResolvedValue({
       id: "session-1",
       lastSeenAt: new Date(Date.now() - 10 * 60 * 1_000),
-      user: { email: "current@example.com" }
+      user: {
+        email: "current@example.com",
+        isPortfolioDemo: false,
+        portfolioDemoExpiresAt: null
+      }
     });
 
     await guard.canActivate(createContext(createRequest()));
@@ -117,6 +133,26 @@ describe("JwtAuthGuard", () => {
         revokedAt: null
       },
       data: { lastSeenAt: expect.any(Date) }
+    });
+  });
+
+  it("rejects and revokes an expired portfolio workspace session", async () => {
+    prisma.authSession.findFirst.mockResolvedValue({
+      id: "session-1",
+      lastSeenAt: new Date(),
+      user: {
+        email: "internal@portfolio.proofpilot.test",
+        isPortfolioDemo: true,
+        portfolioDemoExpiresAt: new Date(Date.now() - 1)
+      }
+    });
+
+    await expect(
+      guard.canActivate(createContext(createRequest()))
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(prisma.authSession.updateMany).toHaveBeenCalledWith({
+      where: { id: "session-1", revokedAt: null },
+      data: { revokedAt: expect.any(Date) }
     });
   });
 });

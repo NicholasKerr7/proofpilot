@@ -22,6 +22,7 @@ import { Select } from "@/components/ui/select";
 
 interface CollaboratorRosterProps {
   collaborators: CaseCollaboratorRecord[];
+  externalInvitesDisabled: boolean;
   owner: CaseCollaborationOwner;
   pendingAction: string | null;
   seatLimit: number;
@@ -33,6 +34,7 @@ interface CollaboratorRosterProps {
 
 export function CollaboratorRoster({
   collaborators,
+  externalInvitesDisabled,
   owner,
   pendingAction,
   seatLimit,
@@ -180,12 +182,17 @@ export function CollaboratorRoster({
           })}
         </div>
 
-        <form
-          className="grid gap-2 p-4 sm:grid-cols-[minmax(0,1fr)_7.5rem_auto] sm:items-end"
-          onSubmit={(event) => {
-            void handleInvite(event);
-          }}
-        >
+        {externalInvitesDisabled ? (
+          <p className="m-4 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-muted-foreground">
+            External invitations are disabled in this temporary portfolio workspace.
+          </p>
+        ) : (
+          <form
+            className="grid gap-2 p-4 sm:grid-cols-[minmax(0,1fr)_7.5rem_auto] sm:items-end"
+            onSubmit={(event) => {
+              void handleInvite(event);
+            }}
+          >
           <div className="grid gap-2">
             <Label htmlFor="collaborator-email">Invite a collaborator</Label>
             <Input
@@ -216,7 +223,8 @@ export function CollaboratorRoster({
             <UserPlus aria-hidden="true" className="h-4 w-4" />
             {pendingAction === "invite" ? "Inviting..." : "Invite"}
           </Button>
-        </form>
+          </form>
+        )}
       </CardContent>
     </Card>
   );

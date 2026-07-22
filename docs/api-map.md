@@ -18,12 +18,15 @@ Authenticated cross-user lookups return `404` rather than confirming that anothe
 
 - `POST /auth/register`
 - `POST /auth/login`
+- `POST /auth/portfolio-demo` (server-to-server portfolio provisioning only)
 - `POST /auth/request-password-reset`
 - `POST /auth/reset-password`
 - `GET /auth/me`
 - `PATCH /auth/me`
 - `POST /auth/change-password`
 - `POST /auth/logout`
+
+In `portfolio` mode, registration, password login, and password recovery return `404`. The web server calls the portfolio provisioning endpoint with a shared server-only key and a random browser visitor token. The API stores only the visitor-token hash, reuses an active isolated workspace for that browser, and limits the session to the workspace expiry.
 
 ## Case Types
 
@@ -100,6 +103,8 @@ Owner routes require an authenticated case-owner match and a ready packet export
 - `POST /documents/:documentId/reprocess`
 
 Upload completion validates the private staging object and performs a ClamAV stream scan before queueing work when scanning is enabled. The exact scanned ETag is conditionally promoted to a processing-only key. Production configuration requires scanning; infected objects are quarantined with storage deletion attempted, while scanner or promotion failures fail closed without queueing document processing.
+
+Direct document creation is unavailable to portfolio-demo users. Those users can import only the bounded Gmail and Google Drive fixture catalogs, so arbitrary browser bytes do not enter the portfolio environment.
 
 Processed and deleted documents automatically refresh checklist matches. Users can explicitly complete or reopen owned checklist items; manual completions remain stable when evidence is re-analyzed.
 

@@ -17,6 +17,7 @@ ProofPilot organizes user-provided records and workflow information. It does not
 - [Common Commands](#common-commands)
 - [Evidence Processing Lifecycle](#evidence-processing-lifecycle)
 - [Security Model](#security-model)
+- [Portfolio Demo Mode](#portfolio-demo-mode)
 - [Testing And Quality Gates](#testing-and-quality-gates)
 - [Deployment](#deployment)
 - [Current Product Boundaries](#current-product-boundaries)
@@ -96,7 +97,7 @@ Browser -> Next.js web application -> NestJS REST API
                                                             |-> document extraction and OCR
                                                             |-> packet generation
                                                             |-> reminders and notification email
-                                                            `-> abandoned-upload cleanup
+                                                            `-> upload and demo-workspace cleanup
 ```
 
 | Area | Technology |
@@ -192,7 +193,7 @@ These credentials are development fixtures and must not be used in production.
 
 | Group | Variables |
 | --- | --- |
-| Web and API | `NEXT_PUBLIC_API_URL`, `PORT`, `WEB_ORIGIN`, `JWT_SECRET` |
+| Web and API | `PROOFPILOT_MODE`, `NEXT_PUBLIC_API_URL`, `PORT`, `WEB_ORIGIN`, `JWT_SECRET` |
 | Database and queues | `DATABASE_URL`, `REDIS_URL` |
 | Private storage | `STORAGE_ENDPOINT`, `STORAGE_REGION`, `STORAGE_BUCKET`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY`, `STORAGE_FORCE_PATH_STYLE` |
 | Upload security | `VIRUS_SCAN_MODE`, `CLAMAV_HOST`, `CLAMAV_PORT`, `CLAMAV_TIMEOUT_MS` |
@@ -200,8 +201,9 @@ These credentials are development fixtures and must not be used in production.
 | Email | `NOTIFICATION_EMAIL_DELIVERY_MODE`, `RESEND_API_KEY`, `AUTH_EMAIL_FROM` |
 | OCR | `OCR_LANGUAGES`, `OCR_CACHE_PATH`, `TESSERACT_LANG_PATH` |
 | Operations | rate-limit, trusted-proxy, environment, and monitoring webhook settings |
+| Portfolio demo | `PORTFOLIO_DEMO_ACCESS_KEY`, template email, workspace TTL, and active-workspace cap |
 
-Local development defaults to logged email delivery and disabled malware scanning. Production startup requires provider-backed email delivery and ClamAV scanning.
+Local development defaults to logged email delivery and disabled malware scanning. Standard production startup requires provider-backed email delivery and ClamAV scanning. The isolated portfolio mode disables those outbound and direct-upload surfaces by design.
 
 To run ClamAV locally:
 
@@ -261,6 +263,23 @@ Provider imports follow the same validation, scanning, storage, audit, and proce
 - Integration tests verify unauthenticated denial and cross-user isolation across protected resources.
 
 See [docs/architecture.md](docs/architecture.md) and [docs/deployment.md](docs/deployment.md) for the detailed trust boundaries and production requirements.
+
+## Portfolio Demo Mode
+
+ProofPilot can be deployed as a public, interactive portfolio without publishing shared login credentials. Set `PROOFPILOT_MODE=portfolio` on the web, API, and worker services, and set the same server-only `PORTFOLIO_DEMO_ACCESS_KEY` on the web and API.
+
+In portfolio mode:
+
+- The public page provides one-click demo access; registration, password login, and account recovery are unavailable.
+- Each browser receives an isolated copy of the seeded Nicholas Kerr sample workspace.
+- Sessions expire with the workspace, which defaults to two hours.
+- Direct device uploads, external collaboration invitations, packet-share delivery, and notification email are disabled.
+- Trusted Gmail and Google Drive sample imports remain available, with caps on cases, evidence, packet generation, and active workspaces.
+- The worker deletes expired database records and associated private storage objects every 15 minutes.
+
+The seed account is a provisioning template in this mode; visitors never authenticate as or mutate it. Run `pnpm db:seed` after migrations in the controlled portfolio environment so the template exists. Generate the shared service key with `openssl rand -hex 32` and keep it out of browser-exposed environment variables.
+
+Use `PROOFPILOT_MODE=standard` for local development and the future full product. Standard production retains the stricter ClamAV and provider-backed email startup requirements.
 
 ## Testing And Quality Gates
 

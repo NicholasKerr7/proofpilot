@@ -20,6 +20,7 @@ const booleanEnvSchema = z.preprocess((value) => {
 
 const apiEnvObjectSchema = z.object({
   NODE_ENV: z.string().default("development"),
+  PROOFPILOT_MODE: z.enum(["standard", "portfolio"]).default("standard"),
   PORT: z.coerce.number().int().positive().default(4000),
   WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
   DATABASE_URL: z.string().min(1),
@@ -39,11 +40,26 @@ const apiEnvObjectSchema = z.object({
   VIRUS_SCAN_MODE: z.enum(["disabled", "clamav"]).default("disabled"),
   CLAMAV_HOST: z.string().min(1).default("127.0.0.1"),
   CLAMAV_PORT: z.coerce.number().int().positive().max(65_535).default(3310),
-  CLAMAV_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(300_000).default(60_000)
+  CLAMAV_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(300_000).default(60_000),
+  PORTFOLIO_DEMO_ACCESS_KEY: z.string().min(32).optional(),
+  PORTFOLIO_DEMO_TEMPLATE_EMAIL: z
+    .string()
+    .email()
+    .default("nicholas.kerr@proofpilot.test"),
+  PORTFOLIO_DEMO_TTL_MINUTES: z.coerce.number().int().min(30).max(1_440).default(120),
+  PORTFOLIO_DEMO_MAX_ACTIVE_WORKSPACES: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(500)
+    .default(50)
 });
 
 const apiEnvSchema = apiEnvObjectSchema.superRefine((env, context) => {
-  if (env.NODE_ENV === "production" && env.VIRUS_SCAN_MODE !== "clamav") {
+  const requiresProductionServices =
+    env.NODE_ENV === "production" && env.PROOFPILOT_MODE === "standard";
+
+  if (requiresProductionServices && env.VIRUS_SCAN_MODE !== "clamav") {
     context.addIssue({
       code: "custom",
       message: "VIRUS_SCAN_MODE must be clamav in production.",
@@ -51,7 +67,7 @@ const apiEnvSchema = apiEnvObjectSchema.superRefine((env, context) => {
     });
   }
 
-  if (env.NODE_ENV === "production" && env.PASSWORD_RESET_DELIVERY_MODE !== "resend") {
+  if (requiresProductionServices && env.PASSWORD_RESET_DELIVERY_MODE !== "resend") {
     context.addIssue({
       code: "custom",
       message: "PASSWORD_RESET_DELIVERY_MODE must be resend in production.",
@@ -72,6 +88,14 @@ const apiEnvSchema = apiEnvObjectSchema.superRefine((env, context) => {
       code: "custom",
       message: "AUTH_EMAIL_FROM is required when password reset delivery uses Resend.",
       path: ["AUTH_EMAIL_FROM"]
+    });
+  }
+
+  if (env.PROOFPILOT_MODE === "portfolio" && !env.PORTFOLIO_DEMO_ACCESS_KEY) {
+    context.addIssue({
+      code: "custom",
+      message: "PORTFOLIO_DEMO_ACCESS_KEY is required in portfolio mode.",
+      path: ["PORTFOLIO_DEMO_ACCESS_KEY"]
     });
   }
 });

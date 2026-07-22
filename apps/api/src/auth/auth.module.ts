@@ -4,6 +4,7 @@ import { AuthController } from "./auth.controller.js";
 import { AuthService } from "./auth.service.js";
 import { getApiEnv } from "../config/env.js";
 import { PasswordResetMailerService } from "./password-reset-mailer.service.js";
+import { PortfolioDemoWorkspaceService } from "./portfolio-demo-workspace.service.js";
 
 @Module({
   imports: [
@@ -13,7 +14,7 @@ import { PasswordResetMailerService } from "./password-reset-mailer.service.js";
     })
   ],
   controllers: [AuthController],
-  providers: [AuthService, PasswordResetMailerService],
+  providers: [AuthService, PasswordResetMailerService, PortfolioDemoWorkspaceService],
   exports: [AuthService, JwtModule]
 })
 export class AuthModule {}

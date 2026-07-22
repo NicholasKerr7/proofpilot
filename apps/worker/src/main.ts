@@ -18,7 +18,7 @@ import {
 } from "./queues/reminder-delivery.queue.js";
 import {
   uploadCleanupQueueName,
-  type ExpireAbandonedUploadsJobData
+  type UploadCleanupJobData
 } from "./queues/upload-cleanup.queue.js";
 import {
   processUploadedDocument,
@@ -28,6 +28,7 @@ import { deliverNotificationEmails } from "./processors/notification-email.proce
 import { generateCasePacket } from "./processors/packet-generation.processor.js";
 import { deliverDueReminders } from "./processors/reminder-delivery.processor.js";
 import { expireAbandonedUploads } from "./processors/upload-cleanup.processor.js";
+import { expirePortfolioDemoWorkspaces } from "./processors/portfolio-demo-cleanup.processor.js";
 
 const env = getWorkerEnv();
 const redisUrl = new URL(env.REDIS_URL);
@@ -104,14 +105,18 @@ const notificationEmailWorker = new Worker<DeliverNotificationEmailsJobData>(
   },
   { connection }
 );
-const uploadCleanupQueue = new Queue<ExpireAbandonedUploadsJobData>(uploadCleanupQueueName, {
+const uploadCleanupQueue = new Queue<UploadCleanupJobData>(uploadCleanupQueueName, {
   connection
 });
-const uploadCleanupWorker = new Worker<ExpireAbandonedUploadsJobData>(
+const uploadCleanupWorker = new Worker<UploadCleanupJobData>(
   uploadCleanupQueueName,
   async (job) => {
     if (job.name === "expire_abandoned_uploads") {
       return expireAbandonedUploads(job);
+    }
+
+    if (job.name === "expire_portfolio_demo_workspaces") {
+      return expirePortfolioDemoWorkspaces(job);
     }
 
     throw new Error(`Unsupported job name: ${job.name}`);
@@ -148,6 +153,18 @@ await uploadCleanupQueue.upsertJobScheduler(
   { every: 60 * 60 * 1_000 },
   {
     name: "expire_abandoned_uploads",
+    data: {},
+    opts: {
+      removeOnComplete: 100,
+      removeOnFail: 100
+    }
+  }
+);
+await uploadCleanupQueue.upsertJobScheduler(
+  "expire-portfolio-demo-workspaces-every-fifteen-minutes",
+  { every: 15 * 60 * 1_000 },
+  {
+    name: "expire_portfolio_demo_workspaces",
     data: {},
     opts: {
       removeOnComplete: 100,

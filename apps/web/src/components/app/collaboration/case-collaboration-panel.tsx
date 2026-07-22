@@ -19,10 +19,15 @@ import type { CaseRecord } from "@/lib/client/types";
 
 interface CaseCollaborationPanelProps {
   caseRecord: CaseRecord;
+  externalInvitesDisabled: boolean;
   onBack: () => void;
 }
 
-export function CaseCollaborationPanel({ caseRecord, onBack }: CaseCollaborationPanelProps) {
+export function CaseCollaborationPanel({
+  caseRecord,
+  externalInvitesDisabled,
+  onBack
+}: CaseCollaborationPanelProps) {
   const [data, setData] = useState<CaseCollaborationResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
@@ -180,6 +185,7 @@ export function CaseCollaborationPanel({ caseRecord, onBack }: CaseCollaboration
           <div className="grid gap-4 md:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)]">
             <CollaboratorRoster
               collaborators={data.collaborators}
+              externalInvitesDisabled={externalInvitesDisabled}
               onInvite={handleInvite}
               onRemove={handleRemove}
               onRoleChange={handleRoleChange}

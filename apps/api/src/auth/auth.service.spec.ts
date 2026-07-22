@@ -1,10 +1,15 @@
-import { BadRequestException, UnauthorizedException } from "@nestjs/common";
+import {
+  BadRequestException,
+  NotFoundException,
+  UnauthorizedException
+} from "@nestjs/common";
 import type { JwtService } from "@nestjs/jwt";
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service.js";
 import { AuthService } from "./auth.service.js";
 import type { PasswordResetMailerService } from "./password-reset-mailer.service.js";
+import type { PortfolioDemoWorkspaceService } from "./portfolio-demo-workspace.service.js";
 
 const bcryptMocks = vi.hoisted(() => ({
   compare: vi.fn(),
@@ -64,19 +69,28 @@ function createPasswordResetMailerMock() {
   };
 }
 
+function createPortfolioDemoWorkspaceMock() {
+  return {
+    resolveWorkspace: vi.fn()
+  };
+}
+
 type PrismaMock = ReturnType<typeof createPrismaMock>;
 type JwtServiceMock = ReturnType<typeof createJwtServiceMock>;
 type PasswordResetMailerMock = ReturnType<typeof createPasswordResetMailerMock>;
+type PortfolioDemoWorkspaceMock = ReturnType<typeof createPortfolioDemoWorkspaceMock>;
 
 function createService(
   prisma: PrismaMock,
   jwtService: JwtServiceMock,
-  passwordResetMailer: PasswordResetMailerMock
+  passwordResetMailer: PasswordResetMailerMock,
+  portfolioDemoWorkspaces: PortfolioDemoWorkspaceMock = createPortfolioDemoWorkspaceMock()
 ) {
   return new AuthService(
     prisma as unknown as PrismaService,
     jwtService as unknown as JwtService,
-    passwordResetMailer as unknown as PasswordResetMailerService
+    passwordResetMailer as unknown as PasswordResetMailerService,
+    portfolioDemoWorkspaces as unknown as PortfolioDemoWorkspaceService
   );
 }
 
@@ -107,8 +121,10 @@ describe("AuthService account management", () => {
     prisma.user.update.mockResolvedValue({
       id: userId,
       email: "nicholas.kerr@proofpilot.test",
+      isPortfolioDemo: false,
       name: "Nicholas Kerr",
-      createdAt
+      createdAt,
+      portfolioDemoExpiresAt: null
     });
 
     const result = await service.updateProfile(userId, { name: "  Nicholas Kerr  " });
@@ -128,8 +144,10 @@ describe("AuthService account management", () => {
     expect(result).toEqual({
       id: userId,
       email: "nicholas.kerr@proofpilot.test",
+      isPortfolioDemo: false,
       name: "Nicholas Kerr",
-      createdAt: createdAt.toISOString()
+      createdAt: createdAt.toISOString(),
+      portfolioDemoExpiresAt: null
     });
   });
 
@@ -146,9 +164,11 @@ describe("AuthService account management", () => {
     prisma.user.findUnique.mockResolvedValue({
       id: userId,
       email: "nicholas.kerr@proofpilot.test",
+      isPortfolioDemo: false,
       name: "Nicholas Kerr",
       passwordHash: "current-hash",
-      createdAt
+      createdAt,
+      portfolioDemoExpiresAt: null
     });
     bcryptMocks.compare.mockResolvedValue(true);
 
@@ -184,11 +204,14 @@ describe("AuthService account management", () => {
       },
       select: { id: true }
     });
-    expect(jwtService.signAsync).toHaveBeenCalledWith({
-      sub: userId,
-      email: "nicholas.kerr@proofpilot.test",
-      sid: currentSessionId
-    });
+    expect(jwtService.signAsync).toHaveBeenCalledWith(
+      {
+        sub: userId,
+        email: "nicholas.kerr@proofpilot.test",
+        sid: currentSessionId
+      },
+      { expiresIn: expect.any(Number) }
+    );
   });
 
   it("rejects an incorrect current password", async () => {
@@ -352,5 +375,60 @@ describe("AuthService account management", () => {
 
     expect(prisma.user.update).not.toHaveBeenCalled();
     expect(prisma.authSession.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("hides standard credential endpoints in portfolio mode", async () => {
+    vi.stubEnv("PROOFPILOT_MODE", "portfolio");
+    vi.stubEnv("PORTFOLIO_DEMO_ACCESS_KEY", "portfolio-demo-test-key-with-32-characters");
+    service = createService(prisma, jwtService, passwordResetMailer);
+
+    await expect(
+      service.login({ email: "user@example.com", password: "password-123" })
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("requires the server-only key and limits a portfolio session to workspace expiry", async () => {
+    vi.stubEnv("PROOFPILOT_MODE", "portfolio");
+    vi.stubEnv("PORTFOLIO_DEMO_ACCESS_KEY", "portfolio-demo-test-key-with-32-characters");
+    const portfolioDemoWorkspaces = createPortfolioDemoWorkspaceMock();
+    const workspaceExpiresAt = new Date(Date.now() + 60 * 60 * 1_000);
+    portfolioDemoWorkspaces.resolveWorkspace.mockResolvedValue({
+      createdAt,
+      email: "nicholas.kerr+visitor@portfolio.proofpilot.test",
+      id: userId,
+      isPortfolioDemo: true,
+      name: "Nicholas Kerr",
+      portfolioDemoExpiresAt: workspaceExpiresAt
+    });
+    service = createService(
+      prisma,
+      jwtService,
+      passwordResetMailer,
+      portfolioDemoWorkspaces
+    );
+
+    await expect(
+      service.createPortfolioDemo("v".repeat(43), "wrong-key")
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(portfolioDemoWorkspaces.resolveWorkspace).not.toHaveBeenCalled();
+
+    const response = await service.createPortfolioDemo(
+      "v".repeat(43),
+      "portfolio-demo-test-key-with-32-characters"
+    );
+
+    expect(response.user).toMatchObject({
+      email: "nicholas.kerr@proofpilot.test",
+      isPortfolioDemo: true,
+      portfolioDemoExpiresAt: workspaceExpiresAt.toISOString()
+    });
+    expect(prisma.authSession.create).toHaveBeenCalledWith({
+      data: {
+        expiresAt: workspaceExpiresAt,
+        userId
+      },
+      select: { id: true }
+    });
   });
 });

@@ -57,13 +57,28 @@ export class JwtAuthGuard implements CanActivate {
         id: true,
         lastSeenAt: true,
         user: {
-          select: { email: true }
+          select: {
+            email: true,
+            isPortfolioDemo: true,
+            portfolioDemoExpiresAt: true
+          }
         }
       }
     });
 
     if (!session) {
       throw new UnauthorizedException("Session has expired or was revoked");
+    }
+
+    if (
+      session.user.isPortfolioDemo &&
+      (!session.user.portfolioDemoExpiresAt || session.user.portfolioDemoExpiresAt <= now)
+    ) {
+      await this.prisma.authSession.updateMany({
+        where: { id: session.id, revokedAt: null },
+        data: { revokedAt: now }
+      });
+      throw new UnauthorizedException("Portfolio demo workspace has expired");
     }
 
     if (session.lastSeenAt.getTime() <= now.getTime() - lastSeenWriteIntervalMs) {
@@ -80,7 +95,9 @@ export class JwtAuthGuard implements CanActivate {
     request.user = {
       id: payload.sub,
       email: session.user.email,
-      sessionId: session.id
+      sessionId: session.id,
+      isPortfolioDemo: session.user.isPortfolioDemo,
+      portfolioDemoExpiresAt: session.user.portfolioDemoExpiresAt
     };
     return true;
   }

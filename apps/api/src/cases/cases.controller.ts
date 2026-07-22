@@ -13,6 +13,7 @@ import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { CurrentUser } from "../common/decorators/current-user.decorator.js";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard.js";
 import type { RequestUser } from "../common/types/request-user.js";
+import { PortfolioDemoPolicyService } from "../common/services/portfolio-demo-policy.service.js";
 import { ResourceIdParam } from "../common/validation/resource-id.js";
 import { CasesService } from "./cases.service.js";
 import { CreateCaseDto } from "./dto/create-case.dto.js";
@@ -30,10 +31,14 @@ import { UpdateTimelineEventDto } from "./dto/update-timeline-event.dto.js";
 @UseGuards(JwtAuthGuard)
 @Controller("cases")
 export class CasesController {
-  constructor(private readonly casesService: CasesService) {}
+  constructor(
+    private readonly casesService: CasesService,
+    private readonly portfolioDemoPolicy: PortfolioDemoPolicyService
+  ) {}
 
   @Post()
-  create(@CurrentUser() user: RequestUser, @Body() input: CreateCaseDto) {
+  async create(@CurrentUser() user: RequestUser, @Body() input: CreateCaseDto) {
+    await this.portfolioDemoPolicy.assertCanCreateCase(user);
     return this.casesService.create(user.id, input);
   }
 
@@ -171,7 +176,8 @@ export class CasesController {
   }
 
   @Post(":id/packet/generate")
-  generatePacket(@CurrentUser() user: RequestUser, @ResourceIdParam("id") id: string) {
+  async generatePacket(@CurrentUser() user: RequestUser, @ResourceIdParam("id") id: string) {
+    await this.portfolioDemoPolicy.assertCanGeneratePacket(user);
     return this.casesService.generatePacket(user.id, id);
   }
 

@@ -3,6 +3,7 @@
   "globalDependencies": [".env", ".env.local"],
   "globalEnv": [
     "NODE_ENV",
+    "PROOFPILOT_MODE",
     "NEXT_PUBLIC_API_URL",
     "PORT",
     "WEB_ORIGIN",
@@ -25,6 +26,10 @@
     "CLAMAV_HOST",
     "CLAMAV_PORT",
     "CLAMAV_TIMEOUT_MS",
+    "PORTFOLIO_DEMO_ACCESS_KEY",
+    "PORTFOLIO_DEMO_TEMPLATE_EMAIL",
+    "PORTFOLIO_DEMO_TTL_MINUTES",
+    "PORTFOLIO_DEMO_MAX_ACTIVE_WORKSPACES",
     "OCR_LANGUAGES",
     "OCR_CACHE_PATH",
     "TESSERACT_LANG_PATH",

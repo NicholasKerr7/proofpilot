@@ -60,7 +60,11 @@ const fallbackCaseTypes: CaseType[] = [
   }
 ];
 
-export function ProofPilotApp() {
+interface ProofPilotAppProps {
+  portfolioMode?: boolean;
+}
+
+export function ProofPilotApp({ portfolioMode = false }: ProofPilotAppProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [publicView, setPublicView] = useState<"landing" | "auth">("landing");
   const [publicAuthMode, setPublicAuthMode] = useState<AuthMode>("login");
@@ -219,7 +223,7 @@ export function ProofPilotApp() {
       const searchParams = new URL(window.location.href).searchParams;
       const resetToken = searchParams.get("resetToken");
 
-      if (resetToken) {
+      if (!portfolioMode && resetToken) {
         if (isMounted) {
           setPasswordResetToken(resetToken);
           setPublicAuthMode("login");
@@ -231,7 +235,7 @@ export function ProofPilotApp() {
 
       const nextInvitationToken = searchParams.get("inviteToken");
 
-      if (nextInvitationToken) {
+      if (!portfolioMode && nextInvitationToken) {
         setInvitationToken(nextInvitationToken);
         setIsInvitationLoading(true);
 
@@ -296,7 +300,8 @@ export function ProofPilotApp() {
     loadCaseTypes,
     loadSettings,
     loadUnreadInboxCount,
-    loadUnreadNotificationCount
+    loadUnreadNotificationCount,
+    portfolioMode
   ]);
 
   async function authenticate(
@@ -612,7 +617,7 @@ export function ProofPilotApp() {
   }
 
   if (!user) {
-    if (invitationToken && publicView !== "auth") {
+    if (!portfolioMode && invitationToken && publicView !== "auth") {
       return (
         <CollaborationInvitationPanel
           error={invitationError}
@@ -640,11 +645,15 @@ export function ProofPilotApp() {
     if (publicView === "landing") {
       return (
         <PublicLanding
+          error={message}
+          isDemoStarting={isSubmitting}
+          onExploreDemo={() => authenticate("/api/auth/demo", {})}
           onSelectAuth={(mode) => {
             setPublicAuthMode(mode);
             setPublicView("auth");
             scrollToPageTop();
           }}
+          portfolioMode={portfolioMode}
         />
       );
     }
@@ -673,7 +682,7 @@ export function ProofPilotApp() {
     );
   }
 
-  if (invitationToken) {
+  if (!portfolioMode && invitationToken) {
     return (
       <CollaborationInvitationPanel
         error={invitationError}
@@ -763,6 +772,7 @@ export function ProofPilotApp() {
           onOpenCollaboration={handleOpenCollaboration}
           onOpenPacketShare={handleOpenPacketShare}
           onSectionChange={setActiveCaseDestinationId}
+          portfolioDemo={user.isPortfolioDemo}
           selectedCase={selectedCase}
         />
       ) : null}
@@ -772,6 +782,7 @@ export function ProofPilotApp() {
       selectedCase.access?.canManage !== false ? (
         <CaseCollaborationPanel
           caseRecord={selectedCase}
+          externalInvitesDisabled={user.isPortfolioDemo}
           key={selectedCase.id}
           onBack={() => handleNavigate("case")}
         />
@@ -782,6 +793,7 @@ export function ProofPilotApp() {
       selectedCase.access?.canManage !== false ? (
         <PacketSharePanel
           caseRecord={selectedCase}
+          externalSharingDisabled={user.isPortfolioDemo}
           key={selectedCase.id}
           onBack={handleClosePacketShare}
           onDone={handleClosePacketShare}
@@ -798,6 +810,7 @@ export function ProofPilotApp() {
           onCaseChanged={loadCaseDetail}
           onCreateCase={() => handleNavigate("create")}
           onViewCases={() => handleNavigate("cases")}
+          portfolioDemo={user.isPortfolioDemo}
           selectedCase={selectedCase}
         />
       ) : null}
@@ -914,6 +927,7 @@ export function ProofPilotApp() {
           onOpenHelp={() => handleNavigate("help")}
           onOpenReports={() => handleNavigate("reports")}
           onUpdateSettings={handleUpdateSettings}
+          portfolioDemo={user.isPortfolioDemo}
           settings={settings}
         />
       ) : null}

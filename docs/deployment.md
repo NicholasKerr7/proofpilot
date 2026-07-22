@@ -8,6 +8,55 @@ ProofPilot runs as three production services:
 
 The provider-specific staging topology, Railway service configs, variable references, cost gate, and deployment order are documented in [staging-deployment.md](staging-deployment.md).
 
+## Deployment Modes
+
+`PROOFPILOT_MODE` controls the public authentication and infrastructure policy:
+
+- `standard` is the full application mode. Production startup requires ClamAV and provider-backed transactional email.
+- `portfolio` is a public sample environment. It provisions isolated temporary workspaces, disables direct uploads and outbound delivery, applies usage caps, and permits log-only email plus disabled malware scanning because no arbitrary bytes can enter through the upload API.
+
+Do not serve real user data from a portfolio database. Use separate databases, buckets, Redis instances, and secrets when the standard product is deployed later.
+
+## Portfolio Deployment
+
+The intended portfolio web origin is `https://nicholas-kerr-proofpilot.vercel.app`. Deploy the web service there and run the API and worker against a dedicated portfolio environment.
+
+Set on the web service:
+
+- `PROOFPILOT_MODE=portfolio`
+- `NEXT_PUBLIC_API_URL` exact public API origin
+- `PORTFOLIO_DEMO_ACCESS_KEY` shared only with the API
+
+Set on the API service in addition to its database, Redis, storage, JWT, origin, proxy, and monitoring variables:
+
+- `PROOFPILOT_MODE=portfolio`
+- `WEB_ORIGIN=https://nicholas-kerr-proofpilot.vercel.app`
+- `PORTFOLIO_DEMO_ACCESS_KEY` same 64-character hexadecimal secret as the web service
+- `PORTFOLIO_DEMO_TEMPLATE_EMAIL=nicholas.kerr@proofpilot.test`
+- `PORTFOLIO_DEMO_TTL_MINUTES=120`
+- `PORTFOLIO_DEMO_MAX_ACTIVE_WORKSPACES=50`
+- `PASSWORD_RESET_DELIVERY_MODE=log`
+- `VIRUS_SCAN_MODE=disabled`
+
+Set on the worker service:
+
+- `PROOFPILOT_MODE=portfolio`
+- `NOTIFICATION_EMAIL_DELIVERY_MODE=log`
+- The same portfolio database, Redis, and private storage configuration as the API
+
+Provision the environment in this order:
+
+```bash
+pnpm db:generate
+pnpm db:deploy
+pnpm db:seed
+pnpm storage:bootstrap
+```
+
+The API accepts workspace creation only from the web service holding `PORTFOLIO_DEMO_ACCESS_KEY`. A browser-scoped HTTP-only token is stored only as a SHA-256 hash in PostgreSQL. Returning visitors reuse an active workspace; expired sessions are rejected immediately, and the worker removes expired database and storage data every 15 minutes.
+
+Use platform spend alerts and a hard monthly cap for the portfolio environment. `PORTFOLIO_DEMO_MAX_ACTIVE_WORKSPACES`, process-level API rate limiting, evidence limits, and packet-generation limits provide application-level protection but do not replace provider billing controls.
+
 ## Required Runtime Services
 
 - PostgreSQL
@@ -20,6 +69,7 @@ The provider-specific staging topology, Railway service configs, variable refere
 Set these for the API service:
 
 - `NODE_ENV=production`
+- `PROOFPILOT_MODE=standard`
 - `PORT=4000`
 - `WEB_ORIGIN`
 - `JWT_SECRET`
@@ -50,6 +100,7 @@ Set these for the API service:
 Set these for the worker service:
 
 - `NODE_ENV=production`
+- `PROOFPILOT_MODE=standard`
 - `WEB_ORIGIN` exact deployed web origin
 - `DATABASE_URL`
 - `REDIS_URL`
@@ -66,7 +117,7 @@ Set these for the worker service:
 - `OCR_CACHE_PATH=/tmp/proofpilot-ocr`
 - `TESSERACT_LANG_PATH` optional path or URL for pre-hosted Tesseract traineddata files
 
-Image OCR, packet PDF generation, reminder delivery, notification email delivery, and staging-upload cleanup run in the worker service. Keep at least one worker replica active so the idempotent one-minute reminder and notification schedulers and hourly cleanup scheduler can enqueue work. Give `OCR_CACHE_PATH` writable storage so language data can be reused between jobs; for locked-down production networks, provide `TESSERACT_LANG_PATH` instead of relying on the default language-data download path.
+Image OCR, packet PDF generation, reminder delivery, notification email delivery, staging-upload cleanup, and temporary portfolio-workspace cleanup run in the worker service. Keep at least one worker replica active so the idempotent schedulers can enqueue work. Give `OCR_CACHE_PATH` writable storage so language data can be reused between jobs; for locked-down production networks, provide `TESSERACT_LANG_PATH` instead of relying on the default language-data download path.
 
 Set this for the web service:
 

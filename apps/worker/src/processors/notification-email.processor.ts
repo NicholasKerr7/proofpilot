@@ -117,6 +117,7 @@ export async function deliverNotificationEmailBatch(
         user: {
           select: {
             email: true,
+            isPortfolioDemo: true,
             name: true,
             preference: {
               select: {
@@ -236,6 +237,7 @@ function getSuppressionReason(notification: {
   case: { archivedAt: Date | null } | null;
   type: string;
   user: {
+    isPortfolioDemo: boolean;
     preference: {
       emailNotifications: boolean;
       notifyCaseUpdates: boolean;
@@ -245,6 +247,10 @@ function getSuppressionReason(notification: {
     } | null;
   };
 }) {
+  if (notification.user.isPortfolioDemo) {
+    return "portfolio_demo";
+  }
+
   if (notification.case?.archivedAt) {
     return "case_archived";
   }

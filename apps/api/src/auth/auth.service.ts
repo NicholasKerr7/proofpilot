@@ -1,13 +1,15 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
+  NotFoundException,
   UnauthorizedException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { compare, hash } from "bcryptjs";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import type {
   AuthResponse,
   AuthUser,
@@ -24,25 +26,13 @@ import type { RequestPasswordResetDto } from "./dto/request-password-reset.dto.j
 import type { ResetPasswordDto } from "./dto/reset-password.dto.js";
 import type { UpdateProfileDto } from "./dto/update-profile.dto.js";
 import { PasswordResetMailerService } from "./password-reset-mailer.service.js";
+import { authUserSelect, type AuthUserRecord } from "./auth-user-record.js";
+import { PortfolioDemoWorkspaceService } from "./portfolio-demo-workspace.service.js";
 
 const passwordResetAcknowledgement = {
   ok: true,
   message: "If an account exists for that email, a password reset link has been sent."
 } as const satisfies PasswordResetRequestResponse;
-
-const publicUserSelect = {
-  id: true,
-  email: true,
-  name: true,
-  createdAt: true
-} as const;
-
-interface PublicUserRecord {
-  id: string;
-  email: string;
-  name: string | null;
-  createdAt: Date;
-}
 
 export interface AuthClientContext {
   ipAddress?: string;
@@ -57,10 +47,12 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
-    private readonly passwordResetMailer: PasswordResetMailerService
+    private readonly passwordResetMailer: PasswordResetMailerService,
+    private readonly portfolioDemoWorkspaces: PortfolioDemoWorkspaceService
   ) {}
 
   async register(input: RegisterDto, context: AuthClientContext = {}): Promise<AuthResponse> {
+    this.assertStandardAuthEnabled();
     const existingUser = await this.prisma.user.findUnique({
       where: { email: input.email.toLowerCase() }
     });
@@ -89,6 +81,7 @@ export class AuthService {
   }
 
   async login(input: LoginDto, context: AuthClientContext = {}): Promise<AuthResponse> {
+    this.assertStandardAuthEnabled();
     const user = await this.prisma.user.findUnique({
       where: { email: input.email.toLowerCase() }
     });
@@ -108,10 +101,29 @@ export class AuthService {
     return this.createAuthResponse(user, context);
   }
 
+  async createPortfolioDemo(
+    visitorToken: string,
+    accessKey: string | undefined,
+    context: AuthClientContext = {}
+  ): Promise<AuthResponse> {
+    this.assertPortfolioDemoAccess(accessKey);
+    const user = await this.portfolioDemoWorkspaces.resolveWorkspace(visitorToken);
+
+    await this.prisma.auditLog.create({
+      data: {
+        action: "auth.portfolio_demo_started",
+        metadata: createSessionContext(context),
+        userId: user.id
+      }
+    });
+
+    return this.createAuthResponse(user, context);
+  }
+
   async findCurrentUser(userId: string): Promise<AuthUser> {
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: publicUserSelect
+      select: authUserSelect
     });
 
     return this.toAuthUser(user);
@@ -128,7 +140,7 @@ export class AuthService {
       this.prisma.user.update({
         where: { id: userId },
         data: { name },
-        select: publicUserSelect
+        select: authUserSelect
       }),
       this.prisma.auditLog.create({
         data: {
@@ -151,9 +163,14 @@ export class AuthService {
       where: { id: userId },
       select: {
         id: true,
+        isPortfolioDemo: true,
         passwordHash: true
       }
     });
+
+    if (user?.isPortfolioDemo) {
+      throw new ForbiddenException("Password changes are unavailable in portfolio demo workspaces.");
+    }
 
     if (!user || !(await compare(input.currentPassword, user.passwordHash))) {
       throw new UnauthorizedException("Current password is incorrect.");
@@ -217,6 +234,7 @@ export class AuthService {
   async requestPasswordReset(
     input: RequestPasswordResetDto
   ): Promise<PasswordResetRequestResponse> {
+    this.assertStandardAuthEnabled();
     const user = await this.prisma.user.findUnique({
       where: { email: input.email.toLowerCase() },
       select: { email: true, id: true }
@@ -291,6 +309,7 @@ export class AuthService {
   }
 
   async resetPassword(input: ResetPasswordDto): Promise<ResetPasswordResponse> {
+    this.assertStandardAuthEnabled();
     const token = await this.prisma.passwordResetToken.findUnique({
       where: { tokenHash: hashResetToken(input.token) },
       select: {
@@ -368,12 +387,18 @@ export class AuthService {
   }
 
   private async createAuthResponse(
-    user: PublicUserRecord,
+    user: AuthUserRecord,
     context: AuthClientContext
   ): Promise<AuthResponse> {
-    const expiresAt = new Date(
+    const standardExpiresAt = new Date(
       Date.now() + this.config.AUTH_SESSION_TTL_DAYS * 24 * 60 * 60 * 1_000
     );
+    const expiresAt =
+      user.isPortfolioDemo && user.portfolioDemoExpiresAt
+        ? new Date(
+            Math.min(standardExpiresAt.getTime(), user.portfolioDemoExpiresAt.getTime())
+          )
+        : standardExpiresAt;
     const session = await this.prisma.authSession.create({
       data: {
         userId: user.id,
@@ -382,11 +407,15 @@ export class AuthService {
       },
       select: { id: true }
     });
-    const accessToken = await this.jwtService.signAsync({
-      sub: user.id,
-      email: user.email,
-      sid: session.id
-    });
+    const expiresIn = Math.max(1, Math.floor((expiresAt.getTime() - Date.now()) / 1_000));
+    const accessToken = await this.jwtService.signAsync(
+      {
+        sub: user.id,
+        email: user.email,
+        sid: session.id
+      },
+      { expiresIn }
+    );
 
     return {
       accessToken,
@@ -394,13 +423,35 @@ export class AuthService {
     };
   }
 
-  private toAuthUser(user: PublicUserRecord): AuthUser {
+  private toAuthUser(user: AuthUserRecord): AuthUser {
     return {
       id: user.id,
-      email: user.email,
+      email: user.isPortfolioDemo
+        ? this.config.PORTFOLIO_DEMO_TEMPLATE_EMAIL
+        : user.email,
       name: user.name,
-      createdAt: user.createdAt.toISOString()
+      createdAt: user.createdAt.toISOString(),
+      isPortfolioDemo: user.isPortfolioDemo,
+      portfolioDemoExpiresAt: user.portfolioDemoExpiresAt?.toISOString() ?? null
     };
+  }
+
+  private assertStandardAuthEnabled() {
+    if (this.config.PROOFPILOT_MODE === "portfolio") {
+      throw new NotFoundException("Not found.");
+    }
+  }
+
+  private assertPortfolioDemoAccess(accessKey: string | undefined) {
+    const expectedAccessKey = this.config.PORTFOLIO_DEMO_ACCESS_KEY;
+
+    if (
+      this.config.PROOFPILOT_MODE !== "portfolio" ||
+      !expectedAccessKey ||
+      !constantTimeEquals(accessKey, expectedAccessKey)
+    ) {
+      throw new NotFoundException("Not found.");
+    }
   }
 }
 
@@ -431,4 +482,14 @@ function createSecurityActivityMetadata(email: string, context: AuthClientContex
 function sanitizeContextValue(value: string | undefined, maxLength: number) {
   const normalized = value?.replace(/[\r\n]/g, " ").trim();
   return normalized ? normalized.slice(0, maxLength) : null;
+}
+
+function constantTimeEquals(actual: string | undefined, expected: string) {
+  if (!actual) {
+    return false;
+  }
+
+  const actualDigest = createHash("sha256").update(actual).digest();
+  const expectedDigest = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(actualDigest, expectedDigest);
 }

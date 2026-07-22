@@ -73,4 +73,28 @@ describe("getApiEnv", () => {
       })
     ).toThrow("RESEND_API_KEY is required");
   });
+
+  it("allows isolated production portfolio mode without outbound services", () => {
+    expect(
+      getApiEnv({
+        ...baseEnv,
+        NODE_ENV: "production",
+        PORTFOLIO_DEMO_ACCESS_KEY: "portfolio-demo-test-key-with-32-characters",
+        PROOFPILOT_MODE: "portfolio"
+      })
+    ).toMatchObject({
+      PASSWORD_RESET_DELIVERY_MODE: "log",
+      PROOFPILOT_MODE: "portfolio",
+      VIRUS_SCAN_MODE: "disabled"
+    });
+  });
+
+  it("requires a server-to-server access key in portfolio mode", () => {
+    expect(() =>
+      getApiEnv({
+        ...baseEnv,
+        PROOFPILOT_MODE: "portfolio"
+      })
+    ).toThrow("PORTFOLIO_DEMO_ACCESS_KEY is required in portfolio mode");
+  });
 });

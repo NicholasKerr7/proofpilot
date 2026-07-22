@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const workerEnvObjectSchema = z.object({
   NODE_ENV: z.string().default("development"),
+  PROOFPILOT_MODE: z.enum(["standard", "portfolio"]).default("standard"),
   WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().url().default("redis://localhost:6379"),
@@ -16,6 +17,7 @@ const workerEnvObjectSchema = z.object({
 const workerEnvSchema = workerEnvObjectSchema.superRefine((env, context) => {
   if (
     env.NODE_ENV === "production" &&
+    env.PROOFPILOT_MODE === "standard" &&
     env.NOTIFICATION_EMAIL_DELIVERY_MODE !== "resend"
   ) {
     context.addIssue({

@@ -31,6 +31,7 @@ interface EvidenceSourcePickerProps {
   onGmailRequested: () => void;
   onGoogleDriveRequested: () => void;
   onScanRequested: () => void;
+  trustedSourcesOnly: boolean;
 }
 
 type SourceTone = "blue" | "green" | "primary" | "red" | "rose" | "violet";
@@ -48,7 +49,8 @@ export function EvidenceSourcePicker({
   onFilesSelected,
   onGmailRequested,
   onGoogleDriveRequested,
-  onScanRequested
+  onScanRequested,
+  trustedSourcesOnly
 }: EvidenceSourcePickerProps) {
   const [isDragging, setIsDragging] = useState(false);
 
@@ -62,6 +64,10 @@ export function EvidenceSourcePicker({
   }
 
   function handleDragOver(event: DragEvent<HTMLElement>) {
+    if (trustedSourcesOnly) {
+      return;
+    }
+
     event.preventDefault();
     setIsDragging(true);
   }
@@ -77,6 +83,11 @@ export function EvidenceSourcePicker({
   function handleDrop(event: DragEvent<HTMLElement>) {
     event.preventDefault();
     setIsDragging(false);
+
+    if (trustedSourcesOnly) {
+      return;
+    }
+
     onFilesSelected(Array.from(event.dataTransfer.files), "files");
   }
 
@@ -101,13 +112,22 @@ export function EvidenceSourcePicker({
             Choose a source
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Files enter this case through private signed uploads.
+            {trustedSourcesOnly
+              ? "Choose from trusted sample evidence prepared for this demo."
+              : "Files enter this case through private signed uploads."}
           </p>
         </div>
-        <Badge variant="secondary">Drag and drop supported</Badge>
+        <Badge variant="secondary">
+          {trustedSourcesOnly ? "Sample sources only" : "Drag and drop supported"}
+        </Badge>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 min-[360px]:grid-cols-3 sm:hidden">
+      <div
+        className={cn(
+          "grid grid-cols-2 gap-2 sm:hidden",
+          trustedSourcesOnly ? null : "min-[360px]:grid-cols-3"
+        )}
+      >
         <SourceAction
           compact
           description="Browse connected inbox"
@@ -124,56 +144,67 @@ export function EvidenceSourcePicker({
           title="Google Drive"
           tone="green"
         />
-        <SourceOption
-          accept={evidenceUploadAccept}
-          compact
-          description="Choose downloaded files"
-          icon={<IntegrationLogo alt="" src="/integrations/dropbox.svg" />}
-          multiple
-          onChange={(event) => handleFileInput(event, "dropbox")}
-          title="Dropbox"
-          tone="blue"
-        />
-        <SourceOption
-          accept="image/png,image/jpeg"
-          compact
-          description="Select image evidence"
-          icon={<SourceIcon icon={Images} />}
-          multiple
-          onChange={(event) => handleFileInput(event, "photos")}
-          title="Photos"
-          tone="rose"
-        />
-        <SourceOption
-          accept={evidenceUploadAccept}
-          compact
-          description="Browse this device"
-          icon={<SourceIcon icon={FolderOpen} />}
-          multiple
-          onChange={(event) => handleFileInput(event, "files")}
-          title="Files"
-          tone="primary"
-        />
-        <SourceAction
-          compact
-          description="Capture a document"
-          icon={<SourceIcon icon={Camera} />}
-          onClick={onScanRequested}
-          title="Camera scan"
-          tone="violet"
-        />
+        {!trustedSourcesOnly ? (
+          <>
+            <SourceOption
+              accept={evidenceUploadAccept}
+              compact
+              description="Choose downloaded files"
+              icon={<IntegrationLogo alt="" src="/integrations/dropbox.svg" />}
+              multiple
+              onChange={(event) => handleFileInput(event, "dropbox")}
+              title="Dropbox"
+              tone="blue"
+            />
+            <SourceOption
+              accept="image/png,image/jpeg"
+              compact
+              description="Select image evidence"
+              icon={<SourceIcon icon={Images} />}
+              multiple
+              onChange={(event) => handleFileInput(event, "photos")}
+              title="Photos"
+              tone="rose"
+            />
+            <SourceOption
+              accept={evidenceUploadAccept}
+              compact
+              description="Browse this device"
+              icon={<SourceIcon icon={FolderOpen} />}
+              multiple
+              onChange={(event) => handleFileInput(event, "files")}
+              title="Files"
+              tone="primary"
+            />
+            <SourceAction
+              compact
+              description="Capture a document"
+              icon={<SourceIcon icon={Camera} />}
+              onClick={onScanRequested}
+              title="Camera scan"
+              tone="violet"
+            />
+          </>
+        ) : null}
       </div>
 
-      <div className="hidden gap-3 sm:grid sm:grid-cols-4">
-        <SourceOption
-          accept={evidenceUploadAccept}
-          description="Upload documents, images, PDFs, and spreadsheets."
-          icon={<SourceIcon icon={FileUp} />}
-          multiple
-          onChange={(event) => handleFileInput(event, "files")}
-          title="Upload files"
-          tone="primary"
-        />
+      <div
+        className={cn(
+          "hidden gap-3 sm:grid",
+          trustedSourcesOnly ? "sm:grid-cols-2" : "sm:grid-cols-4"
+        )}
+      >
+        {!trustedSourcesOnly ? (
+          <SourceOption
+            accept={evidenceUploadAccept}
+            description="Upload documents, images, PDFs, and spreadsheets."
+            icon={<SourceIcon icon={FileUp} />}
+            multiple
+            onChange={(event) => handleFileInput(event, "files")}
+            title="Upload files"
+            tone="primary"
+          />
+        ) : null}
         <SourceAction
           description="Browse connected messages and select case evidence."
           icon={<IntegrationLogo alt="" src="/integrations/gmail.svg" />}
@@ -188,18 +219,21 @@ export function EvidenceSourcePicker({
           title="Google Drive"
           tone="green"
         />
-        <SourceAction
-          description="Use your camera to capture and review a document."
-          icon={<SourceIcon icon={ScanLine} />}
-          onClick={onScanRequested}
-          title="Scan document"
-          tone="violet"
-        />
+        {!trustedSourcesOnly ? (
+          <SourceAction
+            description="Use your camera to capture and review a document."
+            icon={<SourceIcon icon={ScanLine} />}
+            onClick={onScanRequested}
+            title="Scan document"
+            tone="violet"
+          />
+        ) : null}
       </div>
 
       <p className="text-xs leading-5 text-muted-foreground">
-        Supported: {evidenceFileTypeListLabel}, up to {evidenceMaxUploadSizeLabel} each. Connected
-        Gmail and Drive demo sources import only the items you select.
+        {trustedSourcesOnly
+          ? "Gmail and Drive sample sources import only the items you select. Device files never leave your browser in portfolio mode."
+          : `Supported: ${evidenceFileTypeListLabel}, up to ${evidenceMaxUploadSizeLabel} each. Connected Gmail and Drive demo sources import only the items you select.`}
       </p>
     </section>
   );
