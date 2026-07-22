@@ -431,6 +431,58 @@ test.describe("ProofPilot responsive workspace", () => {
     await expect(sourceHeading).toBeFocused();
   });
 
+  test("demo user can browse connected Gmail and Google Drive evidence", async ({
+    page
+  }) => {
+    await loginAsDemoUser(page);
+    await getPrimaryNavigation(page)
+      .getByRole("button", { name: /^Upload/ })
+      .click();
+    await expect(page.getByRole("heading", { exact: true, name: "Import evidence" })).toBeVisible();
+
+    await page.getByRole("button", { name: /^Gmail/ }).click();
+    const gmailHeading = page.getByRole("heading", { exact: true, name: "Gmail import" });
+    await expect(gmailHeading).toBeVisible();
+    await expect(gmailHeading).toBeFocused();
+    await expect(page.getByText("Connected Gmail account", { exact: true })).toBeVisible();
+    const emailList = page.getByRole("region", { name: "Select emails to import" });
+    await expect(emailList.locator('input[type="checkbox"]:checked')).toHaveCount(4);
+
+    const allEmailsTab = page.getByRole("tab", { name: /^All emails/ });
+    const selectedEmailsTab = page.getByRole("tab", { name: /^Selected/ });
+    await allEmailsTab.focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(selectedEmailsTab).toBeFocused();
+    await expect(selectedEmailsTab).toHaveAttribute("aria-selected", "true");
+    await expect(emailList.getByRole("listitem")).toHaveCount(4);
+    await allEmailsTab.click();
+    await emailList.getByLabel("Select Limitation notice from PayPal").uncheck();
+    await expect(page.getByRole("button", { name: "Import 3", exact: true })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await expectAccessible(page, "Gmail import workspace");
+
+    await page.getByRole("button", { name: "Back to evidence sources" }).click();
+    await expect(page.getByRole("heading", { exact: true, name: "Choose a source" })).toBeVisible();
+    await page.getByRole("button", { name: /^Google Drive/ }).click();
+    await expect(
+      page.getByRole("heading", { exact: true, name: "Google Drive import" })
+    ).toBeVisible();
+    await expect(page.getByText("bank-statement.pdf", { exact: true })).toBeVisible();
+
+    const driveSearch = page.getByLabel("Search Google Drive files");
+    await driveSearch.fill("communication");
+    await expect(page.getByText("communication-log.pdf", { exact: true })).toBeVisible();
+    await expect(page.getByText("bank-statement.pdf", { exact: true })).toHaveCount(0);
+    await driveSearch.fill("");
+    await page.getByLabel("Filter by file type").selectOption("PDF");
+    await expect(page.getByText("bank-statement.pdf", { exact: true })).toBeVisible();
+    await expect(page.getByText("appeal-draft.docx", { exact: true })).toHaveCount(0);
+    await page.getByLabel("Filter by file type").selectOption("ALL");
+    await page.getByLabel("Sort Google Drive files").selectOption("NAME");
+    await expectNoHorizontalOverflow(page);
+    await expectAccessible(page, "Google Drive import workspace");
+  });
+
   test("demo user can add, edit, reorder, and delete a timeline event", async ({ page }) => {
     await loginAsDemoUser(page);
 

@@ -16,7 +16,8 @@ const storageMocks = vi.hoisted(() => ({
   createPresignedDownloadUrl: vi.fn(),
   createPresignedUploadUrl: vi.fn(),
   deleteStoredObject: vi.fn(),
-  headStoredObject: vi.fn()
+  headStoredObject: vi.fn(),
+  writeStoredObjectBytes: vi.fn()
 }));
 
 const databaseMocks = vi.hoisted(() => ({
@@ -153,6 +154,81 @@ describe("DocumentsService upload hardening", () => {
     expect(prisma.case.findFirst).not.toHaveBeenCalled();
     expect(prisma.document.create).not.toHaveBeenCalled();
     expect(storageMocks.createPresignedUploadUrl).not.toHaveBeenCalled();
+  });
+
+  it("writes provider evidence to private storage before entering normal processing", async () => {
+    const createdAt = new Date("2026-07-22T12:00:00.000Z");
+    prisma.case.findFirst.mockResolvedValue({ id: caseId, ownerId });
+    prisma.document.create.mockResolvedValue({ id: documentId });
+    prisma.document.findUnique.mockResolvedValue({
+      byteSize: 18,
+      createdAt,
+      id: documentId,
+      mimeType: "message/rfc822",
+      originalName: "limitation-notice.eml",
+      status: DocumentStatus.PROCESSING,
+      updatedAt: createdAt
+    });
+    vi.spyOn(service, "completeUpload").mockResolvedValue({
+      documentId,
+      processingJob: { id: "job-1", name: "process_uploaded_document" }
+    });
+
+    const result = await service.importProviderEvidence(ownerId, caseId, {
+      body: Buffer.from("provider evidence"),
+      itemId: "gmail-limitation-notice",
+      mimeType: "message/rfc822",
+      originalName: "limitation-notice.eml",
+      provider: "GMAIL"
+    });
+
+    expect(storageMocks.writeStoredObjectBytes).toHaveBeenCalledWith({
+      body: expect.any(Buffer),
+      contentType: "message/rfc822",
+      key: expect.stringContaining(`users/${ownerId}/cases/${caseId}/upload-staging/`)
+    });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: {
+        userId: ownerId,
+        caseId,
+        action: "document.imported_from_provider",
+        metadata: expect.objectContaining({
+          documentId,
+          itemId: "gmail-limitation-notice",
+          provider: "GMAIL"
+        })
+      }
+    });
+    expect(result.document).toMatchObject({
+      createdAt: createdAt.toISOString(),
+      id: documentId,
+      status: DocumentStatus.PROCESSING,
+      updatedAt: createdAt.toISOString()
+    });
+  });
+
+  it("removes an import reservation when provider storage fails", async () => {
+    prisma.case.findFirst.mockResolvedValue({ id: caseId, ownerId });
+    prisma.document.create.mockResolvedValue({ id: documentId });
+    storageMocks.writeStoredObjectBytes.mockRejectedValueOnce(new Error("storage offline"));
+    prisma.document.delete.mockResolvedValue({ id: documentId });
+
+    await expect(
+      service.importProviderEvidence(ownerId, caseId, {
+        body: Buffer.from("provider evidence"),
+        itemId: "gmail-limitation-notice",
+        mimeType: "message/rfc822",
+        originalName: "limitation-notice.eml",
+        provider: "GMAIL"
+      })
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
+
+    expect(prisma.document.delete).toHaveBeenCalledWith({ where: { id: documentId } });
+    expect(prisma.auditLog.create).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ action: "document.imported_from_provider" })
+      })
+    );
   });
 
   it("validates completed upload metadata before queueing processing", async () => {

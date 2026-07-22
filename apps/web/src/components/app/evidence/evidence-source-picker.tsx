@@ -28,6 +28,8 @@ import { cn } from "@/lib/utils";
 
 interface EvidenceSourcePickerProps {
   onFilesSelected: (files: File[], source: EvidenceUploadSource) => void;
+  onGmailRequested: () => void;
+  onGoogleDriveRequested: () => void;
   onScanRequested: () => void;
 }
 
@@ -44,6 +46,8 @@ const sourceToneClassNames: Record<SourceTone, string> = {
 
 export function EvidenceSourcePicker({
   onFilesSelected,
+  onGmailRequested,
+  onGoogleDriveRequested,
   onScanRequested
 }: EvidenceSourcePickerProps) {
   const [isDragging, setIsDragging] = useState(false);
@@ -104,23 +108,19 @@ export function EvidenceSourcePicker({
       </div>
 
       <div className="grid grid-cols-2 gap-2 min-[360px]:grid-cols-3 sm:hidden">
-        <SourceOption
-          accept=".eml,message/rfc822"
+        <SourceAction
           compact
-          description="Add a saved .eml file"
+          description="Browse connected inbox"
           icon={<IntegrationLogo alt="" src="/integrations/gmail.svg" />}
-          multiple
-          onChange={(event) => handleFileInput(event, "email")}
+          onClick={onGmailRequested}
           title="Gmail"
           tone="red"
         />
-        <SourceOption
-          accept={evidenceUploadAccept}
+        <SourceAction
           compact
-          description="Choose downloaded files"
+          description="Browse connected Drive"
           icon={<IntegrationLogo alt="" src="/integrations/google-drive.svg" />}
-          multiple
-          onChange={(event) => handleFileInput(event, "google-drive")}
+          onClick={onGoogleDriveRequested}
           title="Google Drive"
           tone="green"
         />
@@ -174,21 +174,17 @@ export function EvidenceSourcePicker({
           title="Upload files"
           tone="primary"
         />
-        <SourceOption
-          accept=".eml,message/rfc822"
-          description="Add saved Gmail messages as EML files."
+        <SourceAction
+          description="Browse connected messages and select case evidence."
           icon={<IntegrationLogo alt="" src="/integrations/gmail.svg" />}
-          multiple
-          onChange={(event) => handleFileInput(event, "email")}
+          onClick={onGmailRequested}
           title="Gmail import"
           tone="red"
         />
-        <SourceOption
-          accept={evidenceUploadAccept}
-          description="Choose downloaded Drive files from this device."
+        <SourceAction
+          description="Search connected Drive files and attach selections."
           icon={<IntegrationLogo alt="" src="/integrations/google-drive.svg" />}
-          multiple
-          onChange={(event) => handleFileInput(event, "google-drive")}
+          onClick={onGoogleDriveRequested}
           title="Google Drive"
           tone="green"
         />
@@ -202,8 +198,8 @@ export function EvidenceSourcePicker({
       </div>
 
       <p className="text-xs leading-5 text-muted-foreground">
-        Supported: {evidenceFileTypeListLabel}, up to {evidenceMaxUploadSizeLabel} each. Gmail,
-        Drive, and Dropbox selections use files available through your device picker.
+        Supported: {evidenceFileTypeListLabel}, up to {evidenceMaxUploadSizeLabel} each. Connected
+        Gmail and Drive demo sources import only the items you select.
       </p>
     </section>
   );

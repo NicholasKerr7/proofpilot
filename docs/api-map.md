@@ -39,6 +39,8 @@ Authenticated cross-user lookups return `404` rather than confirming that anothe
 - `DELETE /cases/:id`
 - `POST /cases/:caseId/documents`
 - `GET /cases/:caseId/documents`
+- `GET /cases/:caseId/provider-imports/:provider`
+- `POST /cases/:caseId/provider-imports/:provider`
 - `GET /cases/:caseId/checklist`
 - `POST /cases/:caseId/checklist/analyze`
 - `PATCH /cases/:caseId/checklist/:itemId`
@@ -162,6 +164,13 @@ The security overview returns the authenticated user's password-change timestamp
 - `DELETE /connections/:provider`
 
 Connection records are scoped to the authenticated user. The current demo seed stores presentation metadata only; it does not contain provider credentials or authorization tokens.
+
+Gmail and Google Drive provider-import routes require Editor or Owner access to the active case
+and a matching connected account owned by the caller. In demo mode, the catalog exposes only
+fixture metadata. A POST materializes only the selected items into private case storage, runs the
+normal upload validation and virus-scan path, records an audit event without message content, and
+queues document processing. Live OAuth catalog access remains unavailable until Google provider
+credentials and token storage are configured.
 
 ## Billing
 

@@ -11,14 +11,17 @@ import {
   createPresignedDownloadUrl,
   createPresignedUploadUrl,
   deleteStoredObject,
-  headStoredObject
+  headStoredObject,
+  writeStoredObjectBytes
 } from "@proofpilot/storage";
 import {
   evidenceFileTypeListLabel,
   evidenceMaxUploadByteSize,
   evidenceMaxUploadSizeLabel,
-  isEvidenceMimeType
+  isEvidenceMimeType,
+  type EvidenceMimeType
 } from "@proofpilot/types/evidence";
+import type { ProviderImportProvider } from "@proofpilot/types";
 import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
 import {
@@ -130,6 +133,102 @@ export class DocumentsService {
         },
         expiresInSeconds: 900
       }
+    };
+  }
+
+  async importProviderEvidence(
+    ownerId: string,
+    caseId: string,
+    input: {
+      body: Buffer | Uint8Array;
+      itemId: string;
+      mimeType: EvidenceMimeType;
+      originalName: string;
+      provider: ProviderImportProvider;
+    }
+  ) {
+    const byteSize = input.body.byteLength;
+    this.assertUploadMetadataAllowed({ byteSize, mimeType: input.mimeType });
+    const foundCase = await this.assertCaseAccess(ownerId, caseId, "EDIT");
+    const storageKey = this.createStorageKey(
+      foundCase.ownerId,
+      caseId,
+      input.originalName
+    );
+    const document = await this.prisma.document.create({
+      data: {
+        caseId,
+        originalName: input.originalName,
+        mimeType: input.mimeType,
+        byteSize,
+        storageKey,
+        status: DocumentStatus.UPLOADED,
+        versions: {
+          create: {
+            version: 1,
+            storageKey
+          }
+        }
+      },
+      select: { id: true }
+    });
+
+    try {
+      await writeStoredObjectBytes({
+        body: input.body,
+        contentType: input.mimeType,
+        key: storageKey
+      });
+      await this.prisma.auditLog.create({
+        data: {
+          userId: ownerId,
+          caseId,
+          action: "document.imported_from_provider",
+          metadata: {
+            byteSize,
+            documentId: document.id,
+            itemId: input.itemId,
+            mimeType: input.mimeType,
+            originalName: input.originalName,
+            provider: input.provider
+          }
+        }
+      });
+    } catch {
+      await Promise.allSettled([
+        deleteStoredObject({ key: storageKey }),
+        this.prisma.document.delete({ where: { id: document.id } })
+      ]);
+      throw new ServiceUnavailableException(
+        "Provider evidence could not be secured in private storage. Try again shortly."
+      );
+    }
+
+    const completion = await this.completeUpload(ownerId, document.id);
+    const importedDocument = await this.prisma.document.findUnique({
+      where: { id: document.id },
+      select: {
+        byteSize: true,
+        createdAt: true,
+        id: true,
+        mimeType: true,
+        originalName: true,
+        status: true,
+        updatedAt: true
+      }
+    });
+
+    if (!importedDocument) {
+      throw new NotFoundException("Imported document not found.");
+    }
+
+    return {
+      document: {
+        ...importedDocument,
+        createdAt: importedDocument.createdAt.toISOString(),
+        updatedAt: importedDocument.updatedAt.toISOString()
+      },
+      processingJob: completion.processingJob
     };
   }
 

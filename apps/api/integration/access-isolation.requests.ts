@@ -14,6 +14,7 @@ export const guardedPaths = [
   `/cases/${isolationIds.case}/collaboration`,
   "/connections",
   `/cases/${isolationIds.case}/documents`,
+  `/cases/${isolationIds.case}/provider-imports/GMAIL`,
   "/inbox/conversations",
   "/notifications",
   `/cases/${isolationIds.case}/packet-shares/prepare`,
@@ -35,6 +36,7 @@ export const crossUserReads = [
   `/assistant/cases/${isolationIds.case}`,
   `/cases/${isolationIds.case}/collaboration`,
   `/cases/${isolationIds.case}/documents`,
+  `/cases/${isolationIds.case}/provider-imports/GMAIL`,
   `/documents/${isolationIds.document}`,
   `/documents/${isolationIds.document}/processing-status`,
   `/inbox/conversations/NOTIFICATION/${isolationIds.notification}`,
@@ -154,6 +156,11 @@ export function getCrossUserMutations(): RequestSpec[] {
       },
       method: "POST",
       path: `/cases/${isolationIds.case}/documents`
+    },
+    {
+      body: { itemIds: ["gmail-limitation-notice"] },
+      method: "POST",
+      path: `/cases/${isolationIds.case}/provider-imports/GMAIL`
     },
     { method: "POST", path: `/documents/${isolationIds.document}/complete` },
     { method: "POST", path: `/documents/${isolationIds.document}/reprocess` },

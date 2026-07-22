@@ -27,6 +27,7 @@
     "bullmq": "^5.68.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
+    "jszip": "^3.10.1",
     "pdfkit": "^0.19.1",
     "pg": "^8.22.0",
     "reflect-metadata": "^0.2.2",

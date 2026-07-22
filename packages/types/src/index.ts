@@ -9,6 +9,7 @@ export * from "./evidence.js";
 export * from "./inbox.js";
 export * from "./notifications.js";
 export * from "./packet-sharing.js";
+export * from "./provider-imports.js";
 export * from "./reports.js";
 export * from "./security.js";
 export * from "./settings.js";

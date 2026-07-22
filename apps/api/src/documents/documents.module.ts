@@ -7,6 +7,7 @@ import { VirusScannerService } from "./virus-scanner.service.js";
 @Module({
   imports: [AuthModule],
   controllers: [DocumentsController],
-  providers: [DocumentsService, VirusScannerService]
+  providers: [DocumentsService, VirusScannerService],
+  exports: [DocumentsService]
 })
 export class DocumentsModule {}

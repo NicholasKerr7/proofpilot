@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { ProviderImportProvider, ProviderImportResponse } from "@proofpilot/types";
 import { Badge } from "@/components/ui/badge";
 import { EvidenceCameraCapture } from "@/components/app/evidence/evidence-camera-capture";
 import { EvidenceRecentImports } from "@/components/app/evidence/evidence-recent-imports";
@@ -8,6 +9,7 @@ import { EvidenceReviewWorkspace } from "@/components/app/evidence/evidence-revi
 import { EvidenceScanReview } from "@/components/app/evidence/evidence-scan-review";
 import { EvidenceSourcePicker } from "@/components/app/evidence/evidence-source-picker";
 import { EvidenceUploadQueue } from "@/components/app/evidence/evidence-upload-queue";
+import { ProviderImportWorkspace } from "@/components/app/evidence/provider-import-workspace";
 import {
   createEvidenceUploadQueueItem,
   getEvidenceFileValidationError,
@@ -37,7 +39,12 @@ interface EvidencePanelProps {
   onCaptureStateChange: (state: EvidenceCaptureState) => void;
 }
 
-export type EvidenceCaptureState = "idle" | "camera" | "review";
+export type EvidenceCaptureState =
+  | "idle"
+  | "camera"
+  | "review"
+  | "gmail"
+  | "google-drive";
 
 type Notice = {
   tone: "success" | "error" | "info";
@@ -83,6 +90,7 @@ export function EvidencePanel({
   const [activeUploadId, setActiveUploadId] = useState<string | null>(null);
   const [scanFile, setScanFile] = useState<File | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [activeProvider, setActiveProvider] = useState<ProviderImportProvider | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -184,6 +192,7 @@ export function EvidencePanel({
       setUploadQueue([]);
       setScanFile(null);
       setIsCameraOpen(false);
+      setActiveProvider(null);
       onCaptureStateChange("idle");
 
       try {
@@ -634,6 +643,32 @@ export function EvidencePanel({
     focusEvidenceSurface("camera-capture-heading", "page");
   }
 
+  function openProviderImport(provider: ProviderImportProvider) {
+    setNotice(null);
+    setActiveProvider(provider);
+    onCaptureStateChange(provider === "GMAIL" ? "gmail" : "google-drive");
+    focusEvidenceSurface("provider-import-heading", "page");
+  }
+
+  function closeProviderImport() {
+    setActiveProvider(null);
+    onCaptureStateChange("idle");
+    focusEvidenceSurface("evidence-sources-heading", "element");
+  }
+
+  async function handleProviderImported(response: ProviderImportResponse) {
+    const preferredDocumentId = response.documents.at(-1)?.id;
+    await refreshDocuments(preferredDocumentId);
+    await onDocumentsChanged();
+    setNotice({
+      tone: "success",
+      text: `${response.importedCount} ${
+        response.importedCount === 1 ? "item was" : "items were"
+      } imported and entered background processing.`
+    });
+    closeProviderImport();
+  }
+
   function closeCapture() {
     setScanFile(null);
     setIsCameraOpen(false);
@@ -755,6 +790,19 @@ export function EvidencePanel({
     (document) => document.status === "FAILED" || document.status === "NEEDS_REVIEW"
   ).length;
 
+  if (activeProvider) {
+    return (
+      <div id="evidence-intake" className="scroll-mt-28 lg:scroll-mt-24">
+        <ProviderImportWorkspace
+          caseRecord={selectedCase}
+          onBack={closeProviderImport}
+          onImported={handleProviderImported}
+          provider={activeProvider}
+        />
+      </div>
+    );
+  }
+
   if (isCameraOpen) {
     return (
       <div id="evidence-intake" className="scroll-mt-28 lg:scroll-mt-24">
@@ -790,6 +838,8 @@ export function EvidencePanel({
         <>
           <EvidenceSourcePicker
             onFilesSelected={enqueueFiles}
+            onGmailRequested={() => openProviderImport("GMAIL")}
+            onGoogleDriveRequested={() => openProviderImport("GOOGLE_DRIVE")}
             onScanRequested={openCamera}
           />
 
