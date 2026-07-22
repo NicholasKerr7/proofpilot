@@ -11,6 +11,7 @@ import { RateLimitMiddleware } from "./common/middleware/rate-limit.middleware.j
 import { RequestLoggingMiddleware } from "./common/middleware/request-logging.middleware.js";
 import { DocumentsModule } from "./documents/documents.module.js";
 import { HealthModule } from "./health/health.module.js";
+import { InboxModule } from "./inbox/inbox.module.js";
 import { MonitoringModule } from "./monitoring/monitoring.module.js";
 import { NotificationsModule } from "./notifications/notifications.module.js";
 import { PacketSharingModule } from "./packet-sharing/packet-sharing.module.js";
@@ -29,6 +30,7 @@ import { TasksModule } from "./tasks/tasks.module.js";
     PrismaModule,
     QueueModule,
     HealthModule,
+    InboxModule,
     MonitoringModule,
     AssistantModule,
     AuthModule,

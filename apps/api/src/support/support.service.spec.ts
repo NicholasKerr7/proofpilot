@@ -144,7 +144,8 @@ describe("SupportService", () => {
         category: "CASE_ASSISTANCE",
         subject: "Help reviewing missing evidence",
         message: "Please help me understand which ownership document is still missing.",
-        priority: "NORMAL"
+        priority: "NORMAL",
+        readAt: expect.any(Date)
       },
       select: expect.any(Object)
     });
@@ -241,7 +242,7 @@ describe("SupportService", () => {
     });
     expect(prisma.transactionClient.supportRequest.update).toHaveBeenCalledWith({
       where: { id: "request-1" },
-      data: { updatedAt: expect.any(Date) }
+      data: { readAt: expect.any(Date), updatedAt: expect.any(Date) }
     });
     expect(prisma.transactionClient.notification.create).toHaveBeenCalledWith({
       data: {

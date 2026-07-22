@@ -122,7 +122,7 @@ export async function readProtectedState(client: PrismaService) {
     }),
     client.supportRequest.findUnique({
       where: { id: isolationIds.support },
-      select: { status: true, subject: true }
+      select: { readAt: true, status: true, subject: true }
     }),
     client.caseTask.findUnique({
       where: { id: isolationIds.task },

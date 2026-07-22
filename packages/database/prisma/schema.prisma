@@ -752,11 +752,13 @@ model SupportRequest {
   message   String
   priority  SupportRequestPriority  @default(NORMAL)
   status    SupportRequestStatus    @default(OPEN)
+  readAt    DateTime?
   createdAt DateTime                @default(now())
   updatedAt DateTime                @updatedAt
   messages  SupportRequestMessage[]
 
   @@index([userId, updatedAt])
+  @@index([userId, readAt])
   @@index([caseId])
   @@index([status, createdAt])
 }

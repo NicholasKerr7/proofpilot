@@ -10,13 +10,13 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 
 ## Packages
 
-- `packages/types`: Shared case, assistant, auth, settings, security, connection, billing, packet-sharing, and API schemas.
+- `packages/types`: Shared case, assistant, auth, Inbox, settings, security, connection, billing, packet-sharing, and API schemas.
 - `packages/database`: Prisma schema, client export, shared checklist analysis, and seed data.
 - `packages/storage`: S3-compatible private evidence storage helpers.
 
 ## Local Services
 
-- PostgreSQL stores users, cases, tasks, assistant threads and messages, audit logs, connection metadata, billing metadata, evidence metadata, timelines, checklist data, statements, packet exports, packet shares, notifications, and jobs.
+- PostgreSQL stores users, cases, tasks, support requests and messages, assistant threads and messages, audit logs, connection metadata, billing metadata, evidence metadata, timelines, checklist data, statements, packet exports, packet shares, notifications, and jobs.
 - Redis backs document processing, notification email delivery, packet generation, reminder delivery, and upload cleanup BullMQ queues.
 - MinIO provides a local S3-compatible private storage target.
 - ClamAV can scan private uploads through an opt-in local security profile or a private production service.
@@ -49,14 +49,21 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 - Packet-share creation and revocation resolve the ready export through the authenticated case owner. Audit metadata stores share IDs, recipient counts, permissions, and expiry without storing raw tokens or recipient addresses.
 - Statement guidance, version restore, and summary generation resolve authenticated edit access to the active case. Audit metadata stores record IDs, answer counts, and source counts without duplicating answers, drafts, or summary text.
 - Task reads resolve authenticated case access, while task mutations require Editor or Owner access. Task audit metadata records identifiers, priority, status, and progress without duplicating user-authored task content.
+- Inbox list, detail, and read-state operations scope both support requests and notifications to the authenticated user. Invalid or foreign source-and-ID pairs return `404` without revealing record existence.
 
 Extracted document text is source evidence rather than user-authored application metadata, so processing preserves it for review and search. It is still rendered only through escaped text contexts and normalized before PDF drawing; it is never inserted as executable HTML.
+
+## Inbox Projection
+
+Inbox conversations are projected from two existing owner-scoped stores instead of duplicating message data. `SupportRequest` and `SupportRequestMessage` provide replyable support threads, while eligible `Notification` rows provide read-only team, case-update, and system conversations. Support receipt notifications are excluded from the projection to prevent duplicate rows, and notification conversations tied only to archived cases are hidden.
+
+`SupportRequest.readAt` and `Notification.readAt` retain source-specific state. The Inbox API validates the source enum before every lookup, includes the authenticated user ID in each query, and applies mark-all changes to both sources in one transaction. The standalone Notifications center remains available for the complete alert stream and uses the same notification read state.
 
 ## Notification Delivery
 
 The worker registers idempotent BullMQ schedulers for `reminder-delivery` and `notification-email`. Reminder runs claim due, incomplete reminders with an atomic `sentAt IS NULL` update before creating notification delivery records, which prevents duplicate alerts across worker instances. Archived cases are excluded. The notifications API only reads in-app-visible records and does not trigger delivery as a side effect.
 
-Reminder, case-status, evidence-processing, and packet-result producers independently honor the owner's in-app and email preferences. A `Notification` row acts as the durable email outbox, while `inAppVisible` keeps email-only records out of the inbox. Before sending, the worker atomically leases each row and rechecks the current global email preference, category preference, and case archive state. Resend calls use the notification ID as an idempotency key; failures retain only a sanitized error code and retry with bounded backoff for up to five attempts. A suppressed reminder is still claimed and audited so re-enabling a preference does not unexpectedly replay an old prompt.
+Reminder, case-status, evidence-processing, and packet-result producers independently honor the owner's in-app and email preferences. A `Notification` row acts as the durable email outbox, while `inAppVisible` keeps email-only records out of the Notifications center and Inbox projection. Before sending, the worker atomically leases each row and rechecks the current global email preference, category preference, and case archive state. Resend calls use the notification ID as an idempotency key; failures retain only a sanitized error code and retry with bounded backoff for up to five attempts. A suppressed reminder is still claimed and audited so re-enabling a preference does not unexpectedly replay an old prompt.
 
 ## Packet Sharing Foundation
 

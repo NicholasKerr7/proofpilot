@@ -34,7 +34,7 @@ export function NotificationDetail({
           <Inbox aria-hidden="true" className="h-5 w-5" />
         </span>
         <div>
-          <h4 className="font-semibold text-foreground">Select an inbox item</h4>
+          <h4 className="font-semibold text-foreground">Select a notification</h4>
           <p className="mt-1 max-w-xs text-sm leading-6 text-muted-foreground">
             Open a case update, deadline, packet result, or processing alert.
           </p>

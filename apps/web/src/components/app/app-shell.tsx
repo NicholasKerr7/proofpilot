@@ -36,6 +36,7 @@ export type AppView =
   | "share-packet"
   | "assistant"
   | "upload"
+  | "inbox"
   | "notifications"
   | "account"
   | "reports"
@@ -54,7 +55,7 @@ type PrimaryNavigationView =
   | "cases"
   | "assistant"
   | "upload"
-  | "notifications"
+  | "inbox"
   | "more";
 
 interface NavigationItem {
@@ -75,7 +76,7 @@ const navItems: NavigationItem[] = [
   { label: "Cases", view: "cases", icon: FolderOpen },
   { label: "Assistant", view: "assistant", icon: Sparkles },
   { label: "Upload", view: "upload", icon: UploadCloud },
-  { label: "Inbox", view: "notifications", icon: Inbox },
+  { label: "Inbox", view: "inbox", icon: Inbox },
   { label: "More", view: "more", icon: Menu }
 ];
 
@@ -85,7 +86,7 @@ const desktopNavItems: DesktopNavigationItem[] = [
   { label: "Home", view: "home", icon: Home },
   { label: "Cases", view: "cases", icon: FolderOpen },
   { label: "Upload / Evidence", view: "upload", icon: UploadCloud },
-  { label: "Inbox", view: "notifications", icon: Inbox },
+  { label: "Inbox", view: "inbox", icon: Inbox },
   { label: "Timeline", destinationId: "case-timeline", icon: Clock3 },
   { label: "Tasks", view: "tasks", icon: ListChecks },
   { label: "Reports", view: "reports", icon: BarChart3 },
@@ -106,6 +107,7 @@ interface AppShellProps {
   onLogout: () => Promise<void>;
   onNavigate: (view: AppView) => void;
   onNavigateCaseDestination: (destinationId: CaseDestinationId) => void;
+  unreadInboxCount: number;
   unreadNotificationCount: number;
   user: AuthUser;
 }
@@ -118,6 +120,7 @@ export function AppShell({
   onLogout,
   onNavigate,
   onNavigateCaseDestination,
+  unreadInboxCount,
   unreadNotificationCount,
   user
 }: AppShellProps) {
@@ -214,9 +217,12 @@ export function AppShell({
               >
                 <item.icon className="h-5 w-5" aria-hidden="true" />
                 <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
-                {item.view === "notifications" && unreadNotificationCount > 0 ? (
-                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
-                    {Math.min(unreadNotificationCount, 99)}
+                {item.view === "inbox" && unreadInboxCount > 0 ? (
+                  <span
+                    aria-hidden="true"
+                    className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground"
+                  >
+                    {Math.min(unreadInboxCount, 99)}
                   </span>
                 ) : null}
               </Button>
@@ -262,15 +268,16 @@ export function AppShell({
           <Button
             aria-label={
               unreadNotificationCount
-                ? `Open inbox, ${unreadNotificationCount} unread`
-                : "Open inbox"
+                ? `Open notifications, ${unreadNotificationCount} unread`
+                : "Open notifications"
             }
+            aria-current={activeView === "notifications" ? "page" : undefined}
             className="relative"
             onClick={() => handleNavigate("notifications")}
             size="icon"
-            title="Inbox"
+            title="Notifications"
             type="button"
-            variant="ghost"
+            variant={activeView === "notifications" ? "secondary" : "ghost"}
           >
             <Bell className="h-5 w-5" aria-hidden="true" />
             {unreadNotificationCount > 0 ? (
@@ -373,6 +380,7 @@ export function AppShell({
         includeAssistantInMore
         items={phoneNavItems}
         onNavigate={handleNavigate}
+        unreadInboxCount={unreadInboxCount}
       />
       <BottomNavigation
         activeView={activeView}
@@ -380,6 +388,7 @@ export function AppShell({
         includeAssistantInMore={false}
         items={navItems}
         onNavigate={handleNavigate}
+        unreadInboxCount={unreadInboxCount}
       />
     </div>
   );
@@ -450,6 +459,7 @@ interface BottomNavigationProps {
   includeAssistantInMore: boolean;
   items: NavigationItem[];
   onNavigate: (view: AppView) => void;
+  unreadInboxCount: number;
 }
 
 function BottomNavigation({
@@ -457,7 +467,8 @@ function BottomNavigation({
   className,
   includeAssistantInMore,
   items,
-  onNavigate
+  onNavigate,
+  unreadInboxCount
 }: BottomNavigationProps) {
   return (
     <nav
@@ -481,7 +492,17 @@ function BottomNavigation({
             onClick={() => onNavigate(item.view)}
             type="button"
           >
-            <item.icon className="h-5 w-5" aria-hidden="true" />
+            <span className="relative">
+              <item.icon className="h-5 w-5" aria-hidden="true" />
+              {item.view === "inbox" && unreadInboxCount > 0 ? (
+                <span
+                  aria-hidden="true"
+                  className="absolute -right-3 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-semibold text-primary-foreground"
+                >
+                  {Math.min(unreadInboxCount, 99)}
+                </span>
+              ) : null}
+            </span>
             <span className="max-w-full truncate">{item.label}</span>
           </button>
         );
@@ -505,10 +526,15 @@ function isNavigationActive(
     );
   }
 
+  if (navigationView === "inbox") {
+    return activeView === "inbox";
+  }
+
   if (navigationView === "more") {
     return (
       activeView === "more" ||
       (includeAssistantInMore && activeView === "assistant") ||
+      activeView === "notifications" ||
       activeView === "account" ||
       activeView === "reports" ||
       activeView === "tasks" ||
@@ -544,6 +570,10 @@ function isDesktopNavigationActive(
         activeCaseDestinationId !== "case-timeline" &&
         activeCaseDestinationId !== "evidence-checklist")
     );
+  }
+
+  if (item.view === "inbox") {
+    return activeView === "inbox";
   }
 
   if (item.view === "more") {

@@ -43,6 +43,7 @@ const notificationFilters: Array<{
 ];
 
 interface NotificationCenterProps {
+  onInboxChanged: () => void;
   onOpenCase: (caseId: string, destinationId: CaseDestinationId) => Promise<void>;
   onOpenSupport: (notification: AppNotification) => void;
   onUnreadCountChange: (count: number) => void;
@@ -55,6 +56,7 @@ type Notice = {
 };
 
 export function NotificationCenter({
+  onInboxChanged,
   onOpenCase,
   onOpenSupport,
   onUnreadCountChange,
@@ -109,7 +111,7 @@ export function NotificationCenter({
         if (isMounted) {
           setNotice({
             tone: "error",
-            text: error instanceof Error ? error.message : "Inbox could not be loaded."
+            text: error instanceof Error ? error.message : "Notifications could not be loaded."
           });
         }
       } finally {
@@ -137,11 +139,12 @@ export function NotificationCenter({
           notification.id === updatedNotification.id ? updatedNotification : notification
         )
       );
-      setNotice({ tone: "success", text: "Inbox item marked read." });
+      onInboxChanged();
+      setNotice({ tone: "success", text: "Notification marked read." });
     } catch (error) {
       setNotice({
         tone: "error",
-        text: error instanceof Error ? error.message : "Inbox item could not be updated."
+        text: error instanceof Error ? error.message : "Notification could not be updated."
       });
     } finally {
       setUpdatingNotificationId(null);
@@ -172,6 +175,10 @@ export function NotificationCenter({
       currentNotifications.map((notification) => updatedById.get(notification.id) ?? notification)
     );
 
+    if (updatedNotifications.length) {
+      onInboxChanged();
+    }
+
     const failedCount = results.length - updatedNotifications.length;
     setNotice(
       failedCount
@@ -179,7 +186,7 @@ export function NotificationCenter({
             tone: "error",
             text: `${updatedNotifications.length} marked read; ${failedCount} could not be updated.`
           }
-        : { tone: "success", text: "All inbox items marked read." }
+        : { tone: "success", text: "All notifications marked read." }
     );
     setIsMarkingAllRead(false);
   }
@@ -207,13 +214,13 @@ export function NotificationCenter({
       <CardHeader className="md:grid-cols-[minmax(0,1fr)_auto] md:items-start md:gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <CardTitle>Inbox</CardTitle>
+            <CardTitle>Notifications</CardTitle>
             <Badge variant={unreadCount ? "default" : "secondary"}>
               {unreadCount ? `${unreadCount} unread` : "All caught up"}
             </Badge>
           </div>
           <CardDescription>
-            Support requests, case updates, deadlines, packet results, and processing alerts.
+            Case updates, deadlines, packet results, support receipts, and processing alerts.
           </CardDescription>
         </div>
         <Button
@@ -246,7 +253,7 @@ export function NotificationCenter({
               className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
             />
             <Input
-              aria-label="Search inbox"
+              aria-label="Search notifications"
               className="pl-10 pr-12"
               onChange={(event) => {
                 const nextQuery = event.target.value;
@@ -255,13 +262,13 @@ export function NotificationCenter({
                   getTabletDefaultNotificationId(notifications, filter, nextQuery)
                 );
               }}
-              placeholder="Search inbox"
+              placeholder="Search notifications"
               type="search"
               value={searchQuery}
             />
             {searchQuery ? (
               <Button
-                aria-label="Clear inbox search"
+                aria-label="Clear notification search"
                 className="absolute right-0 top-1/2 -translate-y-1/2"
                 onClick={() => {
                   setSearchQuery("");
@@ -270,7 +277,7 @@ export function NotificationCenter({
                   );
                 }}
                 size="icon"
-                title="Clear inbox search"
+                title="Clear notification search"
                 type="button"
                 variant="ghost"
               >
@@ -285,7 +292,7 @@ export function NotificationCenter({
         </div>
 
         <div
-          aria-label="Filter inbox"
+          aria-label="Filter notifications"
           className="flex gap-1 overflow-x-auto rounded-md border border-border bg-secondary/25 p-1 scroll-container md:grid md:grid-cols-6"
           role="group"
         >
@@ -313,7 +320,7 @@ export function NotificationCenter({
         {isLoading ? (
           <div className="flex items-center gap-2 rounded-md border border-border bg-secondary/25 px-3 py-3 text-sm text-muted-foreground">
             <RefreshCcw className="h-4 w-4" aria-hidden="true" />
-            Loading inbox
+            Loading notifications
           </div>
         ) : null}
 

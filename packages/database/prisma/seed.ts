@@ -13,6 +13,10 @@ import {
   ConnectionProvider,
   InvoiceStatus,
   SubscriptionStatus,
+  SupportMessageAuthor,
+  SupportRequestCategory,
+  SupportRequestPriority,
+  SupportRequestStatus,
   TaskPriority,
   TaskStatus,
   closePrismaClient,
@@ -666,11 +670,95 @@ async function main() {
     });
   }
 
+  const inboxNow = new Date();
+  const demoSupportRequest = await prisma.supportRequest.upsert({
+    where: { id: "demo-nicholas-support-appeal" },
+    update: {
+      caseId: demoCase.id,
+      category: SupportRequestCategory.CASE_ASSISTANCE,
+      createdAt: addMinutes(inboxNow, -210),
+      message:
+        "Could you review my PayPal appeal packet and confirm whether any identity evidence is still missing?",
+      priority: SupportRequestPriority.HIGH,
+      readAt: null,
+      status: SupportRequestStatus.IN_PROGRESS,
+      subject: "PayPal account closure appeal",
+      updatedAt: addMinutes(inboxNow, -18),
+      userId: user.id
+    },
+    create: {
+      id: "demo-nicholas-support-appeal",
+      caseId: demoCase.id,
+      category: SupportRequestCategory.CASE_ASSISTANCE,
+      createdAt: addMinutes(inboxNow, -210),
+      message:
+        "Could you review my PayPal appeal packet and confirm whether any identity evidence is still missing?",
+      priority: SupportRequestPriority.HIGH,
+      readAt: null,
+      status: SupportRequestStatus.IN_PROGRESS,
+      subject: "PayPal account closure appeal",
+      updatedAt: addMinutes(inboxNow, -18),
+      userId: user.id
+    }
+  });
+
+  const demoSupportMessages = [
+    {
+      id: "demo-nicholas-support-message-review",
+      author: SupportMessageAuthor.SUPPORT,
+      createdAt: addMinutes(inboxNow, -150),
+      message:
+        "Hi Nicholas. We reviewed your appeal packet and still need a clear copy of a current government-issued ID."
+    },
+    {
+      id: "demo-nicholas-support-message-question",
+      author: SupportMessageAuthor.USER,
+      createdAt: addMinutes(inboxNow, -118),
+      message: "What types of identification can I upload for the appeal?"
+    },
+    {
+      id: "demo-nicholas-support-message-guidance",
+      author: SupportMessageAuthor.SUPPORT,
+      createdAt: addMinutes(inboxNow, -92),
+      message:
+        "A passport, driver's license, or state ID will work. Make sure the document is clear, in color, and not expired."
+    },
+    {
+      id: "demo-nicholas-support-message-confirmation",
+      author: SupportMessageAuthor.USER,
+      createdAt: addMinutes(inboxNow, -46),
+      message: "I have added my driver's license to the evidence vault."
+    },
+    {
+      id: "demo-nicholas-support-message-followup",
+      author: SupportMessageAuthor.SUPPORT,
+      createdAt: addMinutes(inboxNow, -18),
+      message:
+        "Thanks for providing the additional evidence. We will revalidate the packet and let you know if anything else is needed."
+    }
+  ];
+
+  for (const supportMessage of demoSupportMessages) {
+    await prisma.supportRequestMessage.upsert({
+      where: { id: supportMessage.id },
+      update: {
+        ...supportMessage,
+        requestId: demoSupportRequest.id
+      },
+      create: {
+        ...supportMessage,
+        requestId: demoSupportRequest.id
+      }
+    });
+  }
+
   await prisma.notification.upsert({
     where: { id: "demo-nicholas-notification-welcome" },
     update: {
       body: "A PayPal appeal case is ready for evidence review.",
       caseId: demoCase.id,
+      createdAt: addMinutes(inboxNow, -58),
+      inAppVisible: true,
       readAt: null,
       title: "Demo case ready",
       type: "demo_case_ready",
@@ -680,11 +768,57 @@ async function main() {
       id: "demo-nicholas-notification-welcome",
       body: "A PayPal appeal case is ready for evidence review.",
       caseId: demoCase.id,
+      createdAt: addMinutes(inboxNow, -58),
       title: "Demo case ready",
       type: "demo_case_ready",
       userId: user.id
     }
   });
+
+  const demoInboxNotifications = [
+    {
+      id: "demo-nicholas-notification-team",
+      body: "Please upload a clear copy of your ID so the case team can finalize the appeal.",
+      createdAt: addMinutes(inboxNow, -74),
+      readAt: null,
+      title: "Additional documentation needed",
+      type: "inbox_team_message"
+    },
+    {
+      id: "demo-nicholas-notification-packet",
+      body: "Your latest PayPal appeal packet preview is ready for review.",
+      createdAt: addMinutes(inboxNow, -240),
+      readAt: addMinutes(inboxNow, -180),
+      title: "Packet PP-2026-7909 is complete",
+      type: "packet_ready"
+    },
+    {
+      id: "demo-nicholas-notification-reminder",
+      body: "Review the remaining evidence before the PayPal appeal deadline.",
+      createdAt: addDays(inboxNow, -2),
+      readAt: addDays(inboxNow, -1),
+      title: "Upcoming appeal deadline",
+      type: "deadline_reminder"
+    }
+  ];
+
+  for (const notification of demoInboxNotifications) {
+    await prisma.notification.upsert({
+      where: { id: notification.id },
+      update: {
+        ...notification,
+        caseId: demoCase.id,
+        inAppVisible: true,
+        userId: user.id
+      },
+      create: {
+        ...notification,
+        caseId: demoCase.id,
+        inAppVisible: true,
+        userId: user.id
+      }
+    });
+  }
 
   const activityNow = new Date();
   const demoActivityLogs: Array<{

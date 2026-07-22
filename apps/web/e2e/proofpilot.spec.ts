@@ -314,6 +314,63 @@ test.describe("ProofPilot responsive workspace", () => {
     await expectNoHorizontalOverflow(page);
   });
 
+  test("demo user can review inbox conversations separately from notifications", async ({
+    page
+  }) => {
+    await loginAsDemoUser(page);
+    await navigateToInbox(page);
+
+    await expect(page.getByRole("heading", { exact: true, name: "Inbox" })).toBeVisible();
+    const supportConversation = page.getByRole("button", {
+      name: "Open ProofPilot Support: PayPal account closure appeal"
+    });
+    await expect(supportConversation).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await expectTouchTargets(page, "inbox conversation list");
+    await expectAccessible(page, "inbox conversation list");
+
+    await supportConversation.click();
+    const supportConversationDetail = page.getByRole("region", {
+      name: "PayPal account closure appeal"
+    });
+    await expect(
+      supportConversationDetail.getByRole("heading", {
+        exact: true,
+        name: "PayPal account closure appeal"
+      })
+    ).toBeVisible();
+    await expect(
+      supportConversationDetail.getByText("ProofPilot Support", { exact: true }).first()
+    ).toBeVisible();
+    await expect(page.getByLabel("Reply message")).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await expectTouchTargets(page, "inbox conversation detail");
+    await expectAccessible(page, "inbox conversation detail");
+
+    const markUnreadButton = page.getByRole("button", {
+      name: "Mark conversation unread"
+    });
+    await expect(markUnreadButton).toBeEnabled();
+    await markUnreadButton.click();
+    await expect(page.getByText("Conversation marked unread.", { exact: true })).toBeVisible();
+
+    const backButton = page.getByRole("button", { name: "Back to conversations" });
+    if (await backButton.isVisible().catch(() => false)) {
+      await backButton.click();
+    }
+    await page
+      .getByRole("button", {
+        name: "Open ProofPilot Support: PayPal account closure appeal"
+      })
+      .click();
+
+    await navigateToNotifications(page);
+    await expect(
+      page.getByRole("heading", { exact: true, name: "Notifications" })
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  });
+
   test("demo user can capture and review a document scan", async ({ page }) => {
     await page.addInitScript(() => {
       Object.defineProperty(navigator, "mediaDevices", {
@@ -602,6 +659,26 @@ async function navigateToTasks(page: Page) {
 
   await primaryNavigation.getByRole("button", { exact: true, name: "More" }).click();
   await page.getByRole("button", { name: /^Tasks/ }).click();
+}
+
+async function navigateToInbox(page: Page) {
+  await getPrimaryNavigation(page)
+    .getByRole("button", { exact: true, name: "Inbox" })
+    .click();
+}
+
+async function navigateToNotifications(page: Page) {
+  const notificationButton = page.getByRole("button", { name: /^Open notifications/ });
+
+  if (await notificationButton.isVisible().catch(() => false)) {
+    await notificationButton.click();
+    return;
+  }
+
+  await getPrimaryNavigation(page)
+    .getByRole("button", { exact: true, name: "More" })
+    .click();
+  await page.getByRole("button", { name: /^Notifications/ }).click();
 }
 
 function getVisibleTaskRow(page: Page, title: string) {

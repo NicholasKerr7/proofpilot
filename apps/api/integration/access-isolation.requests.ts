@@ -14,6 +14,7 @@ export const guardedPaths = [
   `/cases/${isolationIds.case}/collaboration`,
   "/connections",
   `/cases/${isolationIds.case}/documents`,
+  "/inbox/conversations",
   "/notifications",
   `/cases/${isolationIds.case}/packet-shares/prepare`,
   "/reports/summary",
@@ -36,6 +37,8 @@ export const crossUserReads = [
   `/cases/${isolationIds.case}/documents`,
   `/documents/${isolationIds.document}`,
   `/documents/${isolationIds.document}/processing-status`,
+  `/inbox/conversations/NOTIFICATION/${isolationIds.notification}`,
+  `/inbox/conversations/SUPPORT_REQUEST/${isolationIds.support}`,
   `/cases/${isolationIds.case}/reminders`,
   `/cases/${isolationIds.case}/packet-shares/prepare`,
   `/support/requests/${isolationIds.support}`,
@@ -49,6 +52,7 @@ export const ownerScopedCollections = [
   "/billing",
   "/cases",
   "/connections",
+  "/inbox/conversations",
   "/notifications",
   "/reminders",
   "/reports/summary",
@@ -165,6 +169,16 @@ export function getCrossUserMutations(): RequestSpec[] {
       path: `/reminders/${isolationIds.reminder}`
     },
     { method: "DELETE", path: `/reminders/${isolationIds.reminder}` },
+    {
+      body: { read: true },
+      method: "PATCH",
+      path: `/inbox/conversations/NOTIFICATION/${isolationIds.notification}/read`
+    },
+    {
+      body: { read: true },
+      method: "PATCH",
+      path: `/inbox/conversations/SUPPORT_REQUEST/${isolationIds.support}/read`
+    },
     {
       body: {
         description: "Unauthorized foreign task",

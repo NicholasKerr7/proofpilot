@@ -110,7 +110,8 @@ export class SupportService {
           category: input.category,
           subject,
           message,
-          priority: input.priority
+          priority: input.priority,
+          readAt: new Date()
         },
         select: supportRequestSelect
       });
@@ -207,7 +208,7 @@ export class SupportService {
 
       await tx.supportRequest.update({
         where: { id: request.id },
-        data: { updatedAt: new Date() }
+        data: { readAt: new Date(), updatedAt: new Date() }
       });
 
       await tx.notification.create({

@@ -188,9 +188,9 @@ export function MoreMenu({
               onClick={onCreateCase}
             />
             <MoreDestination
-              detail="Review case updates and processing results."
+              detail="Review alerts, reminders, and processing results."
               icon={Bell}
-              label="Inbox"
+              label="Notifications"
               onClick={onOpenNotifications}
             />
             <MoreDestination

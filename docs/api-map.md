@@ -101,6 +101,15 @@ Upload completion validates the private staging object and performs a ClamAV str
 
 Processed and deleted documents automatically refresh checklist matches. Users can explicitly complete or reopen owned checklist items; manual completions remain stable when evidence is re-analyzed.
 
+## Inbox
+
+- `GET /inbox/conversations`
+- `GET /inbox/conversations/:source/:conversationId`
+- `PATCH /inbox/conversations/:source/:conversationId/read`
+- `PATCH /inbox/read-all`
+
+The Inbox is an authenticated projection of the user's support requests and eligible in-app notification records. Support receipt notifications are excluded so a support thread appears only once, and notifications attached only to archived cases are omitted. Detail and read-state mutations resolve both the conversation source and authenticated user ID; cross-user records return `404`. Mark-all updates only unread support requests and eligible notifications owned by the current user.
+
 ## Notifications and Reminders
 
 - `GET /notifications`
@@ -122,7 +131,7 @@ Task collections include only active cases the authenticated user can read. Crea
 completing, reopening, and deleting tasks require Editor or Owner access to the associated case.
 Task audits retain identifiers and workflow state without duplicating task titles or descriptions.
 
-`GET /notifications` is read-only and returns only in-app-visible records. The worker claims due reminders through the scheduled `reminder-delivery` queue and creates delivery records independently of notification-inbox traffic. New deadline, case-update, evidence-processing, and packet-result alerts honor the owner's current in-app and email preferences. The scheduled `notification-email` queue leases pending email records, rechecks preferences, and delivers them with bounded retries.
+`GET /notifications` is read-only and returns only in-app-visible records for the separate Notifications center. The worker claims due reminders through the scheduled `reminder-delivery` queue and creates delivery records independently of notification-center traffic. New deadline, case-update, evidence-processing, and packet-result alerts honor the owner's current in-app and email preferences. The scheduled `notification-email` queue leases pending email records, rechecks preferences, and delivers them with bounded retries.
 
 ## Assistant
 
@@ -176,6 +185,8 @@ Report summaries include open cases, uploaded evidence, missing required checkli
 - `GET /support/requests/:id`
 - `POST /support/requests/:id/messages`
 - `POST /support/article-feedback`
+
+Support request lists, details, and follow-ups are restricted to the authenticated owner. Creating a request or adding a user follow-up marks its Inbox conversation read; the Inbox projection supplies the combined conversation history and reply surface.
 
 ## Search
 
