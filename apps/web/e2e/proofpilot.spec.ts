@@ -255,6 +255,65 @@ test.describe("ProofPilot responsive workspace", () => {
     await expectAccessible(page, "security and active sessions workspace");
   });
 
+  test("demo user can create, complete, edit, and delete a case task", async ({
+    page
+  }) => {
+    await loginAsDemoUser(page);
+    await navigateToTasks(page);
+
+    await expect(page.getByRole("heading", { exact: true, name: "Tasks" })).toBeVisible();
+    await expect(getVisibleTaskRow(page, "Upload proof of identity")).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await expectTouchTargets(page, "tasks workspace");
+    await expectAccessible(page, "tasks workspace");
+
+    const taskTitle = `Task verification ${Date.now()}`;
+    const updatedTitle = `${taskTitle} updated`;
+    await page.getByRole("button", { exact: true, name: "Add task" }).click();
+
+    const taskEditor = page.getByRole("region", { name: "Add a case task" });
+    await taskEditor.getByLabel("Task", { exact: true }).fill(taskTitle);
+    await taskEditor
+      .getByLabel("Description", { exact: true })
+      .fill("Created by the responsive task workflow test.");
+    await taskEditor.getByLabel("Priority", { exact: true }).selectOption("HIGH");
+    await taskEditor.getByLabel("Due date", { exact: true }).fill("2099-07-30");
+    await taskEditor.getByRole("button", { exact: true, name: "Add task" }).click();
+
+    await expect(page.getByText("Task added.", { exact: true })).toBeVisible();
+    let taskRow = getVisibleTaskRow(page, taskTitle);
+    await expect(taskRow).toBeVisible();
+    await taskRow.getByRole("checkbox", { name: `Complete ${taskTitle}` }).click();
+    await expect(page.getByText("Task completed.", { exact: true })).toBeVisible();
+    await expect(
+      taskRow.getByRole("checkbox", { name: `Reopen ${taskTitle}` })
+    ).toBeChecked();
+
+    await taskRow.getByRole("button", { name: `Edit ${taskTitle}` }).click();
+    const editTaskEditor = page.getByRole("region", { name: "Edit task" });
+    await editTaskEditor.getByLabel("Task", { exact: true }).fill(updatedTitle);
+    await editTaskEditor
+      .getByRole("button", { exact: true, name: "Save task" })
+      .click();
+
+    await expect(page.getByText("Task updated.", { exact: true })).toBeVisible();
+    taskRow = getVisibleTaskRow(page, updatedTitle);
+    await expect(taskRow).toBeVisible();
+    await taskRow.getByRole("button", { name: `Edit ${updatedTitle}` }).click();
+    await page
+      .getByRole("region", { name: "Edit task" })
+      .getByRole("button", { exact: true, name: "Delete" })
+      .click();
+    await page
+      .getByRole("region", { name: "Edit task" })
+      .getByRole("button", { exact: true, name: "Delete" })
+      .click();
+
+    await expect(page.getByText("Task deleted.", { exact: true })).toBeVisible();
+    await expect(getVisibleTaskRow(page, updatedTitle)).toHaveCount(0);
+    await expectNoHorizontalOverflow(page);
+  });
+
   test("demo user can capture and review a document scan", async ({ page }) => {
     await page.addInitScript(() => {
       Object.defineProperty(navigator, "mediaDevices", {
@@ -527,6 +586,26 @@ async function navigateToReports(page: Page) {
 
   await primaryNavigation.getByRole("button", { exact: true, name: "More" }).click();
   await page.getByRole("button", { name: /^Reports/ }).click();
+}
+
+async function navigateToTasks(page: Page) {
+  const primaryNavigation = getPrimaryNavigation(page);
+  const tasksButton = primaryNavigation.getByRole("button", {
+    exact: true,
+    name: "Tasks"
+  });
+
+  if (await tasksButton.isVisible().catch(() => false)) {
+    await tasksButton.click();
+    return;
+  }
+
+  await primaryNavigation.getByRole("button", { exact: true, name: "More" }).click();
+  await page.getByRole("button", { name: /^Tasks/ }).click();
+}
+
+function getVisibleTaskRow(page: Page, title: string) {
+  return page.locator("article:visible").filter({ hasText: title });
 }
 
 async function expectNavigationTargets(navigation: Locator) {

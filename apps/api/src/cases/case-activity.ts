@@ -19,6 +19,9 @@ const caseActions = [
   "case.created",
   "case.updated",
   "case.archived",
+  "case.task_created",
+  "case.task_updated",
+  "case.task_deleted",
   "report.csv_exported",
   "support.request_created",
   "demo.seeded"
@@ -78,6 +81,12 @@ function getActivityPresentation(
       return activity("case", "Case details updated", getUpdatedFieldsDetail(metadata));
     case "case.archived":
       return activity("case", "Case archived", readString(metadata, "title"));
+    case "case.task_created":
+      return activity("case", "Task added", getTaskStateDetail(metadata));
+    case "case.task_updated":
+      return activity("case", "Task updated", getTaskStateDetail(metadata));
+    case "case.task_deleted":
+      return activity("case", "Task removed", null);
     case "report.csv_exported":
       return activity("case", "CSV report exported", getReportRowDetail(metadata));
     case "support.request_created":
@@ -190,6 +199,17 @@ function getUpdatedFieldsDetail(metadata: Record<string, unknown>) {
   return `${fields.map(formatFieldName).join(", ")} changed`;
 }
 
+function getTaskStateDetail(metadata: Record<string, unknown>) {
+  const status = readString(metadata, "status");
+  const priority = readString(metadata, "priority");
+
+  if (status && priority) {
+    return `${formatEnumValue(status)}, ${formatEnumValue(priority)} priority`;
+  }
+
+  return status ? formatEnumValue(status) : null;
+}
+
 function getDocumentName(metadata: Record<string, unknown>) {
   return readString(metadata, "originalName");
 }
@@ -286,6 +306,11 @@ function getSummaryDetail(metadata: Record<string, unknown>) {
 
 function formatFieldName(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function formatEnumValue(value: string) {
+  const normalized = value.toLowerCase().replaceAll("_", " ");
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
 function getFallbackCategory(action: string): CaseActivityItemCategory {

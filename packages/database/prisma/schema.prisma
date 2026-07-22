@@ -143,6 +143,19 @@ enum PacketSharePermission {
   DOWNLOAD
 }
 
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  REVIEW
+  COMPLETED
+}
+
 model User {
   id                  String               @id @default(cuid())
   email               String               @unique
@@ -318,9 +331,28 @@ model Case {
   collaborators     CaseCollaborator[]
   sharingSettings   CaseSharingSettings?
   packetShares      PacketShare[]
+  tasks             CaseTask[]
 
   @@index([ownerId, status])
   @@index([caseTypeId])
+}
+
+model CaseTask {
+  id          String       @id @default(cuid())
+  caseId      String
+  case        Case         @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  status      TaskStatus   @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
+  dueAt       DateTime?
+  progress    Int          @default(0)
+  completedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([caseId, status])
+  @@index([caseId, dueAt])
 }
 
 model CaseCollaborator {

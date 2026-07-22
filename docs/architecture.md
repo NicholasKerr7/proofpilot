@@ -16,7 +16,7 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 
 ## Local Services
 
-- PostgreSQL stores users, cases, assistant threads and messages, audit logs, connection metadata, billing metadata, evidence metadata, timelines, checklist data, statements, packet exports, packet shares, notifications, and jobs.
+- PostgreSQL stores users, cases, tasks, assistant threads and messages, audit logs, connection metadata, billing metadata, evidence metadata, timelines, checklist data, statements, packet exports, packet shares, notifications, and jobs.
 - Redis backs document processing, notification email delivery, packet generation, reminder delivery, and upload cleanup BullMQ queues.
 - MinIO provides a local S3-compatible private storage target.
 - ClamAV can scan private uploads through an opt-in local security profile or a private production service.
@@ -48,6 +48,7 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 - Collaboration management resolves every case through the authenticated owner ID. Audit metadata records collaborator IDs, roles, and changed setting names without storing invited email addresses.
 - Packet-share creation and revocation resolve the ready export through the authenticated case owner. Audit metadata stores share IDs, recipient counts, permissions, and expiry without storing raw tokens or recipient addresses.
 - Statement guidance, version restore, and summary generation resolve authenticated edit access to the active case. Audit metadata stores record IDs, answer counts, and source counts without duplicating answers, drafts, or summary text.
+- Task reads resolve authenticated case access, while task mutations require Editor or Owner access. Task audit metadata records identifiers, priority, status, and progress without duplicating user-authored task content.
 
 Extracted document text is source evidence rather than user-authored application metadata, so processing preserves it for review and search. It is still rendered only through escaped text contexts and normalized before PDF drawing; it is never inserted as executable HTML.
 

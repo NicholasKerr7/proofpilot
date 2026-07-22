@@ -38,6 +38,7 @@ import { ReportsPanel } from "@/components/app/reports/reports-panel";
 import { SearchPanel } from "@/components/app/search/search-panel";
 import { SecurityPrivacyPanel } from "@/components/app/security/security-privacy-panel";
 import { SettingsPanel } from "@/components/app/settings/settings-panel";
+import { TasksPanel } from "@/components/app/tasks/tasks-panel";
 import { Badge } from "@/components/ui/badge";
 import { apiRequest, ApiClientError } from "@/lib/client/api";
 import type {
@@ -804,6 +805,7 @@ export function ProofPilotApp() {
           onOpenSearch={() => handleNavigate("search")}
           onOpenSecurity={() => handleNavigate("security")}
           onOpenSettings={() => handleNavigate("settings")}
+          onOpenTasks={() => handleNavigate("tasks")}
           onViewCases={() => handleNavigate("cases")}
           selectedCase={selectedCase}
           user={user}
@@ -815,6 +817,17 @@ export function ProofPilotApp() {
           cases={cases}
           onOpenCase={handleOpenCase}
           selectedCaseId={selectedCase?.id ?? null}
+        />
+      ) : null}
+
+      {activeView === "tasks" ? (
+        <TasksPanel
+          cases={cases}
+          onOpenCase={(caseId) => {
+            void handleOpenCase(caseId, "case-overview");
+          }}
+          ownerName={user.name ?? user.email}
+          selectedCase={selectedCase}
         />
       ) : null}
 

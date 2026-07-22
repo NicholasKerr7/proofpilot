@@ -14,6 +14,9 @@ describe("case activity presentation", () => {
         "case.created",
         "case.updated",
         "case.archived",
+        "case.task_created",
+        "case.task_updated",
+        "case.task_deleted",
         "report.csv_exported",
         "support.request_created",
         "demo.seeded"
@@ -123,6 +126,31 @@ describe("case activity presentation", () => {
       category: "checklist",
       title: "Checklist item completed",
       detail: "Account ownership proof",
+      createdAt: createdAt.toISOString()
+    });
+    expect(item).not.toHaveProperty("metadata");
+  });
+
+  it("presents task workflow state without exposing task content or IDs", () => {
+    const item = toCaseActivityItem({
+      id: "activity-task",
+      action: "case.task_updated",
+      metadata: {
+        taskId: "task-private",
+        title: "Sensitive task title",
+        description: "Sensitive task description",
+        status: "IN_PROGRESS",
+        priority: "HIGH"
+      },
+      createdAt
+    });
+
+    expect(item).toEqual({
+      id: "activity-task",
+      action: "case.task_updated",
+      category: "case",
+      title: "Task updated",
+      detail: "In progress, High priority",
       createdAt: createdAt.toISOString()
     });
     expect(item).not.toHaveProperty("metadata");

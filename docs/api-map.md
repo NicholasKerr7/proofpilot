@@ -111,6 +111,17 @@ Processed and deleted documents automatically refresh checklist matches. Users c
 - `PATCH /reminders/:reminderId`
 - `DELETE /reminders/:reminderId`
 
+## Tasks
+
+- `GET /tasks`
+- `POST /cases/:caseId/tasks`
+- `PATCH /tasks/:taskId`
+- `DELETE /tasks/:taskId`
+
+Task collections include only active cases the authenticated user can read. Creating, editing,
+completing, reopening, and deleting tasks require Editor or Owner access to the associated case.
+Task audits retain identifiers and workflow state without duplicating task titles or descriptions.
+
 `GET /notifications` is read-only and returns only in-app-visible records. The worker claims due reminders through the scheduled `reminder-delivery` queue and creates delivery records independently of notification-inbox traffic. New deadline, case-update, evidence-processing, and packet-result alerts honor the owner's current in-app and email preferences. The scheduled `notification-email` queue leases pending email records, rechecks preferences, and delivers them with bounded retries.
 
 ## Assistant

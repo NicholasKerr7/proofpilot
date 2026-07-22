@@ -13,4 +13,5 @@ export * from "./security.js";
 export * from "./settings.js";
 export * from "./support.js";
 export * from "./search.js";
+export * from "./tasks.js";
 export * from "./text.js";

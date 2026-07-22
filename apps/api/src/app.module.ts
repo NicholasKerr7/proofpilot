@@ -21,6 +21,7 @@ import { SearchModule } from "./search/search.module.js";
 import { SecurityModule } from "./security/security.module.js";
 import { SettingsModule } from "./settings/settings.module.js";
 import { SupportModule } from "./support/support.module.js";
+import { TasksModule } from "./tasks/tasks.module.js";
 
 @Module({
   imports: [
@@ -43,7 +44,8 @@ import { SupportModule } from "./support/support.module.js";
     SearchModule,
     SecurityModule,
     SettingsModule,
-    SupportModule
+    SupportModule,
+    TasksModule
   ]
 })
 export class AppModule implements NestModule {

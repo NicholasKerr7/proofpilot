@@ -63,6 +63,7 @@ interface MoreMenuProps {
   onOpenSearch: () => void;
   onOpenSecurity: () => void;
   onOpenSettings: () => void;
+  onOpenTasks: () => void;
   onViewCases: () => void;
   selectedCase: CaseRecord | null;
   user: AuthUser;
@@ -82,6 +83,7 @@ export function MoreMenu({
   onOpenSearch,
   onOpenSecurity,
   onOpenSettings,
+  onOpenTasks,
   onViewCases,
   selectedCase,
   user
@@ -196,6 +198,12 @@ export function MoreMenu({
               icon={CalendarDays}
               label="Calendar & deadlines"
               onClick={onOpenCalendar}
+            />
+            <MoreDestination
+              detail="Manage case actions, priorities, due dates, and completion progress."
+              icon={ListChecks}
+              label="Tasks"
+              onClick={onOpenTasks}
             />
             <MoreDestination
               detail="Find cases, evidence, timelines, packets, and support requests."

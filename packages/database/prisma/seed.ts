@@ -13,6 +13,8 @@ import {
   ConnectionProvider,
   InvoiceStatus,
   SubscriptionStatus,
+  TaskPriority,
+  TaskStatus,
   closePrismaClient,
   getPrismaClient
 } from "../src/index.js";
@@ -563,6 +565,106 @@ async function main() {
       remindAt: reminderDate
     }
   });
+
+  const taskNow = new Date();
+  const demoTasks = [
+    {
+      id: "demo-nicholas-task-identity",
+      title: "Upload proof of identity",
+      description: "Provide a valid government-issued ID.",
+      priority: TaskPriority.HIGH,
+      status: TaskStatus.IN_PROGRESS,
+      progress: 40,
+      dueAt: addDays(taskNow, 2)
+    },
+    {
+      id: "demo-nicholas-task-communication",
+      title: "Review communication log",
+      description: "Verify all platform communications and support notes.",
+      priority: TaskPriority.HIGH,
+      status: TaskStatus.TODO,
+      progress: 0,
+      dueAt: addDays(taskNow, 4)
+    },
+    {
+      id: "demo-nicholas-task-statement",
+      title: "Finalize statement draft",
+      description: "Complete and polish the appeal statement.",
+      priority: TaskPriority.HIGH,
+      status: TaskStatus.IN_PROGRESS,
+      progress: 60,
+      dueAt: addDays(taskNow, 6)
+    },
+    {
+      id: "demo-nicholas-task-preview",
+      title: "Generate packet preview",
+      description: "Review the full packet before submission.",
+      priority: TaskPriority.MEDIUM,
+      status: TaskStatus.TODO,
+      progress: 0,
+      dueAt: addDays(taskNow, 8)
+    },
+    {
+      id: "demo-nicholas-task-evidence",
+      title: "Upload additional evidence",
+      description: "Add supporting documents and account screenshots.",
+      priority: TaskPriority.MEDIUM,
+      status: TaskStatus.TODO,
+      progress: 0,
+      dueAt: addDays(taskNow, 8)
+    },
+    {
+      id: "demo-nicholas-task-notes",
+      title: "Add supporting notes",
+      description: "Include context and explanations for the reviewer.",
+      priority: TaskPriority.LOW,
+      status: TaskStatus.REVIEW,
+      progress: 90,
+      dueAt: addDays(taskNow, 9)
+    },
+    {
+      id: "demo-nicholas-task-submit",
+      title: "Submit appeal",
+      description: "Send the completed appeal package to PayPal.",
+      priority: TaskPriority.LOW,
+      status: TaskStatus.TODO,
+      progress: 0,
+      dueAt: addDays(taskNow, 12)
+    },
+    {
+      id: "demo-nicholas-task-response",
+      title: "Review PayPal response",
+      description: "Record the latest platform response in the case timeline.",
+      priority: TaskPriority.LOW,
+      status: TaskStatus.COMPLETED,
+      progress: 100,
+      dueAt: addDays(taskNow, -1)
+    }
+  ];
+
+  for (const task of demoTasks) {
+    const completedAt =
+      task.status === TaskStatus.COMPLETED ? addDays(taskNow, -1) : null;
+
+    await prisma.caseTask.upsert({
+      where: { id: task.id },
+      update: {
+        caseId: demoCase.id,
+        completedAt,
+        description: task.description,
+        dueAt: task.dueAt,
+        priority: task.priority,
+        progress: task.progress,
+        status: task.status,
+        title: task.title
+      },
+      create: {
+        ...task,
+        caseId: demoCase.id,
+        completedAt
+      }
+    });
+  }
 
   await prisma.notification.upsert({
     where: { id: "demo-nicholas-notification-welcome" },

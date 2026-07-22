@@ -20,7 +20,8 @@ export const guardedPaths = [
   "/search?q=fixture",
   "/security",
   "/settings",
-  "/support/requests"
+  "/support/requests",
+  "/tasks"
 ];
 
 export const crossUserReads = [
@@ -54,7 +55,8 @@ export const ownerScopedCollections = [
   "/search?q=fixture",
   "/security",
   "/settings",
-  "/support/requests"
+  "/support/requests",
+  "/tasks"
 ];
 
 export function getCrossUserMutations(): RequestSpec[] {
@@ -163,6 +165,21 @@ export function getCrossUserMutations(): RequestSpec[] {
       path: `/reminders/${isolationIds.reminder}`
     },
     { method: "DELETE", path: `/reminders/${isolationIds.reminder}` },
+    {
+      body: {
+        description: "Unauthorized foreign task",
+        priority: "HIGH",
+        title: "Unauthorized task"
+      },
+      method: "POST",
+      path: `/cases/${isolationIds.case}/tasks`
+    },
+    {
+      body: { progress: 100, status: "COMPLETED" },
+      method: "PATCH",
+      path: `/tasks/${isolationIds.task}`
+    },
+    { method: "DELETE", path: `/tasks/${isolationIds.task}` },
     { method: "PATCH", path: `/notifications/${isolationIds.notification}/read` },
     {
       body: {

@@ -19,6 +19,7 @@ export const isolationIds = {
   statementVersion: `${isolationRunId}-statement-version`,
   summary: `${isolationRunId}-summary`,
   support: `${isolationRunId}-support`,
+  task: `${isolationRunId}-task`,
   thread: `${isolationRunId}-thread`
 };
 
@@ -66,6 +67,7 @@ export async function readProtectedState(client: PrismaService) {
     packet,
     share,
     support,
+    task,
     eventCount,
     checklistCount,
     versionCount,
@@ -122,6 +124,10 @@ export async function readProtectedState(client: PrismaService) {
       where: { id: isolationIds.support },
       select: { status: true, subject: true }
     }),
+    client.caseTask.findUnique({
+      where: { id: isolationIds.task },
+      select: { priority: true, progress: true, status: true, title: true }
+    }),
     client.caseEvent.count({ where: { caseId: isolationIds.case } }),
     client.caseChecklistItem.count({ where: { caseId: isolationIds.case } }),
     client.statementVersion.count({
@@ -151,6 +157,7 @@ export async function readProtectedState(client: PrismaService) {
     statementVersion,
     summaryCount,
     support,
+    task,
     threadCount,
     versionCount
   };
@@ -227,6 +234,18 @@ async function createForeignResources(client: PrismaService, ownerId: string) {
         caseId: isolationIds.case,
         message: "Foreign reminder",
         remindAt: new Date("2026-08-01T12:00:00.000Z")
+      }
+    }),
+    client.caseTask.create({
+      data: {
+        id: isolationIds.task,
+        caseId: isolationIds.case,
+        description: "Foreign task description",
+        dueAt: new Date("2026-08-02T12:00:00.000Z"),
+        priority: "HIGH",
+        progress: 25,
+        status: "IN_PROGRESS",
+        title: "Foreign ownership task"
       }
     }),
     client.notification.create({

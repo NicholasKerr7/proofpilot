@@ -39,6 +39,7 @@ export type AppView =
   | "notifications"
   | "account"
   | "reports"
+  | "tasks"
   | "calendar"
   | "settings"
   | "connections"
@@ -86,7 +87,7 @@ const desktopNavItems: DesktopNavigationItem[] = [
   { label: "Upload / Evidence", view: "upload", icon: UploadCloud },
   { label: "Inbox", view: "notifications", icon: Inbox },
   { label: "Timeline", destinationId: "case-timeline", icon: Clock3 },
-  { label: "Tasks", destinationId: "evidence-checklist", icon: ListChecks },
+  { label: "Tasks", view: "tasks", icon: ListChecks },
   { label: "Reports", view: "reports", icon: BarChart3 },
   { label: "More", view: "more", icon: Menu }
 ];
@@ -510,6 +511,7 @@ function isNavigationActive(
       (includeAssistantInMore && activeView === "assistant") ||
       activeView === "account" ||
       activeView === "reports" ||
+      activeView === "tasks" ||
       activeView === "calendar" ||
       activeView === "settings" ||
       activeView === "connections" ||
