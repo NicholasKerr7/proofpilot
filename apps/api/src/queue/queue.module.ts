@@ -1,5 +1,6 @@
 import { Global, Module } from "@nestjs/common";
 import { DocumentProcessingQueueService } from "./document-processing-queue.service.js";
+import { NotificationEmailQueueService } from "./notification-email-queue.service.js";
 import { PacketGenerationQueueService } from "./packet-generation-queue.service.js";
 import { QueueHealthService } from "./queue-health.service.js";
 import { ReminderDeliveryQueueService } from "./reminder-delivery-queue.service.js";
@@ -9,6 +10,7 @@ import { UploadCleanupQueueService } from "./upload-cleanup-queue.service.js";
 @Module({
   providers: [
     DocumentProcessingQueueService,
+    NotificationEmailQueueService,
     PacketGenerationQueueService,
     ReminderDeliveryQueueService,
     UploadCleanupQueueService,
@@ -16,6 +18,7 @@ import { UploadCleanupQueueService } from "./upload-cleanup-queue.service.js";
   ],
   exports: [
     DocumentProcessingQueueService,
+    NotificationEmailQueueService,
     PacketGenerationQueueService,
     ReminderDeliveryQueueService,
     UploadCleanupQueueService,

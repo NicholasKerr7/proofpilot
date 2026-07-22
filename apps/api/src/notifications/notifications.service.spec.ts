@@ -25,7 +25,9 @@ function createPrismaMock() {
       findFirst: vi.fn()
     },
     notification: {
-      findMany: vi.fn().mockResolvedValue([])
+      findFirst: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
+      update: vi.fn()
     },
     reminder: {
       findFirst: vi.fn(),
@@ -219,12 +221,36 @@ describe("NotificationsService", () => {
     await expect(service.list(ownerId)).resolves.toEqual([]);
 
     expect(prisma.notification.findMany).toHaveBeenCalledWith({
-      where: { userId: ownerId },
+      where: {
+        inAppVisible: true,
+        userId: ownerId
+      },
       orderBy: { createdAt: "desc" },
       select: expect.any(Object),
       take: 50
     });
     expect(prisma.reminder.findMany).not.toHaveBeenCalled();
     expect(prisma.transactionClient.reminder.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("does not expose email-only notifications through mark-read lookup", async () => {
+    prisma.notification.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.markRead(ownerId, "email-only-notification")
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(prisma.notification.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "email-only-notification",
+        inAppVisible: true,
+        userId: ownerId
+      },
+      select: {
+        id: true,
+        readAt: true
+      }
+    });
+    expect(prisma.notification.update).not.toHaveBeenCalled();
   });
 });

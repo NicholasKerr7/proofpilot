@@ -11,6 +11,7 @@ import {
   emailMimeType,
   xlsxMimeType
 } from "@proofpilot/types/evidence";
+import { buildNotificationDelivery } from "@proofpilot/types";
 import type { AddressObject, ParsedMail } from "mailparser";
 import { simpleParser } from "mailparser";
 import mammoth from "mammoth";
@@ -67,6 +68,7 @@ export async function processUploadedDocument(job: Job<ProcessDocumentJobData>) 
             select: {
               preference: {
                 select: {
+                  emailNotifications: true,
                   inAppNotifications: true,
                   notifyEvidenceProcessing: true
                 }
@@ -200,9 +202,22 @@ export async function processUploadedDocument(job: Job<ProcessDocumentJobData>) 
   } catch (error) {
     const message = error instanceof Error ? error.message : "Document processing failed.";
     const preference = document.case.owner.preference;
-    const shouldNotify =
-      preference?.inAppNotifications !== false &&
-      preference?.notifyEvidenceProcessing !== false;
+    const notificationDelivery = buildNotificationDelivery({
+      event: {
+        body: `${document.originalName} needs review for ${document.case.title}. ${truncateMessage(message)}`,
+        caseId: document.case.id,
+        title: "Evidence processing failed",
+        type: "processing_failed",
+        userId: document.case.ownerId
+      },
+      preference: preference
+        ? {
+            categoryEnabled: preference.notifyEvidenceProcessing,
+            emailNotifications: preference.emailNotifications,
+            inAppNotifications: preference.inAppNotifications
+          }
+        : null
+    });
 
     await prisma.$transaction([
       prisma.document.update({
@@ -217,16 +232,10 @@ export async function processUploadedDocument(job: Job<ProcessDocumentJobData>) 
           message
         }
       }),
-      ...(shouldNotify
+      ...(notificationDelivery
         ? [
             prisma.notification.create({
-              data: {
-                userId: document.case.ownerId,
-                caseId: document.case.id,
-                type: "processing_failed",
-                title: "Evidence processing failed",
-                body: `${document.originalName} needs review for ${document.case.title}. ${truncateMessage(message)}`
-              }
+              data: notificationDelivery.data
             })
           ]
         : []),

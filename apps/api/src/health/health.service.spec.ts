@@ -61,6 +61,7 @@ describe("HealthService", () => {
     queueHealth.getHealth.mockResolvedValue(
       queueHealthResult([
         queueSnapshot("document-processing"),
+        queueSnapshot("notification-email"),
         queueSnapshot("packet-generation"),
         queueSnapshot("reminder-delivery"),
         queueSnapshot("upload-cleanup")
@@ -104,6 +105,7 @@ describe("HealthService", () => {
     queueHealth.getHealth.mockResolvedValue(
       queueHealthResult([
         queueSnapshot("document-processing"),
+        queueSnapshot("notification-email"),
         {
           error: "connect ECONNREFUSED redis.internal:6379",
           name: "packet-generation",
@@ -136,6 +138,7 @@ describe("HealthService", () => {
     queueHealth.getHealth.mockResolvedValue(
       queueHealthResult([
         queueSnapshot("document-processing", "degraded"),
+        queueSnapshot("notification-email"),
         queueSnapshot("packet-generation"),
         queueSnapshot("reminder-delivery"),
         queueSnapshot("upload-cleanup")

@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@proofpilot/database";
 import { getPrismaClient } from "@proofpilot/database";
+import { buildNotificationDelivery } from "@proofpilot/types";
 import type { Job } from "bullmq";
 import type { DeliverRemindersJobData } from "../queues/reminder-delivery.queue.js";
 
@@ -43,6 +44,7 @@ export async function deliverDueReminderBatch(
             select: {
               preference: {
                 select: {
+                  emailNotifications: true,
                   inAppNotifications: true,
                   notifyDeadlineReminders: true
                 }
@@ -78,19 +80,27 @@ export async function deliverDueReminderBatch(
       }
 
       const preference = reminder.case.owner.preference;
-      const shouldNotify =
-        preference?.inAppNotifications !== false &&
-        preference?.notifyDeadlineReminders !== false;
+      const notificationDelivery = buildNotificationDelivery({
+        event: {
+          body: reminder.message,
+          caseId: reminder.case.id,
+          title: `Reminder: ${reminder.case.title}`,
+          type: "deadline_reminder",
+          userId: reminder.case.ownerId
+        },
+        now,
+        preference: preference
+          ? {
+              categoryEnabled: preference.notifyDeadlineReminders,
+              emailNotifications: preference.emailNotifications,
+              inAppNotifications: preference.inAppNotifications
+            }
+          : null
+      });
 
-      if (shouldNotify) {
+      if (notificationDelivery) {
         await tx.notification.create({
-          data: {
-            body: reminder.message,
-            caseId: reminder.case.id,
-            title: `Reminder: ${reminder.case.title}`,
-            type: "deadline_reminder",
-            userId: reminder.case.ownerId
-          }
+          data: notificationDelivery.data
         });
       }
 
@@ -99,7 +109,7 @@ export async function deliverDueReminderBatch(
           action: "case.reminder_sent",
           caseId: reminder.case.id,
           metadata: {
-            delivery: shouldNotify ? "in_app" : "suppressed",
+            delivery: notificationDelivery?.channels.join(",") ?? "suppressed",
             reminderId: reminder.id,
             remindAt: reminder.remindAt.toISOString()
           },
@@ -107,7 +117,7 @@ export async function deliverDueReminderBatch(
         }
       });
 
-      return shouldNotify ? ("delivered" as const) : ("suppressed" as const);
+      return notificationDelivery ? ("delivered" as const) : ("suppressed" as const);
     });
 
     if (outcome === "contended") {

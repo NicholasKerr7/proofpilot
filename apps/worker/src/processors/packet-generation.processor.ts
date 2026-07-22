@@ -6,6 +6,7 @@ import {
   PacketStatus
 } from "@proofpilot/database";
 import { readStoredObjectChunks, writeStoredObjectBytes } from "@proofpilot/storage";
+import { buildNotificationDelivery } from "@proofpilot/types";
 import { randomUUID } from "node:crypto";
 import type { GeneratePacketJobData } from "../queues/packet-generation.queue.js";
 import {
@@ -18,7 +19,11 @@ const prisma = getPrismaClient();
 
 interface PacketFailureContext {
   caseId: string;
-  createNotification: boolean;
+  notificationPreference: {
+    emailNotifications: boolean;
+    inAppNotifications: boolean;
+    notifyPacketReady: boolean;
+  } | null;
   packetId: string;
   ownerId: string;
   platform: string;
@@ -79,6 +84,7 @@ export async function generateCasePacket(job: Job<GeneratePacketJobData>) {
                 name: true,
                 preference: {
                   select: {
+                    emailNotifications: true,
                     inAppNotifications: true,
                     notifyPacketReady: true
                   }
@@ -161,9 +167,7 @@ export async function generateCasePacket(job: Job<GeneratePacketJobData>) {
 
     failureContext = {
       caseId: packet.case.id,
-      createNotification:
-        packet.case.owner.preference?.inAppNotifications !== false &&
-        packet.case.owner.preference?.notifyPacketReady !== false,
+      notificationPreference: packet.case.owner.preference,
       ownerId: packet.case.ownerId,
       packetId: packet.id,
       platform: packet.case.platform,
@@ -193,6 +197,22 @@ export async function generateCasePacket(job: Job<GeneratePacketJobData>) {
       body: pdf.bytes,
       contentType: "application/pdf",
       key: storageKey
+    });
+    const notificationDelivery = buildNotificationDelivery({
+      event: {
+        body: `${packet.case.platform} packet for ${packet.case.title} is ready to download.`,
+        caseId: packet.case.id,
+        title: "Packet ready",
+        type: "packet_ready",
+        userId: packet.case.ownerId
+      },
+      preference: failureContext.notificationPreference
+        ? {
+            categoryEnabled: failureContext.notificationPreference.notifyPacketReady,
+            emailNotifications: failureContext.notificationPreference.emailNotifications,
+            inAppNotifications: failureContext.notificationPreference.inAppNotifications
+          }
+        : null
     });
 
     await prisma.$transaction([
@@ -228,16 +248,10 @@ export async function generateCasePacket(job: Job<GeneratePacketJobData>) {
           }
         }
       }),
-      ...(failureContext.createNotification
+      ...(notificationDelivery
         ? [
             prisma.notification.create({
-              data: {
-                userId: packet.case.ownerId,
-                caseId: packet.case.id,
-                type: "packet_ready",
-                title: "Packet ready",
-                body: `${packet.case.platform} packet for ${packet.case.title} is ready to download.`
-              }
+              data: notificationDelivery.data
             })
           ]
         : [])
@@ -250,6 +264,22 @@ export async function generateCasePacket(job: Job<GeneratePacketJobData>) {
   } catch (error) {
     if (failureContext && !willRetry(job)) {
       const message = error instanceof Error ? error.message : "Packet generation failed.";
+      const notificationDelivery = buildNotificationDelivery({
+        event: {
+          body: `${failureContext.platform} packet for ${failureContext.title} could not be generated. ${truncateMessage(message)}`,
+          caseId: failureContext.caseId,
+          title: "Packet generation failed",
+          type: "packet_failed",
+          userId: failureContext.ownerId
+        },
+        preference: failureContext.notificationPreference
+          ? {
+              categoryEnabled: failureContext.notificationPreference.notifyPacketReady,
+              emailNotifications: failureContext.notificationPreference.emailNotifications,
+              inAppNotifications: failureContext.notificationPreference.inAppNotifications
+            }
+          : null
+      });
 
       await prisma.$transaction([
         prisma.casePacket.update({
@@ -267,16 +297,10 @@ export async function generateCasePacket(job: Job<GeneratePacketJobData>) {
             }
           }
         }),
-        ...(failureContext.createNotification
+        ...(notificationDelivery
           ? [
               prisma.notification.create({
-                data: {
-                  userId: failureContext.ownerId,
-                  caseId: failureContext.caseId,
-                  type: "packet_failed",
-                  title: "Packet generation failed",
-                  body: `${failureContext.platform} packet for ${failureContext.title} could not be generated. ${truncateMessage(message)}`
-                }
+                data: notificationDelivery.data
               })
             ]
           : [])

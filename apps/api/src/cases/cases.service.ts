@@ -14,7 +14,10 @@ import {
   Prisma
 } from "@proofpilot/database";
 import { createPresignedDownloadUrl } from "@proofpilot/storage";
-import type { CaseActivityResponse } from "@proofpilot/types";
+import {
+  buildNotificationDelivery,
+  type CaseActivityResponse
+} from "@proofpilot/types";
 import {
   buildCaseAccessInclude,
   buildCaseAccessSelect,
@@ -1104,6 +1107,7 @@ export class CasesService {
           select: {
             preference: {
               select: {
+                emailNotifications: true,
                 inAppNotifications: true,
                 notifyCaseUpdates: true
               }
@@ -1158,23 +1162,33 @@ export class CasesService {
       });
 
       const preference = existingCase.owner.preference;
-      const shouldNotifyStatusChange =
+      const statusChanged =
         input.status !== undefined &&
-        input.status !== existingCase.status &&
-        preference?.inAppNotifications !== false &&
-        preference?.notifyCaseUpdates !== false;
+        input.status !== existingCase.status;
+      const notificationDelivery = statusChanged
+        ? buildNotificationDelivery({
+            event: {
+              body: `${updatedCase.title} is now ${this.formatCaseStatus(
+                input.status ?? existingCase.status
+              )}.`,
+              caseId,
+              title: "Case status updated",
+              type: "case_status_updated",
+              userId: existingCase.ownerId
+            },
+            preference: preference
+              ? {
+                  categoryEnabled: preference.notifyCaseUpdates,
+                  emailNotifications: preference.emailNotifications,
+                  inAppNotifications: preference.inAppNotifications
+                }
+              : null
+          })
+        : null;
 
-      if (shouldNotifyStatusChange) {
+      if (notificationDelivery) {
         await tx.notification.create({
-          data: {
-            userId: existingCase.ownerId,
-            caseId,
-            type: "case_status_updated",
-            title: "Case status updated",
-            body: `${updatedCase.title} is now ${this.formatCaseStatus(
-              input.status ?? existingCase.status
-            )}.`
-          }
+          data: notificationDelivery.data
         });
       }
 

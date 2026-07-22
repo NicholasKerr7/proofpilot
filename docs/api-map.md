@@ -111,7 +111,7 @@ Processed and deleted documents automatically refresh checklist matches. Users c
 - `PATCH /reminders/:reminderId`
 - `DELETE /reminders/:reminderId`
 
-`GET /notifications` is read-only. The worker claims due reminders through the scheduled `reminder-delivery` queue and creates alerts independently of notification-inbox traffic. New deadline, case-update, evidence-processing, and packet-result alerts honor the owner's current in-app notification preferences.
+`GET /notifications` is read-only and returns only in-app-visible records. The worker claims due reminders through the scheduled `reminder-delivery` queue and creates delivery records independently of notification-inbox traffic. New deadline, case-update, evidence-processing, and packet-result alerts honor the owner's current in-app and email preferences. The scheduled `notification-email` queue leases pending email records, rechecks preferences, and delivers them with bounded retries.
 
 ## Assistant
 

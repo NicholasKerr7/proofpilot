@@ -9,6 +9,10 @@ import {
   type GeneratePacketJobData
 } from "./queues/packet-generation.queue.js";
 import {
+  notificationEmailQueueName,
+  type DeliverNotificationEmailsJobData
+} from "./queues/notification-email.queue.js";
+import {
   reminderDeliveryQueueName,
   type DeliverRemindersJobData
 } from "./queues/reminder-delivery.queue.js";
@@ -20,6 +24,7 @@ import {
   processUploadedDocument,
   shutdownDocumentProcessor
 } from "./processors/document-processing.processor.js";
+import { deliverNotificationEmails } from "./processors/notification-email.processor.js";
 import { generateCasePacket } from "./processors/packet-generation.processor.js";
 import { deliverDueReminders } from "./processors/reminder-delivery.processor.js";
 import { expireAbandonedUploads } from "./processors/upload-cleanup.processor.js";
@@ -84,6 +89,21 @@ const reminderWorker = new Worker<DeliverRemindersJobData>(
   },
   { connection }
 );
+const notificationEmailQueue = new Queue<DeliverNotificationEmailsJobData>(
+  notificationEmailQueueName,
+  { connection }
+);
+const notificationEmailWorker = new Worker<DeliverNotificationEmailsJobData>(
+  notificationEmailQueueName,
+  async (job) => {
+    if (job.name === "deliver_notification_emails") {
+      return deliverNotificationEmails(job);
+    }
+
+    throw new Error(`Unsupported job name: ${job.name}`);
+  },
+  { connection }
+);
 const uploadCleanupQueue = new Queue<ExpireAbandonedUploadsJobData>(uploadCleanupQueueName, {
   connection
 });
@@ -111,6 +131,18 @@ await reminderQueue.upsertJobScheduler(
     }
   }
 );
+await notificationEmailQueue.upsertJobScheduler(
+  "deliver-notification-emails-every-minute",
+  { every: 60_000 },
+  {
+    name: "deliver_notification_emails",
+    data: {},
+    opts: {
+      removeOnComplete: 100,
+      removeOnFail: 100
+    }
+  }
+);
 await uploadCleanupQueue.upsertJobScheduler(
   "expire-abandoned-uploads-hourly",
   { every: 60 * 60 * 1_000 },
@@ -127,6 +159,7 @@ await uploadCleanupQueue.upsertJobScheduler(
 attachWorkerLogging(documentWorker, documentProcessingQueueName);
 attachWorkerLogging(packetWorker, packetGenerationQueueName);
 attachWorkerLogging(reminderWorker, reminderDeliveryQueueName);
+attachWorkerLogging(notificationEmailWorker, notificationEmailQueueName);
 attachWorkerLogging(uploadCleanupWorker, uploadCleanupQueueName);
 
 process.on("SIGTERM", async () => {
@@ -135,6 +168,8 @@ process.on("SIGTERM", async () => {
     packetWorker.close(),
     reminderWorker.close(),
     reminderQueue.close(),
+    notificationEmailWorker.close(),
+    notificationEmailQueue.close(),
     uploadCleanupWorker.close(),
     uploadCleanupQueue.close()
   ]);

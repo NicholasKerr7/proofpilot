@@ -4,7 +4,7 @@ ProofPilot runs as three production services:
 
 - `apps/web`: Next.js frontend, intended for Vercel.
 - `apps/api`: NestJS API, container target `api`.
-- `apps/worker`: BullMQ document processor, packet generator, reminder scheduler, and upload-cleanup scheduler, container target `worker`.
+- `apps/worker`: BullMQ document processor, packet generator, reminder scheduler, notification email sender, and upload-cleanup scheduler, container target `worker`.
 
 The provider-specific staging topology, Railway service configs, variable references, cost gate, and deployment order are documented in [staging-deployment.md](staging-deployment.md).
 
@@ -23,6 +23,12 @@ Set these for the API service:
 - `PORT=4000`
 - `WEB_ORIGIN`
 - `JWT_SECRET`
+- `AUTH_SESSION_TTL_DAYS=7`
+- `PASSWORD_RESET_DELIVERY_MODE=resend`
+- `PASSWORD_RESET_TOKEN_TTL_MINUTES=30`
+- `PASSWORD_RESET_REQUEST_COOLDOWN_SECONDS=60`
+- `RESEND_API_KEY`
+- `AUTH_EMAIL_FROM` verified sender identity
 - `DATABASE_URL`
 - `REDIS_URL`
 - `ERROR_MONITORING_ENVIRONMENT=production`
@@ -44,8 +50,12 @@ Set these for the API service:
 Set these for the worker service:
 
 - `NODE_ENV=production`
+- `WEB_ORIGIN` exact deployed web origin
 - `DATABASE_URL`
 - `REDIS_URL`
+- `NOTIFICATION_EMAIL_DELIVERY_MODE=resend`
+- `RESEND_API_KEY`
+- `AUTH_EMAIL_FROM` verified sender identity
 - `STORAGE_REGION`
 - `STORAGE_BUCKET`
 - `STORAGE_ACCESS_KEY_ID`
@@ -56,7 +66,7 @@ Set these for the worker service:
 - `OCR_CACHE_PATH=/tmp/proofpilot-ocr`
 - `TESSERACT_LANG_PATH` optional path or URL for pre-hosted Tesseract traineddata files
 
-Image OCR, packet PDF generation, reminder delivery, and staging-upload cleanup run in the worker service. Keep at least one worker replica active so the idempotent one-minute reminder and hourly cleanup schedulers can enqueue work. Give `OCR_CACHE_PATH` writable storage so language data can be reused between jobs; for locked-down production networks, provide `TESSERACT_LANG_PATH` instead of relying on the default language-data download path.
+Image OCR, packet PDF generation, reminder delivery, notification email delivery, and staging-upload cleanup run in the worker service. Keep at least one worker replica active so the idempotent one-minute reminder and notification schedulers and hourly cleanup scheduler can enqueue work. Give `OCR_CACHE_PATH` writable storage so language data can be reused between jobs; for locked-down production networks, provide `TESSERACT_LANG_PATH` instead of relying on the default language-data download path.
 
 Set this for the web service:
 
@@ -71,6 +81,8 @@ The current billing foundation runs in demo mode and does not process payments. 
 Every signed JWT contains an opaque database session ID. Protected requests require a matching, unexpired, non-revoked `AuthSession`; logout revokes the current session, password changes preserve only the verified current session, and password resets revoke every session. The Security & Privacy workspace can list up to ten active owner sessions and revoke individual or all other sessions.
 
 Password recovery stores only SHA-256 token hashes, enforces one-time redemption and expiry, invalidates older links when a new one is issued, and returns the same acknowledgement for known and unknown addresses. Collaboration invitations use the same delivery configuration and also store hash-only, single-use tokens. Development logs reset and invitation links with `PASSWORD_RESET_DELIVERY_MODE=log`; production startup requires `PASSWORD_RESET_DELIVERY_MODE=resend`, `RESEND_API_KEY`, and a verified `AUTH_EMAIL_FROM` sender.
+
+Transactional case notifications use a separate worker mode, `NOTIFICATION_EMAIL_DELIVERY_MODE`. Development `log` mode records delivery without exposing recipient addresses or message content in worker logs. Production worker startup requires `resend` mode and the same verified sender credentials. Notification rows are leased from PostgreSQL, preferences are rechecked immediately before delivery, and Resend receives a stable per-notification idempotency key. Provider failures retry at 5 minutes, 15 minutes, 1 hour, and 6 hours before the fifth attempt is retained as exhausted for operator review.
 
 The web auth proxy forwards a sanitized browser user-agent for session display. API request context and forwarded headers remain informational only; authorization relies on the verified JWT, persisted session, and explicit resource ownership checks. IP geolocation is not performed. Two-factor enrollment and WebAuthn biometric enrollment remain unavailable until their credential and recovery flows are implemented end to end.
 

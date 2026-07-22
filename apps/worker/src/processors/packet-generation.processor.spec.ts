@@ -92,6 +92,7 @@ function basePacketRecord() {
         email: "nicholas.kerr@proofpilot.test",
         name: "Nicholas Kerr",
         preference: {
+          emailNotifications: true,
           inAppNotifications: true,
           notifyPacketReady: true
         }
@@ -219,7 +220,10 @@ describe("packet generation worker processor", () => {
         caseId,
         type: "packet_ready",
         title: "Packet ready",
-        body: "PayPal packet for PayPal limitation appeal is ready to download."
+        body: "PayPal packet for PayPal limitation appeal is ready to download.",
+        emailNextAttemptAt: expect.any(Date),
+        emailStatus: "PENDING",
+        inAppVisible: true
       }
     });
     expect(result).toEqual({
@@ -338,6 +342,31 @@ describe("packet generation worker processor", () => {
     );
   });
 
+  it("queues an email-only packet result when in-app alerts are disabled", async () => {
+    const prisma = createPrismaMock();
+    const packet = createPacketRecord();
+    packet.case.owner.preference.inAppNotifications = false;
+    prisma.casePacket.findFirst.mockResolvedValue(packet);
+    mocks.generateCasePacketPdf.mockResolvedValue({
+      bytes: Buffer.from("proofpilot-pdf"),
+      includedDocumentCount: 0,
+      indexedDocumentCount: 0,
+      pageCount: 6
+    });
+    mocks.writeStoredObjectBytes.mockResolvedValue(undefined);
+
+    const generateCasePacket = await loadGenerateCasePacket(prisma);
+    await generateCasePacket(createJob());
+
+    expect(prisma.notification.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        emailStatus: "PENDING",
+        inAppVisible: false,
+        type: "packet_ready"
+      })
+    });
+  });
+
   it("stops a stored evidence stream when its recorded size is stale", async () => {
     const prisma = createPrismaMock();
     const packet = createPacketRecord();
@@ -432,7 +461,10 @@ describe("packet generation worker processor", () => {
         caseId,
         type: "packet_failed",
         title: "Packet generation failed",
-        body: "PayPal packet for PayPal limitation appeal could not be generated. PDF renderer failed"
+        body: "PayPal packet for PayPal limitation appeal could not be generated. PDF renderer failed",
+        emailNextAttemptAt: expect.any(Date),
+        emailStatus: "PENDING",
+        inAppVisible: true
       }
     });
   });

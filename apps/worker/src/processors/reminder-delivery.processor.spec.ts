@@ -31,9 +31,11 @@ function createPrismaMock() {
 
 function createDueReminder(
   preference: {
+    emailNotifications: boolean;
     inAppNotifications: boolean;
     notifyDeadlineReminders: boolean;
   } | null = {
+    emailNotifications: true,
     inAppNotifications: true,
     notifyDeadlineReminders: true
   }
@@ -93,6 +95,9 @@ describe("deliverDueReminderBatch", () => {
       data: {
         body: "Review missing evidence before the deadline.",
         caseId: "case-1",
+        emailNextAttemptAt: now,
+        emailStatus: "PENDING",
+        inAppVisible: true,
         title: "Reminder: PayPal appeal",
         type: "deadline_reminder",
         userId: "owner-1"
@@ -103,7 +108,7 @@ describe("deliverDueReminderBatch", () => {
         action: "case.reminder_sent",
         caseId: "case-1",
         metadata: {
-          delivery: "in_app",
+          delivery: "in_app,email",
           reminderId: "reminder-1",
           remindAt: "2026-07-20T13:00:00.000Z"
         },
@@ -115,6 +120,7 @@ describe("deliverDueReminderBatch", () => {
   it("claims a due reminder without creating an alert when preferences suppress it", async () => {
     prisma.reminder.findMany.mockResolvedValue([
       createDueReminder({
+        emailNotifications: true,
         inAppNotifications: true,
         notifyDeadlineReminders: false
       })
@@ -134,6 +140,35 @@ describe("deliverDueReminderBatch", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           metadata: expect.objectContaining({ delivery: "suppressed" })
+        })
+      })
+    );
+  });
+
+  it("queues an email-only reminder when in-app notifications are disabled", async () => {
+    prisma.reminder.findMany.mockResolvedValue([
+      createDueReminder({
+        emailNotifications: true,
+        inAppNotifications: false,
+        notifyDeadlineReminders: true
+      })
+    ]);
+
+    await expect(
+      deliverDueReminderBatch(prisma as unknown as PrismaClient, now)
+    ).resolves.toMatchObject({ delivered: 1, suppressed: 0 });
+
+    expect(prisma.transactionClient.notification.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        emailStatus: "PENDING",
+        inAppVisible: false,
+        type: "deadline_reminder"
+      })
+    });
+    expect(prisma.transactionClient.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          metadata: expect.objectContaining({ delivery: "email" })
         })
       })
     );

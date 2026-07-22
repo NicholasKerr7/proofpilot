@@ -14,7 +14,7 @@ Use the dependency-aware endpoint before routing traffic:
 GET /health/ready
 ```
 
-Readiness checks PostgreSQL and the Redis connections behind all four BullMQ queues. It returns `200` with `status: ok` when both dependencies respond, or `503` with a sanitized `status: degraded` body when either dependency is unavailable or exceeds the three-second timeout. A readiness failure should remove the API replica from traffic without treating the process as dead.
+Readiness checks PostgreSQL and the Redis connections behind all five BullMQ queues. It returns `200` with `status: ok` when both dependencies respond, or `503` with a sanitized `status: degraded` body when either dependency is unavailable or exceeds the three-second timeout. A readiness failure should remove the API replica from traffic without treating the process as dead.
 
 If readiness is degraded, inspect `checks.database`, `checks.queues`, and the API `readiness_check_failed` structured log. Confirm `DATABASE_URL` and `REDIS_URL`, network policy, provider status, and credentials before restoring traffic. A retained failed queue job does not fail readiness; use the queue-health runbook below to diagnose job failures.
 
@@ -29,6 +29,7 @@ GET /health/queues
 The response contains one entry each for:
 
 - `document-processing`
+- `notification-email`
 - `packet-generation`
 - `reminder-delivery`
 - `upload-cleanup`
@@ -57,7 +58,22 @@ The worker registers `deliver-due-reminders-every-minute` as an idempotent BullM
 3. Confirm the API and worker use the same `REDIS_URL` and `DATABASE_URL` targets.
 4. Inspect worker failures for the `deliver_due_reminders` job.
 5. Confirm the reminder is incomplete, its case is not archived, and its `remindAt` timestamp is in the past.
-6. Check the owner's in-app and deadline-reminder preferences. Suppressed reminders are marked sent and audited without creating an alert.
+6. Check the owner's in-app, email, and deadline-reminder preferences. Suppressed reminders are marked sent and audited without creating an alert.
+
+## Notification Email Runbook
+
+The worker registers `deliver-notification-emails-every-minute` on the `notification-email` queue. It atomically leases pending delivery rows, rechecks current preferences and case archive state, and retries provider failures for up to five attempts.
+
+If notification email is delayed or exhausted:
+
+1. Check `GET /health/queues` and confirm `notification-email` is not paused and has no growing failed count.
+2. Confirm the worker logs `ProofPilot worker is listening on notification-email.`
+3. Confirm `NOTIFICATION_EMAIL_DELIVERY_MODE=resend`, `RESEND_API_KEY`, `AUTH_EMAIL_FROM`, and `WEB_ORIGIN` are set on the worker.
+4. Confirm the sender identity is verified in Resend and inspect provider delivery events using `emailProviderId` from the notification record.
+5. Check the owner's global email and category preference and whether the related case was archived. These conditions intentionally suppress a claimed delivery.
+6. Inspect `notification.email_delivery_failed` audit entries for the sanitized error code and attempt count. Never add provider response bodies, addresses, or notification text to audit metadata.
+
+A worker crash can leave a row in `SENDING`; it becomes eligible again after the ten-minute lease expires. The stable Resend idempotency key prevents that recovery path from creating a second provider send.
 
 ## Upload Security Runbook
 

@@ -129,6 +129,14 @@ enum CaseCollaboratorStatus {
   ACTIVE
 }
 
+enum NotificationEmailStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+  SUPPRESSED
+}
+
 enum PacketSharePermission {
   VIEW
   COMMENT
@@ -154,6 +162,7 @@ model User {
   caseCollaborations  CaseCollaborator[]   @relation("CaseCollaboratorUser")
   packetSharesCreated PacketShare[]        @relation("PacketShareCreator")
   passwordResetTokens PasswordResetToken[]
+  notifications       Notification[]
 }
 
 model AuthSession {
@@ -636,17 +645,30 @@ model PacketShareComment {
 }
 
 model Notification {
-  id        String    @id @default(cuid())
-  caseId    String?
-  case      Case?     @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  userId    String
-  type      String
-  title     String
-  body      String
-  readAt    DateTime?
-  createdAt DateTime  @default(now())
+  id                 String                   @id @default(cuid())
+  caseId             String?
+  case               Case?                    @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  userId             String
+  user               User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type               String
+  title              String
+  body               String
+  inAppVisible       Boolean                  @default(true)
+  readAt             DateTime?
+  emailStatus        NotificationEmailStatus?
+  emailAttemptCount  Int                      @default(0)
+  emailNextAttemptAt DateTime?
+  emailLastAttemptAt DateTime?
+  emailSentAt        DateTime?
+  emailProviderId    String?
+  emailLastErrorCode String?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
 
   @@index([userId, readAt])
+  @@index([userId, inAppVisible, readAt])
+  @@index([emailStatus, emailNextAttemptAt])
+  @@index([emailStatus, emailLastAttemptAt])
 }
 
 model Reminder {

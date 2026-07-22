@@ -80,11 +80,15 @@ Generate `JWT_SECRET` locally with `openssl rand -base64 48`. Seal it after crea
 Set these only on `worker`:
 
 ```dotenv
+WEB_ORIGIN=https://REPLACE_WITH_VERCEL_PREVIEW_OR_CUSTOM_DOMAIN
+NOTIFICATION_EMAIL_DELIVERY_MODE=resend
+RESEND_API_KEY=REPLACE_WITH_STAGING_RESEND_KEY
+AUTH_EMAIL_FROM=ProofPilot <updates@REPLACE_WITH_VERIFIED_DOMAIN>
 OCR_LANGUAGES=eng
 OCR_CACHE_PATH=/tmp/proofpilot-ocr
 ```
 
-Keep exactly one worker replica while the reminder and upload-cleanup schedulers are enabled. BullMQ processing can scale later after scheduler ownership is separated or explicitly coordinated.
+Keep exactly one worker replica while the reminder, notification-email, and upload-cleanup schedulers are enabled. BullMQ processing can scale later after scheduler ownership is separated or explicitly coordinated.
 
 ## Bucket CORS
 
@@ -136,4 +140,4 @@ PROOFPILOT_E2E_API_URL=https://REPLACE_WITH_RAILWAY_API_DOMAIN/health \
   pnpm test:e2e
 ```
 
-The staging gate is complete only when API readiness, all four queue health entries, private upload, ClamAV promotion, worker processing, upload cleanup, packet generation, signed download, and responsive browser tests all pass.
+The staging gate is complete only when API readiness, all five queue health entries, private upload, ClamAV promotion, worker processing, notification email delivery, upload cleanup, packet generation, signed download, and responsive browser tests all pass.

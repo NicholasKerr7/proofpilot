@@ -219,6 +219,27 @@ describe("document processing worker", () => {
       })
     );
   });
+
+  it("queues an email-only processing failure notification", async () => {
+    const prisma = createPrismaMock();
+    const document = createDocument();
+    document.case.owner.preference.inAppNotifications = false;
+    prisma.document.findUnique.mockResolvedValue(document);
+    mocks.prisma = prisma;
+    mocks.readStoredObjectBytes.mockRejectedValue(new Error("Storage read failed"));
+    vi.resetModules();
+    const { processUploadedDocument } = await import("./document-processing.processor.js");
+
+    await expect(processUploadedDocument(createJob())).rejects.toThrow("Storage read failed");
+
+    expect(prisma.notification.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        emailStatus: "PENDING",
+        inAppVisible: false,
+        type: "processing_failed"
+      })
+    });
+  });
 });
 
 function createDocument() {
@@ -236,6 +257,7 @@ function createDocument() {
       title: "PayPal appeal",
       owner: {
         preference: {
+          emailNotifications: true,
           inAppNotifications: true,
           notifyEvidenceProcessing: true
         }

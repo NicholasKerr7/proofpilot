@@ -242,6 +242,7 @@ describe("CasesService", () => {
       status: CaseStatus.DRAFT,
       owner: {
         preference: {
+          emailNotifications: true,
           inAppNotifications: true,
           notifyCaseUpdates: true
         }
@@ -264,7 +265,10 @@ describe("CasesService", () => {
         caseId,
         type: "case_status_updated",
         title: "Case status updated",
-        body: "PayPal appeal is now collecting evidence."
+        body: "PayPal appeal is now collecting evidence.",
+        emailNextAttemptAt: expect.any(Date),
+        emailStatus: "PENDING",
+        inAppVisible: true
       }
     });
     expect(result).toEqual(
@@ -282,6 +286,7 @@ describe("CasesService", () => {
       status: CaseStatus.DRAFT,
       owner: {
         preference: {
+          emailNotifications: true,
           inAppNotifications: true,
           notifyCaseUpdates: false
         }
@@ -299,6 +304,39 @@ describe("CasesService", () => {
     });
 
     expect(prisma.notification.create).not.toHaveBeenCalled();
+  });
+
+  it("queues an email-only case update without exposing it in the inbox", async () => {
+    prisma.case.findFirst.mockResolvedValue({
+      id: caseId,
+      ownerId,
+      status: CaseStatus.DRAFT,
+      owner: {
+        preference: {
+          emailNotifications: true,
+          inAppNotifications: false,
+          notifyCaseUpdates: true
+        }
+      }
+    });
+    prisma.case.update.mockResolvedValue({
+      id: caseId,
+      title: "PayPal appeal",
+      status: CaseStatus.COLLECTING_EVIDENCE,
+      caseType: { id: "case-type-1" }
+    });
+
+    await service.update(ownerId, caseId, {
+      status: CaseStatus.COLLECTING_EVIDENCE
+    });
+
+    expect(prisma.notification.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        emailStatus: "PENDING",
+        inAppVisible: false,
+        type: "case_status_updated"
+      })
+    });
   });
 
   it("manually completes an owned checklist item and refreshes case readiness", async () => {

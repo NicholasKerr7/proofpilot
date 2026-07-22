@@ -10,7 +10,10 @@ export class NotificationsService {
 
   async list(ownerId: string) {
     return this.prisma.notification.findMany({
-      where: { userId: ownerId },
+      where: {
+        inAppVisible: true,
+        userId: ownerId
+      },
       orderBy: { createdAt: "desc" },
       select: this.getNotificationSelect(),
       take: 50
@@ -21,6 +24,7 @@ export class NotificationsService {
     const notification = await this.prisma.notification.findFirst({
       where: {
         id: notificationId,
+        inAppVisible: true,
         userId: ownerId
       },
       select: {

@@ -6,6 +6,7 @@ export * from "./cases.js";
 export * from "./collaboration.js";
 export * from "./connections.js";
 export * from "./evidence.js";
+export * from "./notifications.js";
 export * from "./packet-sharing.js";
 export * from "./reports.js";
 export * from "./security.js";
