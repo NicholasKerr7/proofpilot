@@ -36,6 +36,7 @@ Set on the API service in addition to its database, Redis, storage, JWT, origin,
 - `PORTFOLIO_DEMO_TTL_MINUTES=120`
 - `PORTFOLIO_DEMO_MAX_ACTIVE_WORKSPACES=50`
 - `PASSWORD_RESET_DELIVERY_MODE=log`
+- `PACKET_SHARE_EMAIL_DELIVERY_MODE=log`
 - `VIRUS_SCAN_MODE=disabled`
 
 Set on the worker service:
@@ -75,6 +76,7 @@ Set these for the API service:
 - `JWT_SECRET`
 - `AUTH_SESSION_TTL_DAYS=7`
 - `PASSWORD_RESET_DELIVERY_MODE=resend`
+- `PACKET_SHARE_EMAIL_DELIVERY_MODE=resend`
 - `PASSWORD_RESET_TOKEN_TTL_MINUTES=30`
 - `PASSWORD_RESET_REQUEST_COOLDOWN_SECONDS=60`
 - `RESEND_API_KEY`
@@ -132,6 +134,8 @@ The current billing foundation runs in demo mode and does not process payments. 
 Every signed JWT contains an opaque database session ID. Protected requests require a matching, unexpired, non-revoked `AuthSession`; logout revokes the current session, password changes preserve only the verified current session, and password resets revoke every session. The Security & Privacy workspace can list up to ten active owner sessions and revoke individual or all other sessions.
 
 Password recovery stores only SHA-256 token hashes, enforces one-time redemption and expiry, invalidates older links when a new one is issued, and returns the same acknowledgement for known and unknown addresses. Collaboration invitations use the same delivery configuration and also store hash-only, single-use tokens. Development logs reset and invitation links with `PASSWORD_RESET_DELIVERY_MODE=log`; production startup requires `PASSWORD_RESET_DELIVERY_MODE=resend`, `RESEND_API_KEY`, and a verified `AUTH_EMAIL_FROM` sender.
+
+Packet-share delivery uses the API-specific `PACKET_SHARE_EMAIL_DELIVERY_MODE`. Development `log` mode simulates each recipient delivery without recording email addresses, message content, or bearer tokens. Standard production startup requires `resend` mode and the verified sender credentials. Each recipient request uses a stable share-and-recipient idempotency key. A provider failure is reported in the creation response and audit log without invalidating the secure link, so the owner can use the manual delivery action.
 
 Transactional case notifications use a separate worker mode, `NOTIFICATION_EMAIL_DELIVERY_MODE`. Development `log` mode records delivery without exposing recipient addresses or message content in worker logs. Production worker startup requires `resend` mode and the same verified sender credentials. Notification rows are leased from PostgreSQL, preferences are rechecked immediately before delivery, and Resend receives a stable per-notification idempotency key. Provider failures retry at 5 minutes, 15 minutes, 1 hour, and 6 hours before the fifth attempt is retained as exhausted for operator review.
 

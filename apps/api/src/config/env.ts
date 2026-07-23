@@ -28,6 +28,7 @@ const apiEnvObjectSchema = z.object({
   REDIS_URL: z.string().url().default("redis://localhost:6379"),
   AUTH_SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(30).default(7),
   PASSWORD_RESET_DELIVERY_MODE: z.enum(["log", "resend"]).default("log"),
+  PACKET_SHARE_EMAIL_DELIVERY_MODE: z.enum(["log", "resend"]).default("log"),
   PASSWORD_RESET_TOKEN_TTL_MINUTES: z.coerce.number().int().min(5).max(120).default(30),
   PASSWORD_RESET_REQUEST_COOLDOWN_SECONDS: z.coerce.number().int().min(30).max(3600).default(60),
   RESEND_API_KEY: z.string().min(1).optional(),
@@ -75,18 +76,33 @@ const apiEnvSchema = apiEnvObjectSchema.superRefine((env, context) => {
     });
   }
 
-  if (env.PASSWORD_RESET_DELIVERY_MODE === "resend" && !env.RESEND_API_KEY) {
+  if (
+    requiresProductionServices &&
+    env.PACKET_SHARE_EMAIL_DELIVERY_MODE !== "resend"
+  ) {
     context.addIssue({
       code: "custom",
-      message: "RESEND_API_KEY is required when password reset delivery uses Resend.",
+      message: "PACKET_SHARE_EMAIL_DELIVERY_MODE must be resend in production.",
+      path: ["PACKET_SHARE_EMAIL_DELIVERY_MODE"]
+    });
+  }
+
+  const usesResend =
+    env.PASSWORD_RESET_DELIVERY_MODE === "resend" ||
+    env.PACKET_SHARE_EMAIL_DELIVERY_MODE === "resend";
+
+  if (usesResend && !env.RESEND_API_KEY) {
+    context.addIssue({
+      code: "custom",
+      message: "RESEND_API_KEY is required when email delivery uses Resend.",
       path: ["RESEND_API_KEY"]
     });
   }
 
-  if (env.PASSWORD_RESET_DELIVERY_MODE === "resend" && !env.AUTH_EMAIL_FROM) {
+  if (usesResend && !env.AUTH_EMAIL_FROM) {
     context.addIssue({
       code: "custom",
-      message: "AUTH_EMAIL_FROM is required when password reset delivery uses Resend.",
+      message: "AUTH_EMAIL_FROM is required when email delivery uses Resend.",
       path: ["AUTH_EMAIL_FROM"]
     });
   }

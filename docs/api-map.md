@@ -92,7 +92,7 @@ Public recipient routes:
 - `POST /packet-shares/content`
 - `POST /packet-shares/comments`
 
-Owner routes require an authenticated case-owner match and a ready packet export. Public routes accept the raw share token in a request body, never a URL path; content and comment calls also require a short-lived recipient access token. Email delivery, email verification, and PDF watermarking report as unavailable until providers are configured.
+Owner routes require an authenticated case-owner match and a ready packet export. Public routes accept the raw share token in a request body, never a URL path; content and comment calls also require a short-lived recipient access token. Share creation delivers the fragment-token link to each allowlisted recipient through the configured email mode and reports per-request delivery counts. Recipient email verification and PDF watermarking remain unavailable until their providers are configured.
 
 ## Documents
 
@@ -210,4 +210,4 @@ Support request lists, details, and follow-ups are restricted to the authenticat
 
 - Add provider-backed payments, OAuth connections, and model generation.
 - Add two-factor and WebAuthn enrollment.
-- Add packet email delivery, recipient email verification, and PDF watermarking.
+- Add recipient email verification and PDF watermarking for packet shares.

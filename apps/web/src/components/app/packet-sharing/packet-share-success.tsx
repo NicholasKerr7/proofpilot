@@ -12,6 +12,7 @@ import {
   LifeBuoy,
   Mail,
   ShieldX,
+  TriangleAlert,
   Trash2,
   UsersRound
 } from "lucide-react";
@@ -56,6 +57,8 @@ export function PacketShareSuccess({
   const [isRevoked, setIsRevoked] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const emailHref = createShareEmailHref(share, ownerName);
+  const deliveryNotice = getDeliveryNotice(share);
+  const DeliveryIcon = deliveryNotice.icon;
 
   async function handleCopy() {
     setActionError(null);
@@ -112,14 +115,14 @@ export function PacketShareSuccess({
 
       <PacketShareHero caseRecord={caseRecord} showReadiness={false} />
 
-      <section className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4 rounded-md border border-teal-400/35 bg-teal-400/10 p-4 md:p-5">
-        <span className="flex h-12 w-12 items-center justify-center rounded-full border border-teal-300/60 text-teal-200">
-          <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
+      <section className={deliveryNotice.containerClassName}>
+        <span className={deliveryNotice.iconClassName}>
+          <DeliveryIcon className="h-7 w-7" aria-hidden="true" />
         </span>
         <div>
-          <h2 className="font-semibold text-teal-50">Share link created successfully</h2>
-          <p className="mt-1 text-sm leading-6 text-teal-100/75">
-            The link is ready to copy or open in your email app. No email was sent automatically.
+          <h2 className={deliveryNotice.titleClassName}>{deliveryNotice.title}</h2>
+          <p className={deliveryNotice.detailClassName}>
+            {deliveryNotice.detail}
           </p>
         </div>
       </section>
@@ -217,10 +220,14 @@ export function PacketShareSuccess({
             }}
           />
           <ShareActionLink
-            description="Open a prefilled message in your email app"
+            description="Open a prefilled backup message in your email app"
             href={emailHref}
             icon={Mail}
-            label="Email recipients"
+            label={
+              share.deliveryMode === "RESEND" && share.emailDelivery.failedCount === 0
+                ? "Email recipients again"
+                : "Email recipients manually"
+            }
           />
           <ShareActionLink
             description="Download the owner copy of this PDF"
@@ -253,6 +260,63 @@ export function PacketShareSuccess({
       </Button>
     </div>
   );
+}
+
+function getDeliveryNotice(share: PacketShareCreatedResponse) {
+  const { attemptedCount, failedCount, successfulCount } = share.emailDelivery;
+  const recipientLabel = attemptedCount === 1 ? "recipient" : "recipients";
+
+  if (share.deliveryMode === "DEVELOPMENT_LOG") {
+    return {
+      containerClassName:
+        "grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4 rounded-md border border-amber-300/30 bg-amber-300/10 p-4 md:p-5",
+      detail: `Email delivery was simulated for ${attemptedCount} ${recipientLabel}. Use a share action below to send the link manually.`,
+      detailClassName: "mt-1 text-sm leading-6 text-amber-100/75",
+      icon: TriangleAlert,
+      iconClassName:
+        "flex h-12 w-12 items-center justify-center rounded-full border border-amber-300/50 text-amber-200",
+      title: "Share link created; delivery simulated",
+      titleClassName: "font-semibold text-amber-50"
+    };
+  }
+
+  if (failedCount === 0) {
+    return {
+      containerClassName:
+        "grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4 rounded-md border border-teal-400/35 bg-teal-400/10 p-4 md:p-5",
+      detail: `The secure link was emailed to ${successfulCount} ${recipientLabel}.`,
+      detailClassName: "mt-1 text-sm leading-6 text-teal-100/75",
+      icon: CheckCircle2,
+      iconClassName:
+        "flex h-12 w-12 items-center justify-center rounded-full border border-teal-300/60 text-teal-200",
+      title: "Share link created and sent",
+      titleClassName: "font-semibold text-teal-50"
+    };
+  }
+
+  const allFailed = successfulCount === 0;
+
+  return {
+    containerClassName: allFailed
+      ? "grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4 rounded-md border border-red-400/30 bg-red-400/10 p-4 md:p-5"
+      : "grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4 rounded-md border border-amber-300/30 bg-amber-300/10 p-4 md:p-5",
+    detail: allFailed
+      ? `Email delivery failed for ${failedCount} ${recipientLabel}. The link remains active and can be sent manually below.`
+      : `${successfulCount} emails were sent and ${failedCount} failed. The link remains active for manual delivery.`,
+    detailClassName: allFailed
+      ? "mt-1 text-sm leading-6 text-red-100/75"
+      : "mt-1 text-sm leading-6 text-amber-100/75",
+    icon: TriangleAlert,
+    iconClassName: allFailed
+      ? "flex h-12 w-12 items-center justify-center rounded-full border border-red-300/50 text-red-200"
+      : "flex h-12 w-12 items-center justify-center rounded-full border border-amber-300/50 text-amber-200",
+    title: allFailed
+      ? "Share link created; email delivery failed"
+      : "Share link created; some emails failed",
+    titleClassName: allFailed
+      ? "font-semibold text-red-50"
+      : "font-semibold text-amber-50"
+  };
 }
 
 interface ShareActionProps {

@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   GoneException,
   Injectable,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
   UnauthorizedException
@@ -22,6 +23,7 @@ import type {
   PacketShareCommentRecord,
   PacketShareContentResponse,
   PacketShareCreatedResponse,
+  PacketShareEmailDeliverySummary,
   PacketSharePacketSummary,
   PacketSharePermission,
   PacketSharePreparationResponse,
@@ -33,17 +35,11 @@ import { PrismaService } from "../prisma/prisma.service.js";
 import type { AccessPacketShareDto } from "./dto/access-packet-share.dto.js";
 import type { CreatePacketShareCommentDto } from "./dto/create-packet-share-comment.dto.js";
 import type { CreatePacketShareDto } from "./dto/create-packet-share.dto.js";
+import { PacketShareMailerService } from "./packet-share-mailer.service.js";
 
 const maximumShareLifetimeMs = 365 * 24 * 60 * 60 * 1000;
 const minimumShareLifetimeMs = 5 * 60 * 1000;
 const accessLifetimeMs = 60 * 60 * 1000;
-
-const packetShareCapabilities = {
-  comments: true,
-  emailDelivery: false,
-  emailVerification: false,
-  watermarking: false
-} satisfies PacketShareCapabilities;
 
 const publicShareSelect = {
   id: true,
@@ -92,11 +88,13 @@ interface PacketShareAccessPayload {
 
 @Injectable()
 export class PacketSharingService {
+  private readonly logger = new Logger(PacketSharingService.name);
   private readonly webOrigin = getApiEnv().WEB_ORIGIN.replace(/\/$/, "");
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly jwtService: JwtService
+    private readonly jwtService: JwtService,
+    private readonly packetShareMailer: PacketShareMailerService
   ) {}
 
   async prepare(ownerId: string, caseId: string): Promise<PacketSharePreparationResponse> {
@@ -164,7 +162,7 @@ export class PacketSharingService {
         id: share.id,
         recipientCount: share._count.recipients
       })),
-      capabilities: packetShareCapabilities,
+      capabilities: this.getCapabilities(),
       packet:
         packet && packetExport
           ? {
@@ -253,7 +251,7 @@ export class PacketSharingService {
             id: true,
             case: {
               select: {
-                owner: { select: { email: true } },
+                owner: { select: { email: true, name: true } },
                 title: true
               }
             }
@@ -329,11 +327,24 @@ export class PacketSharingService {
       fileName: toPacketFileName(packetExport.packet.case.title),
       key: packetExport.storageKey
     });
+    const shareUrl = `${this.webOrigin}/shared-packet#${rawToken}`;
+    const emailDelivery = await this.deliverPacketShareEmails({
+      caseTitle: packetExport.packet.case.title,
+      expiresAt: share.expiresAt,
+      ownerName:
+        packetExport.packet.case.owner.name?.trim() ||
+        packetExport.packet.case.owner.email,
+      recipients: share.recipients,
+      shareId: share.id,
+      shareUrl
+    });
+    await this.recordEmailDeliveryAudit(ownerId, caseId, share.id, emailDelivery);
 
     return {
-      capabilities: packetShareCapabilities,
+      capabilities: this.getCapabilities(),
       createdAt: share.createdAt.toISOString(),
-      deliveryMode: "LINK_ONLY",
+      deliveryMode: this.packetShareMailer.deliveryMode,
+      emailDelivery,
       expiresAt: share.expiresAt?.toISOString() ?? null,
       id: share.id,
       ownerDownloadUrl,
@@ -345,7 +356,7 @@ export class PacketSharingService {
         permission: recipient.permission as PacketSharePermission
       })),
       requireEmailVerification: share.requireEmailVerification,
-      shareUrl: `${this.webOrigin}/shared-packet#${rawToken}`,
+      shareUrl,
       watermarkDocuments: share.watermarkDocuments
     };
   }
@@ -486,6 +497,94 @@ export class PacketSharingService {
     };
   }
 
+  private getCapabilities(): PacketShareCapabilities {
+    return {
+      comments: true,
+      emailDelivery: true,
+      emailDeliveryMode: this.packetShareMailer.deliveryMode,
+      emailVerification: false,
+      watermarking: false
+    };
+  }
+
+  private async deliverPacketShareEmails(input: {
+    caseTitle: string;
+    expiresAt: Date | null;
+    ownerName: string;
+    recipients: Array<{
+      email: string;
+      id: string;
+      permission: DatabasePacketSharePermission;
+    }>;
+    shareId: string;
+    shareUrl: string;
+  }): Promise<PacketShareEmailDeliverySummary> {
+    const outcomes = await Promise.all(
+      input.recipients.map(async (recipient) => {
+        try {
+          await this.packetShareMailer.send({
+            caseTitle: input.caseTitle,
+            expiresAt: input.expiresAt,
+            ownerName: input.ownerName,
+            permission: recipient.permission as PacketSharePermission,
+            recipientId: recipient.id,
+            shareId: input.shareId,
+            shareUrl: input.shareUrl,
+            to: recipient.email
+          });
+          return true;
+        } catch (error) {
+          this.logger.warn(
+            JSON.stringify({
+              errorCode: getDeliveryErrorCode(error),
+              event: "packet_share_email_delivery_failed",
+              recipientId: recipient.id,
+              shareId: input.shareId
+            })
+          );
+          return false;
+        }
+      })
+    );
+    const successfulCount = outcomes.filter(Boolean).length;
+
+    return {
+      attemptedCount: outcomes.length,
+      failedCount: outcomes.length - successfulCount,
+      successfulCount
+    };
+  }
+
+  private async recordEmailDeliveryAudit(
+    ownerId: string,
+    caseId: string,
+    shareId: string,
+    delivery: PacketShareEmailDeliverySummary
+  ) {
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          action: "case.packet_share_email_delivery",
+          caseId,
+          metadata: {
+            ...delivery,
+            deliveryMode: this.packetShareMailer.deliveryMode,
+            shareId
+          },
+          userId: ownerId
+        }
+      });
+    } catch (error) {
+      this.logger.error(
+        JSON.stringify({
+          errorCode: getDeliveryErrorCode(error),
+          event: "packet_share_email_audit_failed",
+          shareId
+        })
+      );
+    }
+  }
+
   private async authorize(rawToken: string, accessToken: string) {
     if (!accessToken) {
       throw new UnauthorizedException("Packet share access is required.");
@@ -606,6 +705,21 @@ export class PacketSharingService {
 
 function hashToken(value: string) {
   return createHash("sha256").update(value).digest("hex");
+}
+
+function getDeliveryErrorCode(error: unknown) {
+  const code =
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof error.code === "string"
+      ? error.code
+      : error instanceof Error
+        ? error.name
+        : "UnknownError";
+  const sanitizedCode = code.replace(/[^a-zA-Z0-9_.:-]/g, "_").slice(0, 80);
+
+  return sanitizedCode || "UnknownError";
 }
 
 function toPacketFileName(title: string) {

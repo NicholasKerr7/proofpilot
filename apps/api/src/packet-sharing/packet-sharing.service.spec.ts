@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   GoneException,
+  Logger,
   NotFoundException,
   UnauthorizedException
 } from "@nestjs/common";
@@ -10,6 +11,7 @@ import { createHash } from "node:crypto";
 import { PacketSharePermission, PacketStatus } from "@proofpilot/database";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service.js";
+import type { PacketShareMailerService } from "./packet-share-mailer.service.js";
 import { PacketSharingService } from "./packet-sharing.service.js";
 
 const storageMocks = vi.hoisted(() => ({
@@ -41,6 +43,9 @@ function createPrismaMock() {
     case: {
       findFirst: vi.fn()
     },
+    auditLog: {
+      create: vi.fn().mockResolvedValue({})
+    },
     packetExport: {
       findFirst: vi.fn()
     },
@@ -65,17 +70,26 @@ function createJwtMock() {
   };
 }
 
+function createMailerMock() {
+  return {
+    deliveryMode: "DEVELOPMENT_LOG" as const,
+    send: vi.fn().mockResolvedValue({ providerMessageId: null })
+  };
+}
+
 type PrismaMock = ReturnType<typeof createPrismaMock>;
 type JwtMock = ReturnType<typeof createJwtMock>;
+type MailerMock = ReturnType<typeof createMailerMock>;
 
-function createService(prisma: PrismaMock, jwt: JwtMock) {
+function createService(prisma: PrismaMock, jwt: JwtMock, mailer: MailerMock) {
   process.env.DATABASE_URL = "postgresql://proofpilot:proofpilot@localhost:5432/proofpilot";
   process.env.JWT_SECRET = "proofpilot-test-secret-with-32-chars";
   process.env.WEB_ORIGIN = "https://app.proofpilot.test";
 
   return new PacketSharingService(
     prisma as unknown as PrismaService,
-    jwt as unknown as JwtService
+    jwt as unknown as JwtService,
+    mailer as unknown as PacketShareMailerService
   );
 }
 
@@ -87,11 +101,36 @@ function createPacketExport() {
     packet: {
       id: "packet-1",
       case: {
-        owner: { email: "owner@example.com" },
+        owner: { email: "owner@example.com", name: "Case Owner" },
         title: "Account appeal"
       }
     },
     storageKey: "users/owner-1/cases/case-1/packets/packet-1.pdf"
+  };
+}
+
+function createStoredShare(
+  recipients: Array<{
+    email: string;
+    id: string;
+    lastAccessedAt: Date | null;
+    permission: PacketSharePermission;
+  }> = [
+    {
+      id: "recipient-1",
+      email: "advisor@example.com",
+      permission: PacketSharePermission.COMMENT,
+      lastAccessedAt: null
+    }
+  ]
+) {
+  return {
+    id: "share-1",
+    createdAt: new Date("2026-07-18T12:00:00.000Z"),
+    expiresAt: new Date("2026-07-25T12:00:00.000Z"),
+    requireEmailVerification: false,
+    watermarkDocuments: false,
+    recipients
   };
 }
 
@@ -132,14 +171,17 @@ function createPublicShare(
 describe("PacketSharingService", () => {
   let prisma: PrismaMock;
   let jwt: JwtMock;
+  let mailer: MailerMock;
   let service: PacketSharingService;
 
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-18T12:00:00.000Z"));
+    vi.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
     prisma = createPrismaMock();
     jwt = createJwtMock();
-    service = createService(prisma, jwt);
+    mailer = createMailerMock();
+    service = createService(prisma, jwt, mailer);
     storageMocks.createPresignedDownloadUrl.mockImplementation(
       async (input: { disposition?: string }) => `https://storage.test/${input.disposition}`
     );
@@ -147,6 +189,7 @@ describe("PacketSharingService", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
     vi.clearAllMocks();
   });
 
@@ -178,7 +221,8 @@ describe("PacketSharingService", () => {
     expect(result).toMatchObject({
       capabilities: {
         comments: true,
-        emailDelivery: false,
+        emailDelivery: true,
+        emailDeliveryMode: "DEVELOPMENT_LOG",
         emailVerification: false,
         watermarking: false
       },
@@ -237,21 +281,7 @@ describe("PacketSharingService", () => {
 
   it("stores only a token hash and redacts recipient emails from audit metadata", async () => {
     prisma.packetExport.findFirst.mockResolvedValue(createPacketExport());
-    prisma.transactionClient.packetShare.create.mockResolvedValue({
-      id: "share-1",
-      createdAt: new Date(),
-      expiresAt: new Date("2026-07-25T12:00:00.000Z"),
-      requireEmailVerification: false,
-      watermarkDocuments: false,
-      recipients: [
-        {
-          id: "recipient-1",
-          email: "advisor@example.com",
-          permission: PacketSharePermission.COMMENT,
-          lastAccessedAt: null
-        }
-      ]
-    });
+    prisma.transactionClient.packetShare.create.mockResolvedValue(createStoredShare());
 
     const result = await service.create(ownerId, caseId, {
       expiresAt: "2026-07-25T12:00:00.000Z",
@@ -296,6 +326,97 @@ describe("PacketSharingService", () => {
     expect(
       prisma.transactionClient.auditLog.create.mock.calls[0]?.[0]?.data.metadata
     ).not.toHaveProperty("email");
+    expect(mailer.send).toHaveBeenCalledWith({
+      caseTitle: "Account appeal",
+      expiresAt: new Date("2026-07-25T12:00:00.000Z"),
+      ownerName: "Case Owner",
+      permission: "COMMENT",
+      recipientId: "recipient-1",
+      shareId: "share-1",
+      shareUrl: result.shareUrl,
+      to: "advisor@example.com"
+    });
+    expect(result).toMatchObject({
+      deliveryMode: "DEVELOPMENT_LOG",
+      emailDelivery: {
+        attemptedCount: 1,
+        failedCount: 0,
+        successfulCount: 1
+      }
+    });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: {
+        action: "case.packet_share_email_delivery",
+        caseId,
+        metadata: {
+          attemptedCount: 1,
+          deliveryMode: "DEVELOPMENT_LOG",
+          failedCount: 0,
+          shareId: "share-1",
+          successfulCount: 1
+        },
+        userId: ownerId
+      }
+    });
+  });
+
+  it("keeps the share active and reports partial recipient delivery failures", async () => {
+    const storedRecipients = [
+      {
+        id: "recipient-1",
+        email: "advisor@example.com",
+        permission: PacketSharePermission.VIEW,
+        lastAccessedAt: null
+      },
+      {
+        id: "recipient-2",
+        email: "reviewer@example.com",
+        permission: PacketSharePermission.DOWNLOAD,
+        lastAccessedAt: null
+      }
+    ];
+    prisma.packetExport.findFirst.mockResolvedValue(createPacketExport());
+    prisma.transactionClient.packetShare.create.mockResolvedValue(
+      createStoredShare(storedRecipients)
+    );
+    mailer.send
+      .mockResolvedValueOnce({ providerMessageId: "provider-message-1" })
+      .mockRejectedValueOnce(Object.assign(new Error("Provider detail"), { code: "rate_limit" }));
+
+    const result = await service.create(ownerId, caseId, {
+      expiresAt: "2026-07-25T12:00:00.000Z",
+      packetExportId,
+      recipients: [
+        { email: "advisor@example.com", permission: "VIEW" },
+        { email: "reviewer@example.com", permission: "DOWNLOAD" }
+      ],
+      requireEmailVerification: false,
+      watermarkDocuments: false
+    });
+
+    expect(result).toMatchObject({
+      id: "share-1",
+      emailDelivery: {
+        attemptedCount: 2,
+        failedCount: 1,
+        successfulCount: 1
+      }
+    });
+    expect(mailer.send).toHaveBeenCalledTimes(2);
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: {
+        action: "case.packet_share_email_delivery",
+        caseId,
+        metadata: {
+          attemptedCount: 2,
+          deliveryMode: "DEVELOPMENT_LOG",
+          failedCount: 1,
+          shareId: "share-1",
+          successfulCount: 1
+        },
+        userId: ownerId
+      }
+    });
   });
 
   it("rejects duplicate recipients and the case owner's email", async () => {

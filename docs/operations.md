@@ -75,6 +75,18 @@ If notification email is delayed or exhausted:
 
 A worker crash can leave a row in `SENDING`; it becomes eligible again after the ten-minute lease expires. The stable Resend idempotency key prevents that recovery path from creating a second provider send.
 
+## Packet Share Email Runbook
+
+Packet-share email runs synchronously in the API after the secure share is stored. Each recipient send has a stable share-and-recipient idempotency key. A failed send does not revoke the share; the creation response reports delivery counts and keeps copy and manual-email actions available.
+
+If packet-share email fails:
+
+1. Confirm `PACKET_SHARE_EMAIL_DELIVERY_MODE=resend`, `RESEND_API_KEY`, `AUTH_EMAIL_FROM`, and `WEB_ORIGIN` are set on the API.
+2. Confirm the sender identity is verified in Resend and that the API can reach the provider.
+3. Inspect `case.packet_share_email_delivery` audit entries for attempted, successful, and failed counts.
+4. Correlate API `packet_share_email_delivery_failed` events by `shareId` and internal `recipientId`. Logs intentionally exclude addresses, content, bearer tokens, and provider response bodies.
+5. Use the owner's manual delivery action for failed recipients. Automatic retries are not enabled for packet-share email.
+
 ## Upload Security Runbook
 
 If an uploaded document moves to `FAILED` before processing starts, check the document processing logs for `upload_validation`. The API rejects completed uploads when the stored object is missing, larger than 25 MB, has a different byte size than the reserved upload, or has a mismatched content type.

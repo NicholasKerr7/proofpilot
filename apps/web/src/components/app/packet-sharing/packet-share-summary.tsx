@@ -7,7 +7,10 @@ import {
   ShieldCheck,
   UsersRound
 } from "lucide-react";
-import type { PacketSharePacketSummary } from "@proofpilot/types";
+import type {
+  PacketShareEmailDeliveryMode,
+  PacketSharePacketSummary
+} from "@proofpilot/types";
 import {
   formatPacketShareBytes,
   formatPacketShareDate
@@ -21,6 +24,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 
 interface PacketShareSummaryProps {
+  deliveryMode: PacketShareEmailDeliveryMode;
   expiryMode: PacketShareExpiryMode;
   ownerName: string;
   packet: PacketSharePacketSummary;
@@ -29,6 +33,7 @@ interface PacketShareSummaryProps {
 }
 
 export function PacketShareSummary({
+  deliveryMode,
   expiryMode,
   ownerName,
   packet,
@@ -37,6 +42,7 @@ export function PacketShareSummary({
 }: PacketShareSummaryProps) {
   const populatedRecipients = recipients.filter((recipient) => recipient.email.trim());
   const expiration = getSummaryExpiration(expiryMode, specificDate);
+  const sendsRecipientEmail = deliveryMode === "RESEND";
 
   return (
     <aside className="grid content-start gap-4 rounded-md border border-border bg-card p-4 md:sticky md:top-24 md:p-5">
@@ -45,7 +51,9 @@ export function PacketShareSummary({
           <h2 id="packet-share-summary-heading" className="text-sm font-semibold uppercase text-primary">
             Share summary
           </h2>
-          <Badge variant="secondary">Link only</Badge>
+          <Badge variant="secondary">
+            {sendsRecipientEmail ? "Email delivery" : "Simulation"}
+          </Badge>
         </div>
         <dl className="mt-3 divide-y divide-border border-y border-border text-sm">
           <SummaryRow icon={FileArchive} label="Packet" value={packet.title} />
@@ -69,7 +77,15 @@ export function PacketShareSummary({
             label="Expires"
             value={formatPacketShareDate(expiration)}
           />
-          <SummaryRow icon={Mail} label="Delivery" value="Copy or email manually" />
+          <SummaryRow
+            icon={Mail}
+            label="Delivery"
+            value={
+              sendsRecipientEmail
+                ? "Email recipients automatically"
+                : "Simulated; send manually"
+            }
+          />
         </dl>
       </section>
 
@@ -83,17 +99,23 @@ export function PacketShareSummary({
           <h2 id="packet-email-preview-heading" className="text-sm font-semibold uppercase text-primary">
             Email preview
           </h2>
-          <span className="text-xs text-muted-foreground">Manual delivery</span>
+          <span className="text-xs text-muted-foreground">
+            {sendsRecipientEmail ? "Automatic delivery" : "Manual delivery"}
+          </span>
         </div>
         <div className="mt-3 rounded-md border border-border bg-background/45 p-4 text-sm leading-6 text-muted-foreground">
           <p>
-            <span className="font-medium text-foreground">Subject:</span> Shared: {packet.title}
+            <span className="font-medium text-foreground">Subject:</span>{" "}
+            {sendsRecipientEmail
+              ? `${ownerName} shared a ProofPilot packet`
+              : `Shared: ${packet.title}`}
           </p>
           <p className="mt-3">Hi,</p>
           <p className="mt-3">{ownerName} shared a ProofPilot case packet with you.</p>
           <p className="mt-3">
-            The private link will be included when the owner opens their email app after creating
-            the share.
+            {sendsRecipientEmail
+              ? "Use the secure link in this email to open the packet with your invited address."
+              : "The private link will be included when the owner opens their email app after creating the share."}
           </p>
           <p className="mt-3">
             Expires: {formatPacketShareDate(expiration)}

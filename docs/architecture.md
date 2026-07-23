@@ -71,7 +71,7 @@ Packet share URLs place a 256-bit random bearer token in the URL fragment. Brows
 
 Before packet details are returned, the recipient must submit an address on the share's normalized allowlist. The API then issues a short-lived JWT scoped to that share and recipient. Every content and comment request validates both the raw link token and the scoped JWT, and revoked or expired shares fail before a new signed object URL is created. Owners can revoke active shares from the sharing workspace.
 
-`VIEW`, `COMMENT`, and `DOWNLOAD` permissions control whether the API returns an attachment URL and accepts comments. An inline signed PDF response is an authorization boundary, not DRM: a recipient who can view document bytes may still capture them. The UI does not claim stronger prevention. Email delivery, one-time email verification, and document watermarking remain disabled until production providers are configured.
+`VIEW`, `COMMENT`, and `DOWNLOAD` permissions control whether the API returns an attachment URL and accepts comments. An inline signed PDF response is an authorization boundary, not DRM: a recipient who can view document bytes may still capture them. The UI does not claim stronger prevention. Share creation delivers the same fragment-token URL to each recipient through a separately configured API email mode. Development simulation logs only internal share and recipient IDs; standard production requires Resend, and each recipient request has an idempotency key. Delivery failures leave the valid share available for manual delivery. One-time email verification and document watermarking remain disabled until their providers are configured.
 
 ## Collaboration Foundation
 

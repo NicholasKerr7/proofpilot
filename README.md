@@ -198,7 +198,7 @@ These credentials are development fixtures and must not be used in production.
 | Private storage | `STORAGE_ENDPOINT`, `STORAGE_REGION`, `STORAGE_BUCKET`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY`, `STORAGE_FORCE_PATH_STYLE` |
 | Upload security | `VIRUS_SCAN_MODE`, `CLAMAV_HOST`, `CLAMAV_PORT`, `CLAMAV_TIMEOUT_MS` |
 | Authentication | `AUTH_SESSION_TTL_DAYS`, password-reset delivery and expiry settings |
-| Email | `NOTIFICATION_EMAIL_DELIVERY_MODE`, `RESEND_API_KEY`, `AUTH_EMAIL_FROM` |
+| Email | `PASSWORD_RESET_DELIVERY_MODE`, `PACKET_SHARE_EMAIL_DELIVERY_MODE`, `NOTIFICATION_EMAIL_DELIVERY_MODE`, `RESEND_API_KEY`, `AUTH_EMAIL_FROM` |
 | OCR | `OCR_LANGUAGES`, `OCR_CACHE_PATH`, `TESSERACT_LANG_PATH` |
 | Operations | rate-limit, trusted-proxy, environment, and monitoring webhook settings |
 | Portfolio demo | `PORTFOLIO_DEMO_ACCESS_KEY`, template email, workspace TTL, and active-workspace cap |

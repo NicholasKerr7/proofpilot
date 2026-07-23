@@ -77,6 +77,10 @@ export function PacketShareCompose({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [revokingShareId, setRevokingShareId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const sendsRecipientEmail =
+    preparation.capabilities.emailDelivery &&
+    preparation.capabilities.emailDeliveryMode === "RESEND";
+  const DeliveryIcon = sendsRecipientEmail ? MailCheck : Link2;
 
   function setPermission(permission: PacketSharePermission) {
     setDefaultPermission(permission);
@@ -309,6 +313,7 @@ export function PacketShareCompose({
         </div>
 
         <PacketShareSummary
+          deliveryMode={preparation.capabilities.emailDeliveryMode}
           expiryMode={expiryMode}
           ownerName={ownerName}
           packet={preparation.packet}
@@ -330,12 +335,20 @@ export function PacketShareCompose({
         </Button>
         <Button disabled={isSubmitting} type="submit">
           <Send className="h-4 w-4" aria-hidden="true" />
-          {isSubmitting ? "Creating link..." : "Create share link"}
+          {isSubmitting
+            ? sendsRecipientEmail
+              ? "Creating & sending..."
+              : "Creating link..."
+            : sendsRecipientEmail
+              ? "Create link & send"
+              : "Create share link"}
         </Button>
       </div>
       <p className="flex items-center justify-center gap-2 text-center text-xs text-muted-foreground">
-        <Link2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-        Email delivery is not configured. You can copy or email the link after creation.
+        <DeliveryIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
+        {sendsRecipientEmail
+          ? "Recipients will receive the secure link by email after creation."
+          : "Email delivery is simulated in this environment. You can send the link manually after creation."}
       </p>
     </form>
   );

@@ -1,11 +1,22 @@
 export const packetSharePermissions = ["VIEW", "COMMENT", "DOWNLOAD"] as const;
 export type PacketSharePermission = (typeof packetSharePermissions)[number];
 
+export const packetShareEmailDeliveryModes = ["DEVELOPMENT_LOG", "RESEND"] as const;
+export type PacketShareEmailDeliveryMode =
+  (typeof packetShareEmailDeliveryModes)[number];
+
 export interface PacketShareCapabilities {
   comments: boolean;
   emailDelivery: boolean;
+  emailDeliveryMode: PacketShareEmailDeliveryMode;
   emailVerification: boolean;
   watermarking: boolean;
+}
+
+export interface PacketShareEmailDeliverySummary {
+  attemptedCount: number;
+  failedCount: number;
+  successfulCount: number;
 }
 
 export interface PacketSharePacketSummary {
@@ -58,7 +69,8 @@ export interface PacketShareRecipientRecord {
 export interface PacketShareCreatedResponse {
   capabilities: PacketShareCapabilities;
   createdAt: string;
-  deliveryMode: "LINK_ONLY";
+  deliveryMode: PacketShareEmailDeliveryMode;
+  emailDelivery: PacketShareEmailDeliverySummary;
   expiresAt: string | null;
   id: string;
   ownerDownloadUrl: string;

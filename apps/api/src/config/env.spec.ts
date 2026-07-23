@@ -43,6 +43,7 @@ describe("getApiEnv", () => {
       CLAMAV_PORT: "13310",
       CLAMAV_TIMEOUT_MS: "90000",
       PASSWORD_RESET_DELIVERY_MODE: "resend",
+      PACKET_SHARE_EMAIL_DELIVERY_MODE: "resend",
       RESEND_API_KEY: "re_test_key",
       AUTH_EMAIL_FROM: "ProofPilot <security@proofpilot.test>"
     });
@@ -65,11 +66,33 @@ describe("getApiEnv", () => {
     ).toThrow("PASSWORD_RESET_DELIVERY_MODE must be resend in production");
   });
 
+  it("requires production packet-share email delivery", () => {
+    expect(() =>
+      getApiEnv({
+        ...baseEnv,
+        NODE_ENV: "production",
+        PASSWORD_RESET_DELIVERY_MODE: "resend",
+        RESEND_API_KEY: "re_test_key",
+        AUTH_EMAIL_FROM: "ProofPilot <security@proofpilot.test>",
+        VIRUS_SCAN_MODE: "clamav"
+      })
+    ).toThrow("PACKET_SHARE_EMAIL_DELIVERY_MODE must be resend in production");
+  });
+
   it("requires Resend credentials when email delivery is enabled", () => {
     expect(() =>
       getApiEnv({
         ...baseEnv,
         PASSWORD_RESET_DELIVERY_MODE: "resend"
+      })
+    ).toThrow("RESEND_API_KEY is required");
+  });
+
+  it("requires Resend credentials for packet-share email delivery", () => {
+    expect(() =>
+      getApiEnv({
+        ...baseEnv,
+        PACKET_SHARE_EMAIL_DELIVERY_MODE: "resend"
       })
     ).toThrow("RESEND_API_KEY is required");
   });
@@ -83,6 +106,7 @@ describe("getApiEnv", () => {
         PROOFPILOT_MODE: "portfolio"
       })
     ).toMatchObject({
+      PACKET_SHARE_EMAIL_DELIVERY_MODE: "log",
       PASSWORD_RESET_DELIVERY_MODE: "log",
       PROOFPILOT_MODE: "portfolio",
       VIRUS_SCAN_MODE: "disabled"
