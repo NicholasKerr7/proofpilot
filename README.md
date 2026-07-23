@@ -6,6 +6,10 @@ The application combines a responsive web interface with an ownership-aware API,
 
 ProofPilot organizes user-provided records and workflow information. It does not provide legal representation, guarantee an appeal outcome, or replace advice from a qualified professional.
 
+**Live portfolio demo:** [nicholas-kerr-proofpilot.vercel.app](https://nicholas-kerr-proofpilot.vercel.app)
+
+The public demo requires no shared credentials. Each visitor receives an isolated, temporary copy of the Nicholas Kerr sample workspace.
+
 ## Contents
 
 - [What ProofPilot Does](#what-proofpilot-does)
@@ -320,6 +324,8 @@ Production uses three independently scalable services:
 - Build the `api` Docker target for the NestJS API.
 - Build the `worker` Docker target for background jobs and schedulers.
 
+The live portfolio environment runs the web application on Vercel and the API, worker, PostgreSQL, Redis, and private object storage on Railway. It uses the restricted portfolio policy described above and does not accept arbitrary device uploads or send external email.
+
 The API and worker require PostgreSQL, Redis, private S3-compatible storage, and a private ClamAV service. Production password recovery, invitations, packet sharing, and notification email require a verified Resend sender. Apply Prisma migrations and bootstrap the storage bucket before accepting traffic.
 
 ```bash
@@ -345,7 +351,7 @@ Detailed environment variables, container targets, release order, and operationa
 - Billing is a persisted demonstration and does not process payments.
 - The assistant is deterministic and case-aware but does not call an external model provider.
 - Two-factor authentication and WebAuthn enrollment are not enabled.
-- Production malware scanning, email delivery, monitoring, secrets, and storage policies must be configured before launch.
+- Production malware scanning, provider-backed email, monitoring, secrets, and storage policies must be configured before a standard-mode launch that accepts real user data.
 
 The interface reports unavailable provider-backed functionality explicitly rather than simulating a completed production integration.
 
