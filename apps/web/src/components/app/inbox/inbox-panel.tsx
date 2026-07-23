@@ -1,14 +1,5 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type {
-  InboxConversationDetail,
-  InboxConversationRecord,
-  InboxMessageRecord,
-  InboxReadStateRecord,
-  SupportRequestMessageRecord,
-  SupportRequestRecord
-} from "@proofpilot/types";
 import {
   CheckCheck,
   Inbox,
@@ -23,17 +14,13 @@ import { InboxRow } from "@/components/app/inbox/inbox-row";
 import {
   getInboxConversationKey,
   inboxCategoryOptions,
-  matchesInboxFilter,
-  matchesInboxSearch,
-  sortInboxConversations,
-  type InboxFilter,
   type InboxSort
 } from "@/components/app/inbox/inbox-utils";
+import { useInboxPanel } from "@/components/app/inbox/use-inbox-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { apiRequest } from "@/lib/client/api";
 import type { CaseRecord } from "@/lib/client/types";
 import { cn } from "@/lib/utils";
 
@@ -47,11 +34,7 @@ interface InboxPanelProps {
   selectedCaseId: string | null;
 }
 
-type Notice = {
-  text: string;
-  tone: "error" | "success";
-};
-
+/** Renders inbox list, composer, and conversation detail around the inbox controller. */
 export function InboxPanel({
   cases,
   onNotificationsChanged,
@@ -61,304 +44,12 @@ export function InboxPanel({
   refreshKey,
   selectedCaseId
 }: InboxPanelProps) {
-  const [conversations, setConversations] = useState<InboxConversationRecord[]>([]);
-  const [filter, setFilter] = useState<InboxFilter>("ALL");
-  const [sort, setSort] = useState<InboxSort>("NEWEST");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [detail, setDetail] = useState<InboxConversationDetail | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isDetailLoading, setIsDetailLoading] = useState(false);
-  const [isComposing, setIsComposing] = useState(false);
-  const [isMobileDetailOpen, setIsMobileDetailOpen] = useState(false);
-  const [updatingKey, setUpdatingKey] = useState<string | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
-  const [notice, setNotice] = useState<Notice | null>(null);
-  const unreadCount = conversations.filter((conversation) => !conversation.readAt).length;
-  const filteredConversations = useMemo(
-    () =>
-      sortInboxConversations(
-        conversations.filter(
-          (conversation) =>
-            matchesInboxFilter(conversation, filter) &&
-            matchesInboxSearch(conversation, searchQuery)
-        ),
-        sort
-      ),
-    [conversations, filter, searchQuery, sort]
-  );
-  const selectedConversation =
-    filteredConversations.find(
-      (conversation) => getInboxConversationKey(conversation) === selectedKey
-    ) ?? null;
-  const selectedSource = selectedConversation?.source ?? null;
-  const selectedId = selectedConversation?.id ?? null;
-
-  useEffect(() => {
-    onUnreadCountChange(unreadCount);
-  }, [onUnreadCountChange, unreadCount]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadConversations() {
-      setIsLoading(true);
-      setNotice(null);
-
-      try {
-        const nextConversations = await apiRequest<InboxConversationRecord[]>(
-          "/api/inbox/conversations"
-        );
-
-        if (!isMounted) {
-          return;
-        }
-
-        setConversations(nextConversations);
-        setSelectedKey((currentKey) => {
-          if (
-            currentKey &&
-            nextConversations.some(
-              (conversation) => getInboxConversationKey(conversation) === currentKey
-            )
-          ) {
-            return currentKey;
-          }
-
-          return window.matchMedia("(min-width: 768px)").matches && nextConversations[0]
-            ? getInboxConversationKey(nextConversations[0])
-            : null;
-        });
-      } catch (error) {
-        if (isMounted) {
-          setNotice({
-            tone: "error",
-            text: error instanceof Error ? error.message : "Inbox could not be loaded."
-          });
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    void loadConversations();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [refreshKey, reloadKey]);
-
-  useEffect(() => {
-    if (!selectedSource || !selectedId) {
-      return;
-    }
-
-    let isMounted = true;
-
-    async function loadDetail() {
-      setIsDetailLoading(true);
-
-      try {
-        const nextDetail = await apiRequest<InboxConversationDetail>(
-          `/api/inbox/conversations/${selectedSource}/${selectedId}`
-        );
-
-        if (isMounted) {
-          setDetail(nextDetail);
-        }
-      } catch (error) {
-        if (isMounted) {
-          setDetail(null);
-          setNotice({
-            tone: "error",
-            text: error instanceof Error ? error.message : "Conversation could not be loaded."
-          });
-        }
-      } finally {
-        if (isMounted) {
-          setIsDetailLoading(false);
-        }
-      }
-    }
-
-    void loadDetail();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [refreshKey, reloadKey, selectedId, selectedSource]);
-
-  async function updateReadState(conversation: InboxConversationRecord, read: boolean) {
-    const conversationKey = getInboxConversationKey(conversation);
-    setUpdatingKey(conversationKey);
-
-    try {
-      const result = await apiRequest<InboxReadStateRecord>(
-        `/api/inbox/conversations/${conversation.source}/${conversation.id}/read`,
-        {
-          body: JSON.stringify({ read }),
-          method: "PATCH"
-        }
-      );
-      setConversations((currentConversations) =>
-        currentConversations.map((currentConversation) =>
-          getInboxConversationKey(currentConversation) === conversationKey
-            ? { ...currentConversation, readAt: result.readAt }
-            : currentConversation
-        )
-      );
-      setDetail((currentDetail) =>
-        currentDetail && getInboxConversationKey(currentDetail) === conversationKey
-          ? { ...currentDetail, readAt: result.readAt }
-          : currentDetail
-      );
-
-      if (conversation.source === "NOTIFICATION") {
-        onNotificationsChanged();
-      }
-    } finally {
-      setUpdatingKey(null);
-    }
-  }
-
-  async function handleOpenConversation(conversation: InboxConversationRecord) {
-    setIsComposing(false);
-    setSelectedKey(getInboxConversationKey(conversation));
-    setIsMobileDetailOpen(true);
-    setNotice(null);
-
-    if (!conversation.readAt) {
-      try {
-        await updateReadState(conversation, true);
-      } catch (error) {
-        setNotice({
-          tone: "error",
-          text: error instanceof Error ? error.message : "Conversation could not be marked read."
-        });
-      }
-    }
-  }
-
-  async function handleMarkUnread(conversation: InboxConversationDetail) {
-    setNotice(null);
-
-    try {
-      await updateReadState(conversation, false);
-      setNotice({ tone: "success", text: "Conversation marked unread." });
-    } catch (error) {
-      setNotice({
-        tone: "error",
-        text: error instanceof Error ? error.message : "Conversation could not be updated."
-      });
-    }
-  }
-
-  async function handleMarkAllRead() {
-    if (!unreadCount) {
-      return;
-    }
-
-    setUpdatingKey("all");
-    setNotice(null);
-
-    try {
-      const result = await apiRequest<{ readAt: string; updatedCount: number }>(
-        "/api/inbox/read-all",
-        { method: "PATCH" }
-      );
-      setConversations((currentConversations) =>
-        currentConversations.map((conversation) => ({
-          ...conversation,
-          readAt: conversation.readAt ?? result.readAt
-        }))
-      );
-      setDetail((currentDetail) =>
-        currentDetail
-          ? { ...currentDetail, readAt: currentDetail.readAt ?? result.readAt }
-          : currentDetail
-      );
-      setNotice({
-        tone: "success",
-        text: result.updatedCount
-          ? "All conversations marked read."
-          : "Inbox was already up to date."
-      });
-      onNotificationsChanged();
-    } catch (error) {
-      setNotice({
-        tone: "error",
-        text: error instanceof Error ? error.message : "Inbox could not be updated."
-      });
-    } finally {
-      setUpdatingKey(null);
-    }
-  }
-
-  async function handleReply(conversation: InboxConversationDetail, body: string) {
-    if (conversation.source !== "SUPPORT_REQUEST") {
-      throw new Error("This conversation does not accept replies.");
-    }
-
-    const conversationKey = getInboxConversationKey(conversation);
-    setUpdatingKey(conversationKey);
-
-    try {
-      const createdMessage = await apiRequest<SupportRequestMessageRecord>(
-        `/api/support/requests/${conversation.id}/messages`,
-        {
-          body: JSON.stringify({ message: body }),
-          method: "POST"
-        }
-      );
-      const inboxMessage: InboxMessageRecord = {
-        author: "USER",
-        body: createdMessage.message,
-        createdAt: createdMessage.createdAt,
-        id: createdMessage.id,
-        senderName: "You"
-      };
-      setDetail((currentDetail) =>
-        currentDetail && getInboxConversationKey(currentDetail) === conversationKey
-          ? {
-              ...currentDetail,
-              messages: [...currentDetail.messages, inboxMessage],
-              preview: createdMessage.message,
-              readAt: createdMessage.createdAt,
-              updatedAt: createdMessage.createdAt
-            }
-          : currentDetail
-      );
-      setConversations((currentConversations) =>
-        currentConversations.map((currentConversation) =>
-          getInboxConversationKey(currentConversation) === conversationKey
-            ? {
-                ...currentConversation,
-                preview: createdMessage.message,
-                readAt: createdMessage.createdAt,
-                updatedAt: createdMessage.createdAt
-              }
-            : currentConversation
-        )
-      );
-      setNotice({ tone: "success", text: "Message sent." });
-      onNotificationsChanged();
-    } finally {
-      setUpdatingKey(null);
-    }
-  }
-
-  function handleCreated(request: SupportRequestRecord) {
-    setIsComposing(false);
-    setSelectedKey(`SUPPORT_REQUEST:${request.id}`);
-    setIsMobileDetailOpen(true);
-    setNotice({ tone: "success", text: "Message sent to ProofPilot Support." });
-    setReloadKey((currentKey) => currentKey + 1);
-    onNotificationsChanged();
-  }
-
-  const showMobileWorkspace = isComposing || isMobileDetailOpen;
+  const inbox = useInboxPanel({
+    onNotificationsChanged,
+    onUnreadCountChange,
+    refreshKey
+  });
+  const showMobileWorkspace = inbox.isComposing || inbox.isMobileDetailOpen;
 
   return (
     <section aria-labelledby="inbox-heading" className="grid gap-4">
@@ -379,9 +70,9 @@ export function InboxPanel({
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
-            disabled={!unreadCount || updatingKey === "all"}
+            disabled={!inbox.unreadCount || inbox.updatingKey === "all"}
             onClick={() => {
-              void handleMarkAllRead();
+              void inbox.markAllRead();
             }}
             type="button"
             variant="outline"
@@ -391,9 +82,9 @@ export function InboxPanel({
           </Button>
           <Button
             onClick={() => {
-              setIsComposing(true);
-              setIsMobileDetailOpen(false);
-              setNotice(null);
+              inbox.setIsComposing(true);
+              inbox.setIsMobileDetailOpen(false);
+              inbox.setNotice(null);
             }}
             type="button"
           >
@@ -403,33 +94,33 @@ export function InboxPanel({
         </div>
       </header>
 
-      {notice ? (
+      {inbox.notice ? (
         <p
           className={cn(
             "rounded-md border px-3 py-2 text-sm",
-            notice.tone === "success"
+            inbox.notice.tone === "success"
               ? "border-teal-400/30 bg-teal-400/10 text-teal-100"
               : "border-red-400/30 bg-red-400/10 text-red-100"
           )}
-          role={notice.tone === "error" ? "alert" : "status"}
+          role={inbox.notice.tone === "error" ? "alert" : "status"}
         >
-          {notice.text}
+          {inbox.notice.text}
         </p>
       ) : null}
 
-      {isComposing ? (
+      {inbox.isComposing ? (
         <InboxComposer
           cases={cases}
           initialCaseId={selectedCaseId}
-          onCancel={() => setIsComposing(false)}
-          onCreated={handleCreated}
+          onCancel={() => inbox.setIsComposing(false)}
+          onCreated={inbox.handleCreated}
         />
       ) : (
         <>
           <div
             className={cn(
               "grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center",
-              isMobileDetailOpen ? "hidden md:grid" : null
+              inbox.isMobileDetailOpen ? "hidden md:grid" : null
             )}
           >
             <div className="relative">
@@ -440,16 +131,16 @@ export function InboxPanel({
               <Input
                 aria-label="Search messages"
                 className="pl-11 pr-12"
-                onChange={(event) => setSearchQuery(event.target.value)}
+                onChange={(event) => inbox.setSearchQuery(event.target.value)}
                 placeholder="Search messages"
                 type="search"
-                value={searchQuery}
+                value={inbox.searchQuery}
               />
-              {searchQuery ? (
+              {inbox.searchQuery ? (
                 <Button
                   aria-label="Clear message search"
                   className="absolute right-0 top-1/2 -translate-y-1/2"
-                  onClick={() => setSearchQuery("")}
+                  onClick={() => inbox.setSearchQuery("")}
                   size="icon"
                   title="Clear message search"
                   type="button"
@@ -462,8 +153,8 @@ export function InboxPanel({
             <Select
               aria-label="Sort conversations"
               className="md:w-44"
-              onChange={(event) => setSort(event.target.value as InboxSort)}
-              value={sort}
+              onChange={(event) => inbox.setSort(event.target.value as InboxSort)}
+              value={inbox.sort}
             >
               <option value="NEWEST">Sort: Newest</option>
               <option value="OLDEST">Sort: Oldest</option>
@@ -474,33 +165,33 @@ export function InboxPanel({
             aria-label="Filter messages"
             className={cn(
               "flex gap-1 overflow-x-auto border border-border bg-card p-1 scroll-container",
-              isMobileDetailOpen ? "hidden md:flex" : null
+              inbox.isMobileDetailOpen ? "hidden md:flex" : null
             )}
             role="group"
           >
             <InboxFilterButton
-              active={filter === "ALL"}
-              count={conversations.length}
+              active={inbox.filter === "ALL"}
+              count={inbox.conversations.length}
               label="All"
-              onClick={() => setFilter("ALL")}
+              onClick={() => inbox.setFilter("ALL")}
             />
             <InboxFilterButton
-              active={filter === "UNREAD"}
-              count={unreadCount}
+              active={inbox.filter === "UNREAD"}
+              count={inbox.unreadCount}
               label="Unread"
-              onClick={() => setFilter("UNREAD")}
+              onClick={() => inbox.setFilter("UNREAD")}
             />
             {inboxCategoryOptions.map((option) => (
               <InboxFilterButton
-                active={filter === option.value}
+                active={inbox.filter === option.value}
                 count={
-                  conversations.filter(
+                  inbox.conversations.filter(
                     (conversation) => conversation.category === option.value
                   ).length
                 }
                 key={option.value}
                 label={option.label}
-                onClick={() => setFilter(option.value)}
+                onClick={() => inbox.setFilter(option.value)}
               />
             ))}
           </div>
@@ -510,7 +201,7 @@ export function InboxPanel({
               aria-labelledby="conversation-list-heading"
               className={cn(
                 "min-w-0 overflow-hidden border border-border bg-card",
-                isMobileDetailOpen ? "hidden md:block" : null
+                inbox.isMobileDetailOpen ? "hidden md:block" : null
               )}
             >
               <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
@@ -519,28 +210,30 @@ export function InboxPanel({
                     Conversations
                   </h2>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {filteredConversations.length} shown
+                    {inbox.filteredConversations.length} shown
                   </p>
                 </div>
-                <Badge variant={unreadCount ? "default" : "secondary"}>
-                  {unreadCount} unread
+                <Badge variant={inbox.unreadCount ? "default" : "secondary"}>
+                  {inbox.unreadCount} unread
                 </Badge>
               </div>
 
-              {isLoading ? (
+              {inbox.isLoading ? (
                 <div className="flex min-h-48 items-center justify-center gap-2 text-sm text-muted-foreground">
                   <LoaderCircle className="h-4 w-4 animate-spin text-primary" aria-hidden="true" />
                   Loading conversations
                 </div>
-              ) : filteredConversations.length ? (
+              ) : inbox.filteredConversations.length ? (
                 <div className="scroll-container md:max-h-[48rem] md:overflow-y-auto">
-                  {filteredConversations.map((conversation) => (
+                  {inbox.filteredConversations.map((conversation) => (
                     <InboxRow
-                      active={getInboxConversationKey(conversation) === selectedKey}
+                      active={
+                        getInboxConversationKey(conversation) === inbox.selectedKey
+                      }
                       conversation={conversation}
                       key={getInboxConversationKey(conversation)}
                       onOpen={(selectedConversation) => {
-                        void handleOpenConversation(selectedConversation);
+                        void inbox.openConversation(selectedConversation);
                       }}
                     />
                   ))}
@@ -558,16 +251,24 @@ export function InboxPanel({
               )}
             </section>
 
-            <div className={cn(isMobileDetailOpen ? "block" : "hidden md:block")}>
+            <div className={cn(inbox.isMobileDetailOpen ? "block" : "hidden md:block")}>
               <InboxDetail
-                conversation={detail}
-                isLoading={isDetailLoading}
-                isUpdating={detail ? updatingKey === getInboxConversationKey(detail) : false}
-                key={detail ? getInboxConversationKey(detail) : "empty-conversation"}
-                onBack={() => setIsMobileDetailOpen(false)}
-                onMarkUnread={handleMarkUnread}
+                conversation={inbox.detail}
+                isLoading={inbox.isDetailLoading}
+                isUpdating={
+                  inbox.detail
+                    ? inbox.updatingKey === getInboxConversationKey(inbox.detail)
+                    : false
+                }
+                key={
+                  inbox.detail
+                    ? getInboxConversationKey(inbox.detail)
+                    : "empty-conversation"
+                }
+                onBack={() => inbox.setIsMobileDetailOpen(false)}
+                onMarkUnread={inbox.markUnread}
                 onOpenCase={onOpenCase}
-                onReply={handleReply}
+                onReply={inbox.reply}
                 ownerName={ownerName}
               />
             </div>
@@ -578,6 +279,7 @@ export function InboxPanel({
   );
 }
 
+/** Renders one inbox category segment with its current count. */
 function InboxFilterButton({
   active,
   count,

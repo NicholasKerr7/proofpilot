@@ -1,30 +1,33 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ProviderImportProvider, ProviderImportResponse } from "@proofpilot/types";
-import { Badge } from "@/components/ui/badge";
 import { EvidenceCameraCapture } from "@/components/app/evidence/evidence-camera-capture";
+import {
+  fetchDocumentDetail,
+  focusEvidenceSurface,
+  formatFileCount,
+  getEvidenceScrollBehavior
+} from "@/components/app/evidence/evidence-panel-utils";
+import type { EvidenceNotice } from "@/components/app/evidence/evidence-panel-types";
 import { EvidenceRecentImports } from "@/components/app/evidence/evidence-recent-imports";
 import { EvidenceReviewWorkspace } from "@/components/app/evidence/evidence-review-workspace";
 import { EvidenceScanReview } from "@/components/app/evidence/evidence-scan-review";
 import { EvidenceSourcePicker } from "@/components/app/evidence/evidence-source-picker";
 import { EvidenceUploadQueue } from "@/components/app/evidence/evidence-upload-queue";
-import { ProviderImportWorkspace } from "@/components/app/evidence/provider-import-workspace";
 import {
-  createEvidenceUploadQueueItem,
   getEvidenceFileValidationError,
   getEvidenceUploadMimeType,
-  isFinishedQueueStatus,
-  mapDocumentStatusToQueueStatus,
-  uploadEvidenceToSignedUrl,
-  type EvidenceUploadQueueItem,
   type EvidenceUploadSource
 } from "@/components/app/evidence/evidence-upload-utils";
+import { ProviderImportWorkspace } from "@/components/app/evidence/provider-import-workspace";
+import { useEvidenceUploadQueue } from "@/components/app/evidence/use-evidence-upload-queue";
+import { useSelectedEvidenceProcessing } from "@/components/app/evidence/use-selected-evidence-processing";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/client/api";
 import type {
   CaseRecord,
-  CreateDocumentResponse,
   EvidenceDocument,
   EvidenceDocumentDetail,
   EvidenceProcessingStatus,
@@ -47,35 +50,7 @@ export type EvidenceCaptureState =
   | "gmail"
   | "google-drive";
 
-type Notice = {
-  tone: "success" | "error" | "info";
-  text: string;
-};
-
-type QueueItemUpdates = Partial<
-  Pick<EvidenceUploadQueueItem, "documentId" | "error" | "progress" | "status">
->;
-
-function fetchDocumentDetail(documentId: string) {
-  return apiRequest<EvidenceDocumentDetail>(`/api/documents/${documentId}`);
-}
-
-function fetchProcessingStatus(documentId: string) {
-  return apiRequest<EvidenceProcessingStatus>(`/api/documents/${documentId}/processing-status`);
-}
-
-function analyzeCaseChecklist(caseId: string) {
-  return apiRequest(`/api/cases/${caseId}/checklist/analyze`, {
-    method: "POST"
-  });
-}
-
-function analyzeCaseTimeline(caseId: string) {
-  return apiRequest(`/api/cases/${caseId}/timeline/analyze`, {
-    method: "POST"
-  });
-}
-
+/** Coordinates evidence capture surfaces with the document vault and upload queue. */
 export function EvidencePanel({
   confirmBeforeDelete,
   selectedCase,
@@ -88,8 +63,6 @@ export function EvidencePanel({
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<EvidenceDocumentDetail | null>(null);
   const [documentToDelete, setDocumentToDelete] = useState<EvidenceDocument | null>(null);
-  const [uploadQueue, setUploadQueue] = useState<EvidenceUploadQueueItem[]>([]);
-  const [activeUploadId, setActiveUploadId] = useState<string | null>(null);
   const [scanFile, setScanFile] = useState<File | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [activeProvider, setActiveProvider] = useState<ProviderImportProvider | null>(null);
@@ -98,78 +71,11 @@ export function EvidencePanel({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isReprocessing, setIsReprocessing] = useState(false);
   const [isVaultOpen, setIsVaultOpen] = useState(false);
-  const [notice, setNotice] = useState<Notice | null>(null);
-  const processingUploadIdRef = useRef<string | null>(null);
-  const processingQueueDocumentIdsKey = JSON.stringify(
-    uploadQueue.flatMap((item) =>
-      item.status === "processing" &&
-      item.documentId &&
-      item.documentId !== selectedDocumentId
-        ? [item.documentId]
-        : []
-    )
-  );
+  const [notice, setNotice] = useState<EvidenceNotice | null>(null);
 
-  const updateQueueItem = useCallback((itemId: string, updates: QueueItemUpdates) => {
-    setUploadQueue((currentQueue) =>
-      currentQueue.map((item) => (item.id === itemId ? { ...item, ...updates } : item))
-    );
-  }, []);
-
-  const syncQueueDocumentStatus = useCallback((documentId: string, documentStatus: string) => {
-    const nextStatus = mapDocumentStatusToQueueStatus(documentStatus);
-
-    if (!nextStatus) {
-      return;
-    }
-
-    setUploadQueue((currentQueue) =>
-      currentQueue.map((item) => {
-        if (item.documentId !== documentId || item.status !== "processing") {
-          return item;
-        }
-
-        return {
-          ...item,
-          error: nextStatus === "failed" ? "Document processing failed." : item.error,
-          status: nextStatus
-        };
-      })
-    );
-  }, []);
-
-  const syncQueueWithDocuments = useCallback((nextDocuments: EvidenceDocument[]) => {
-    const documentsById = new Map(nextDocuments.map((document) => [document.id, document]));
-
-    setUploadQueue((currentQueue) =>
-      currentQueue.map((item) => {
-        if (!item.documentId || item.status !== "processing") {
-          return item;
-        }
-
-        const document = documentsById.get(item.documentId);
-        const nextStatus = document ? mapDocumentStatusToQueueStatus(document.status) : null;
-
-        if (!nextStatus || nextStatus === item.status) {
-          return item;
-        }
-
-        return {
-          ...item,
-          error: nextStatus === "failed" ? "Document processing failed." : item.error,
-          status: nextStatus
-        };
-      })
-    );
-  }, []);
-
-  const refreshDocuments = useCallback(
-    async (preferredDocumentId?: string) => {
-      const nextDocuments = await apiRequest<EvidenceDocument[]>(
-        `/api/cases/${selectedCase.id}/documents`
-      );
+  const applyDocuments = useCallback(
+    (nextDocuments: EvidenceDocument[], preferredDocumentId?: string) => {
       setDocuments(nextDocuments);
-      syncQueueWithDocuments(nextDocuments);
       setSelectedDocumentId((currentId) => {
         const targetId = preferredDocumentId ?? currentId;
 
@@ -180,7 +86,57 @@ export function EvidencePanel({
         return nextDocuments[0]?.id ?? null;
       });
     },
-    [selectedCase.id, syncQueueWithDocuments]
+    []
+  );
+
+  const applyDocumentStatuses = useCallback(
+    (updates: Map<string, EvidenceProcessingStatus>) => {
+      setDocuments((currentDocuments) =>
+        currentDocuments.map((document) => {
+          const statusUpdate = updates.get(document.id);
+
+          return statusUpdate
+            ? {
+                ...document,
+                status: statusUpdate.status,
+                updatedAt: statusUpdate.updatedAt
+              }
+            : document;
+        })
+      );
+    },
+    []
+  );
+
+  const {
+    activeUploadId,
+    clearFinished,
+    enqueueFiles: enqueueUploadFiles,
+    items: uploadQueueItems,
+    remove: removeUpload,
+    reset: resetUploadQueue,
+    retry: retryUpload,
+    syncDocumentStatus,
+    syncWithDocuments
+  } = useEvidenceUploadQueue({
+    caseId: selectedCase.id,
+    onDocumentsChanged,
+    onDocumentsLoaded: applyDocuments,
+    onDocumentStatusesChanged: applyDocumentStatuses,
+    readOnly,
+    selectedDocumentId,
+    setNotice
+  });
+
+  const refreshDocuments = useCallback(
+    async (preferredDocumentId?: string) => {
+      const nextDocuments = await apiRequest<EvidenceDocument[]>(
+        `/api/cases/${selectedCase.id}/documents`
+      );
+      syncWithDocuments(nextDocuments);
+      applyDocuments(nextDocuments, preferredDocumentId);
+    },
+    [applyDocuments, selectedCase.id, syncWithDocuments]
   );
 
   useEffect(() => {
@@ -191,7 +147,7 @@ export function EvidencePanel({
       setNotice(null);
       setSelectedDocument(null);
       setSelectedDocumentId(null);
-      setUploadQueue([]);
+      resetUploadQueue();
       setScanFile(null);
       setIsCameraOpen(false);
       setActiveProvider(null);
@@ -228,7 +184,7 @@ export function EvidencePanel({
     return () => {
       isMounted = false;
     };
-  }, [onCaptureStateChange, selectedCase.id]);
+  }, [onCaptureStateChange, resetUploadQueue, selectedCase.id]);
 
   useEffect(() => {
     let isMounted = true;
@@ -269,356 +225,24 @@ export function EvidencePanel({
     };
   }, [selectedDocumentId]);
 
-  useEffect(() => {
-    if (!selectedDocumentId || !isActiveProcessingStatus(selectedDocument?.status)) {
-      return;
-    }
-
-    let isMounted = true;
-    let isRefreshing = false;
-    let isSettled = false;
-
-    async function refreshProcessingStatus() {
-      if (!selectedDocumentId || isRefreshing || isSettled) {
-        return;
-      }
-
-      isRefreshing = true;
-
-      try {
-        const statusUpdate = await fetchProcessingStatus(selectedDocumentId);
-
-        if (!isMounted) {
-          return;
-        }
-
-        setDocuments((currentDocuments) =>
-          currentDocuments.map((document) =>
-            document.id === selectedDocumentId
-              ? { ...document, status: statusUpdate.status, updatedAt: statusUpdate.updatedAt }
-              : document
-          )
-        );
-        syncQueueDocumentStatus(selectedDocumentId, statusUpdate.status);
-
-        if (isActiveProcessingStatus(statusUpdate.status)) {
-          setSelectedDocument((currentDocument) =>
-            currentDocument?.id === selectedDocumentId
-              ? {
-                  ...currentDocument,
-                  status: statusUpdate.status,
-                  updatedAt: statusUpdate.updatedAt,
-                  processingLogs: statusUpdate.processingLogs
-                }
-              : currentDocument
-          );
-          return;
-        }
-
-        isSettled = true;
-        const detail = await fetchDocumentDetail(selectedDocumentId);
-
-        if (!isMounted) {
-          return;
-        }
-
-        setSelectedDocument(detail);
-        setDocuments((currentDocuments) =>
-          currentDocuments.map((document) =>
-            document.id === selectedDocumentId
-              ? { ...document, status: detail.status, updatedAt: detail.updatedAt }
-              : document
-          )
-        );
-        syncQueueDocumentStatus(selectedDocumentId, detail.status);
-
-        try {
-          if (!readOnly && shouldAnalyzeChecklistAfterProcessing(detail.status)) {
-            await Promise.all([
-              analyzeCaseChecklist(selectedCase.id),
-              analyzeCaseTimeline(selectedCase.id)
-            ]);
-          }
-
-          await onDocumentsChanged();
-        } catch (error) {
-          if (isMounted) {
-            setNotice({
-              tone: "error",
-              text:
-                error instanceof Error
-                  ? error.message
-                  : "Document processed, but case intelligence could not be refreshed."
-            });
-          }
-        }
-      } catch (error) {
-        if (isMounted) {
-          isSettled = true;
-          setNotice({
-            tone: "error",
-            text:
-              error instanceof Error
-                ? error.message
-                : "Document processing status could not be refreshed."
-          });
-        }
-      } finally {
-        isRefreshing = false;
-      }
-    }
-
-    void refreshProcessingStatus();
-    const intervalId = window.setInterval(() => {
-      void refreshProcessingStatus();
-    }, 2000);
-
-    return () => {
-      isMounted = false;
-      window.clearInterval(intervalId);
-    };
-  }, [
+  useSelectedEvidenceProcessing({
+    caseId: selectedCase.id,
     onDocumentsChanged,
     readOnly,
-    selectedCase.id,
-    selectedDocument?.status,
     selectedDocumentId,
-    syncQueueDocumentStatus
-  ]);
+    selectedDocumentStatus: selectedDocument?.status,
+    setDocuments,
+    setNotice,
+    setSelectedDocument,
+    syncQueueDocumentStatus: syncDocumentStatus
+  });
 
-  useEffect(() => {
-    const processingDocumentIds = JSON.parse(processingQueueDocumentIdsKey) as string[];
-
-    if (!processingDocumentIds.length) {
-      return;
-    }
-
-    let isMounted = true;
-    let isRefreshing = false;
-
-    async function refreshQueueProcessingStatuses() {
-      if (isRefreshing) {
-        return;
-      }
-
-      isRefreshing = true;
-
-      try {
-        const statusUpdates = (
-          await Promise.all(
-            processingDocumentIds.map(async (documentId) => {
-              try {
-                return {
-                  documentId,
-                  status: await fetchProcessingStatus(documentId)
-                };
-              } catch {
-                return null;
-              }
-            })
-          )
-        ).filter((update): update is NonNullable<typeof update> => Boolean(update));
-
-        if (!isMounted || !statusUpdates.length) {
-          return;
-        }
-
-        const updatesByDocumentId = new Map(
-          statusUpdates.map((update) => [update.documentId, update.status])
-        );
-        setDocuments((currentDocuments) =>
-          currentDocuments.map((document) => {
-            const statusUpdate = updatesByDocumentId.get(document.id);
-
-            return statusUpdate
-              ? {
-                  ...document,
-                  status: statusUpdate.status,
-                  updatedAt: statusUpdate.updatedAt
-                }
-              : document;
-          })
-        );
-
-        statusUpdates.forEach((update) => {
-          syncQueueDocumentStatus(update.documentId, update.status.status);
-        });
-
-        const settledUpdates = statusUpdates.filter(
-          (update) => !isActiveProcessingStatus(update.status.status)
-        );
-
-        if (!settledUpdates.length) {
-          return;
-        }
-
-        if (
-          !readOnly &&
-          settledUpdates.some((update) =>
-            shouldAnalyzeChecklistAfterProcessing(update.status.status)
-          )
-        ) {
-          await Promise.all([
-            analyzeCaseChecklist(selectedCase.id),
-            analyzeCaseTimeline(selectedCase.id)
-          ]);
-        }
-
-        await onDocumentsChanged();
-      } catch (error) {
-        if (isMounted) {
-          setNotice({
-            tone: "error",
-            text:
-              error instanceof Error
-                ? error.message
-                : "Evidence processed, but case intelligence could not be refreshed."
-          });
-        }
-      } finally {
-        isRefreshing = false;
-      }
-    }
-
-    void refreshQueueProcessingStatuses();
-    const intervalId = window.setInterval(() => {
-      void refreshQueueProcessingStatuses();
-    }, 2000);
-
-    return () => {
-      isMounted = false;
-      window.clearInterval(intervalId);
-    };
-  }, [
-    onDocumentsChanged,
-    processingQueueDocumentIdsKey,
-    readOnly,
-    selectedCase.id,
-    syncQueueDocumentStatus
-  ]);
-
-  const processQueueItem = useCallback(
-    async (item: EvidenceUploadQueueItem) => {
-      if (processingUploadIdRef.current) {
-        return;
-      }
-
-      processingUploadIdRef.current = item.id;
-      setActiveUploadId(item.id);
-      setNotice(null);
-      updateQueueItem(item.id, { error: null, progress: 5, status: "preparing" });
-
-      try {
-        if (item.documentId) {
-          try {
-            await apiRequest(`/api/documents/${item.documentId}`, { method: "DELETE" });
-          } catch {
-            // A failed upload may already have been removed by the backend.
-          }
-        }
-
-        const mimeType = getEvidenceUploadMimeType(item.file);
-
-        if (!mimeType) {
-          throw new Error("This file type is not supported.");
-        }
-
-        const createdDocument = await apiRequest<CreateDocumentResponse>(
-          `/api/cases/${selectedCase.id}/documents`,
-          {
-            body: JSON.stringify({
-              originalName: item.file.name,
-              mimeType,
-              byteSize: item.file.size,
-              source: toEvidenceSource(item.source)
-            }),
-            method: "POST"
-          }
-        );
-
-        updateQueueItem(item.id, {
-          documentId: createdDocument.document.id,
-          progress: 12,
-          status: "uploading"
-        });
-        await uploadEvidenceToSignedUrl(item.file, createdDocument, (progress) => {
-          updateQueueItem(item.id, {
-            progress: Math.min(90, Math.max(12, Math.round(12 + progress * 0.78)))
-          });
-        });
-
-        updateQueueItem(item.id, { progress: 94 });
-        await apiRequest(`/api/documents/${createdDocument.document.id}/complete`, {
-          method: "POST"
-        });
-        updateQueueItem(item.id, { progress: 100, status: "processing" });
-
-        try {
-          await refreshDocuments(createdDocument.document.id);
-          await onDocumentsChanged();
-          setNotice({
-            tone: "success",
-            text: `${item.file.name} uploaded and entered background processing.`
-          });
-        } catch (error) {
-          setNotice({
-            tone: "error",
-            text:
-              error instanceof Error
-                ? `Upload completed. ${error.message}`
-                : "Upload completed, but the evidence vault could not be refreshed."
-          });
-        }
-      } catch (error) {
-        updateQueueItem(item.id, {
-          error: error instanceof Error ? error.message : "Evidence upload failed.",
-          status: "failed"
-        });
-      } finally {
-        processingUploadIdRef.current = null;
-        setActiveUploadId(null);
-      }
-    },
-    [onDocumentsChanged, refreshDocuments, selectedCase.id, updateQueueItem]
-  );
-
-  useEffect(() => {
-    if (activeUploadId || processingUploadIdRef.current) {
-      return;
-    }
-
-    const nextItem = uploadQueue.find((item) => item.status === "queued");
-
-    if (!nextItem) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      void processQueueItem(nextItem);
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [activeUploadId, processQueueItem, uploadQueue]);
-
+  /** Adds files selected from any intake surface to the shared upload queue. */
   function enqueueFiles(files: File[], source: EvidenceUploadSource) {
-    if (!files.length) {
-      return;
-    }
-
-    const nextItems = files.map((file) => createEvidenceUploadQueueItem(file, source));
-    const invalidCount = nextItems.filter((item) => item.status === "failed").length;
-    const validCount = files.length - invalidCount;
-    setUploadQueue((currentQueue) => [...currentQueue, ...nextItems]);
-    setNotice({
-      tone: invalidCount ? "error" : "info",
-      text: invalidCount
-        ? `${formatFileCount(validCount)} queued; ${formatFileCount(invalidCount)} ${
-            invalidCount === 1 ? "needs" : "need"
-          } attention.`
-        : `${formatFileCount(files.length)} added to the upload queue.`
-    });
+    enqueueUploadFiles(files, source);
   }
 
+  /** Validates a camera result before opening the scan review surface. */
   function handleScanSelected(file: File) {
     const validationError = getEvidenceFileValidationError(file);
     const mimeType = getEvidenceUploadMimeType(file);
@@ -638,6 +262,7 @@ export function EvidencePanel({
     focusEvidenceSurface("scan-review-heading", "page");
   }
 
+  /** Opens the camera capture surface and resets any prior scan. */
   function openCamera() {
     setNotice(null);
     setScanFile(null);
@@ -646,6 +271,7 @@ export function EvidencePanel({
     focusEvidenceSurface("camera-capture-heading", "page");
   }
 
+  /** Opens one trusted provider import browser. */
   function openProviderImport(provider: ProviderImportProvider) {
     setNotice(null);
     setActiveProvider(provider);
@@ -653,12 +279,14 @@ export function EvidencePanel({
     focusEvidenceSurface("provider-import-heading", "page");
   }
 
+  /** Closes provider import and restores focus to evidence sources. */
   function closeProviderImport() {
     setActiveProvider(null);
     onCaptureStateChange("idle");
     focusEvidenceSurface("evidence-sources-heading", "element");
   }
 
+  /** Refreshes evidence after a provider import enters processing. */
   async function handleProviderImported(response: ProviderImportResponse) {
     const preferredDocumentId = response.documents.at(-1)?.id;
     await refreshDocuments(preferredDocumentId);
@@ -672,6 +300,7 @@ export function EvidencePanel({
     closeProviderImport();
   }
 
+  /** Closes camera or scan review and restores the intake surface. */
   function closeCapture() {
     setScanFile(null);
     setIsCameraOpen(false);
@@ -679,23 +308,7 @@ export function EvidencePanel({
     focusEvidenceSurface("evidence-sources-heading", "element");
   }
 
-  function handleRetryUpload(itemId: string) {
-    const item = uploadQueue.find((queueItem) => queueItem.id === itemId);
-
-    if (!item) {
-      return;
-    }
-
-    const validationError = getEvidenceFileValidationError(item.file);
-
-    if (validationError) {
-      setNotice({ tone: "error", text: validationError });
-      return;
-    }
-
-    updateQueueItem(itemId, { error: null, progress: 0, status: "queued" });
-  }
-
+  /** Rescans and queues a completed document for extraction. */
   async function handleReprocess() {
     if (!selectedDocument) {
       return;
@@ -707,9 +320,7 @@ export function EvidencePanel({
     try {
       await apiRequest<ReprocessDocumentResponse>(
         `/api/documents/${selectedDocument.id}/reprocess`,
-        {
-          method: "POST"
-        }
+        { method: "POST" }
       );
       await refreshDocuments(selectedDocument.id);
       setSelectedDocument(await fetchDocumentDetail(selectedDocument.id));
@@ -725,22 +336,13 @@ export function EvidencePanel({
     }
   }
 
-  async function confirmDelete() {
-    if (!documentToDelete) {
-      return;
-    }
-
-    await deleteDocument(documentToDelete);
-  }
-
+  /** Deletes evidence and refreshes case-derived state. */
   async function deleteDocument(document: EvidenceDocument) {
     setIsDeleting(true);
     setNotice(null);
 
     try {
-      await apiRequest(`/api/documents/${document.id}`, {
-        method: "DELETE"
-      });
+      await apiRequest(`/api/documents/${document.id}`, { method: "DELETE" });
       await refreshDocuments();
       await onDocumentsChanged();
       setNotice({ tone: "success", text: "Evidence deleted." });
@@ -755,15 +357,16 @@ export function EvidencePanel({
     }
   }
 
+  /** Applies the user's delete-confirmation preference. */
   function handleRequestDelete(document: EvidenceDocument) {
     if (confirmBeforeDelete) {
       setDocumentToDelete(document);
-      return;
+    } else {
+      void deleteDocument(document);
     }
-
-    void deleteDocument(document);
   }
 
+  /** Opens the evidence vault and optionally selects a document. */
   function openVault(documentId?: string) {
     if (documentId) {
       setSelectedDocumentId(documentId);
@@ -778,15 +381,6 @@ export function EvidencePanel({
         });
       });
     });
-  }
-
-  function toggleVault() {
-    if (isVaultOpen) {
-      setIsVaultOpen(false);
-      return;
-    }
-
-    openVault();
   }
 
   const attentionDocumentCount = documents.filter(
@@ -846,21 +440,12 @@ export function EvidencePanel({
             onScanRequested={openCamera}
             trustedSourcesOnly={portfolioDemo}
           />
-
           <EvidenceUploadQueue
             activeUploadId={activeUploadId}
-            items={uploadQueue}
-            onClearFinished={() =>
-              setUploadQueue((currentQueue) =>
-                currentQueue.filter((item) => !isFinishedQueueStatus(item.status))
-              )
-            }
-            onRemove={(itemId) =>
-              setUploadQueue((currentQueue) =>
-                currentQueue.filter((item) => item.id !== itemId)
-              )
-            }
-            onRetry={handleRetryUpload}
+            items={uploadQueueItems}
+            onClearFinished={clearFinished}
+            onRemove={removeUpload}
+            onRetry={retryUpload}
           />
         </>
       ) : (
@@ -869,28 +454,20 @@ export function EvidencePanel({
         </p>
       )}
 
-      {notice ? (
-        <p
-          className={cn(
-            "rounded-md border px-3 py-2 text-sm",
-            notice.tone === "success"
-              ? "border-teal-400/30 bg-teal-400/10 text-teal-100"
-              : null,
-            notice.tone === "error" ? "border-red-400/30 bg-red-400/10 text-red-100" : null,
-            notice.tone === "info" ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : null
-          )}
-          role={notice.tone === "error" ? "alert" : "status"}
-        >
-          {notice.text}
-        </p>
-      ) : null}
+      {notice ? <EvidenceNoticeMessage notice={notice} /> : null}
 
       <EvidenceRecentImports
         documents={documents}
         isLoading={isLoading}
         isVaultOpen={isVaultOpen}
         onOpenDocument={openVault}
-        onViewAll={toggleVault}
+        onViewAll={() => {
+          if (isVaultOpen) {
+            setIsVaultOpen(false);
+          } else {
+            openVault();
+          }
+        }}
       />
 
       {isVaultOpen ? (
@@ -930,7 +507,11 @@ export function EvidencePanel({
               isLoading={isLoading}
               isReprocessing={isReprocessing}
               onCancelDelete={() => setDocumentToDelete(null)}
-              onConfirmDelete={confirmDelete}
+              onConfirmDelete={async () => {
+                if (documentToDelete) {
+                  await deleteDocument(documentToDelete);
+                }
+              }}
               onRefresh={refreshDocuments}
               onReprocess={handleReprocess}
               onRequestDelete={handleRequestDelete}
@@ -946,50 +527,21 @@ export function EvidencePanel({
   );
 }
 
-function toEvidenceSource(source: EvidenceUploadSource) {
-  const sources = {
-    camera: "CAMERA_SCAN",
-    dropbox: "DROPBOX_IMPORT",
-    email: "EMAIL_ATTACHMENT",
-    files: "FILE_UPLOAD",
-    "google-drive": "GOOGLE_DRIVE_IMPORT",
-    photos: "PHOTO_LIBRARY"
-  } as const;
-
-  return sources[source];
-}
-
-function isActiveProcessingStatus(status: string | null | undefined) {
-  return status === "UPLOADED" || status === "PROCESSING";
-}
-
-function shouldAnalyzeChecklistAfterProcessing(status: string) {
-  return status === "PROCESSED" || status === "NEEDS_REVIEW";
-}
-
-function formatFileCount(count: number) {
-  return `${count} ${count === 1 ? "file" : "files"}`;
-}
-
-function getEvidenceScrollBehavior(): ScrollBehavior {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
-    document.documentElement.dataset.reduceMotion === "true"
-    ? "auto"
-    : "smooth";
-}
-
-function focusEvidenceSurface(elementId: string, scrollTarget: "element" | "page") {
-  window.requestAnimationFrame(() => {
-    window.requestAnimationFrame(() => {
-      const target = document.getElementById(elementId);
-
-      if (scrollTarget === "page") {
-        window.scrollTo({ behavior: "auto", left: 0, top: 0 });
-      } else {
-        target?.scrollIntoView({ behavior: "auto", block: "start" });
-      }
-
-      target?.focus({ preventScroll: true });
-    });
-  });
+/** Renders evidence notices with semantic status and tone styling. */
+function EvidenceNoticeMessage({ notice }: { notice: EvidenceNotice }) {
+  return (
+    <p
+      className={cn(
+        "rounded-md border px-3 py-2 text-sm",
+        notice.tone === "success"
+          ? "border-teal-400/30 bg-teal-400/10 text-teal-100"
+          : null,
+        notice.tone === "error" ? "border-red-400/30 bg-red-400/10 text-red-100" : null,
+        notice.tone === "info" ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : null
+      )}
+      role={notice.tone === "error" ? "alert" : "status"}
+    >
+      {notice.text}
+    </p>
+  );
 }
