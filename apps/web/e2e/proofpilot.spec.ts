@@ -958,6 +958,42 @@ async function expectNoHorizontalOverflow(page: Page) {
     dimensions.contentWidth,
     `Page width ${dimensions.contentWidth}px exceeds viewport ${dimensions.viewportWidth}px`
   ).toBeLessThanOrEqual(dimensions.viewportWidth + 1);
+
+  await expectNoVisibleScrollbars(page);
+}
+
+async function expectNoVisibleScrollbars(page: Page) {
+  const visibleScrollbarSurfaces = await page.locator("*").evaluateAll((elements) =>
+    elements.flatMap((element) => {
+      const style = window.getComputedStyle(element);
+      const isDocumentScroller = element === document.documentElement;
+      const hasScrollableOverflow =
+        element.scrollHeight > element.clientHeight + 1 ||
+        element.scrollWidth > element.clientWidth + 1;
+      const permitsScrolling = [style.overflow, style.overflowX, style.overflowY].some(
+        (value) => value === "auto" || value === "scroll"
+      );
+
+      if (
+        (!isDocumentScroller && (!hasScrollableOverflow || !permitsScrolling)) ||
+        style.scrollbarWidth === "none"
+      ) {
+        return [];
+      }
+
+      return [
+        {
+          className: element.className.toString().slice(0, 120),
+          tagName: element.tagName.toLowerCase()
+        }
+      ];
+    })
+  );
+
+  expect(
+    visibleScrollbarSurfaces,
+    "Scrollable surfaces must remain functional without visible scrollbars."
+  ).toEqual([]);
 }
 
 async function expectAccessible(page: Page, surface: string) {
