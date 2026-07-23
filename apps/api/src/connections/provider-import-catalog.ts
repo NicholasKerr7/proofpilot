@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import PDFDocument from "pdfkit";
 import JSZip from "jszip";
 import {
@@ -20,6 +21,12 @@ interface GmailCatalogEntry extends GmailImportItem {
 interface DriveCatalogEntry extends GoogleDriveImportItem {
   evidenceText: string;
 }
+
+const syntheticPassportItemId = "drive-identity-verification";
+const syntheticPassportFixtureUrl = new URL(
+  "./fixtures/synthetic-passport.png",
+  import.meta.url
+);
 
 export interface MaterializedProviderImport {
   body: Buffer;
@@ -140,14 +147,14 @@ const driveCatalog: DriveCatalogEntry[] = [
   },
   {
     evidenceText:
-      "Identity verification image for Nicholas Kerr, supplied as supporting evidence for case PP-2026-0147.",
-    id: "drive-identity-verification",
+      "Synthetic passport identity page for Nicholas James Kerr. Generated demonstration evidence for case PP-2026-0147; it does not represent a real identity document.",
+    id: syntheticPassportItemId,
     kind: "FILE",
     mimeType: "image/png",
     modifiedAt: "2026-05-14T15:15:00.000Z",
-    name: "identity-verification.png",
+    name: "synthetic-passport.png",
     ownerLabel: "by me",
-    sizeBytes: 1_153_434,
+    sizeBytes: 2_513_852,
     source: "MY_DRIVE"
   },
   {
@@ -289,6 +296,10 @@ function createEmailExport(item: GmailCatalogEntry) {
 }
 
 async function createDriveEvidenceBytes(item: DriveCatalogEntry) {
+  if (item.id === syntheticPassportItemId) {
+    return readFile(syntheticPassportFixtureUrl);
+  }
+
   if (item.mimeType === "application/pdf") {
     return createEvidencePdf(item.name, item.evidenceText);
   }

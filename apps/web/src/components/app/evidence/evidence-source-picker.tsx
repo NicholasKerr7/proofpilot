@@ -30,6 +30,7 @@ interface EvidenceSourcePickerProps {
   onFilesSelected: (files: File[], source: EvidenceUploadSource) => void;
   onGmailRequested: () => void;
   onGoogleDriveRequested: () => void;
+  onPassportDemoRequested: () => void;
   onScanRequested: () => void;
   trustedSourcesOnly: boolean;
 }
@@ -49,6 +50,7 @@ export function EvidenceSourcePicker({
   onFilesSelected,
   onGmailRequested,
   onGoogleDriveRequested,
+  onPassportDemoRequested,
   onScanRequested,
   trustedSourcesOnly
 }: EvidenceSourcePickerProps) {
@@ -144,6 +146,17 @@ export function EvidenceSourcePicker({
           title="Google Drive"
           tone="green"
         />
+        {trustedSourcesOnly ? (
+          <SourceAction
+            className="col-span-2"
+            compact
+            description="Capture and review a synthetic identity document"
+            icon={<PassportDemoIcon />}
+            onClick={onPassportDemoRequested}
+            title="Passport demo"
+            tone="primary"
+          />
+        ) : null}
         {!trustedSourcesOnly ? (
           <>
             <SourceOption
@@ -191,7 +204,7 @@ export function EvidenceSourcePicker({
       <div
         className={cn(
           "hidden gap-3 sm:grid",
-          trustedSourcesOnly ? "sm:grid-cols-2" : "sm:grid-cols-4"
+          trustedSourcesOnly ? "sm:grid-cols-3" : "sm:grid-cols-4"
         )}
       >
         {!trustedSourcesOnly ? (
@@ -219,6 +232,15 @@ export function EvidenceSourcePicker({
           title="Google Drive"
           tone="green"
         />
+        {trustedSourcesOnly ? (
+          <SourceAction
+            description="Capture, review, and save a synthetic passport sample."
+            icon={<PassportDemoIcon />}
+            onClick={onPassportDemoRequested}
+            title="Passport demo"
+            tone="primary"
+          />
+        ) : null}
         {!trustedSourcesOnly ? (
           <SourceAction
             description="Use your camera to capture and review a document."
@@ -232,7 +254,7 @@ export function EvidenceSourcePicker({
 
       <p className="text-xs leading-5 text-muted-foreground">
         {trustedSourcesOnly
-          ? "Gmail and Drive sample sources import only the items you select. Device files never leave your browser in portfolio mode."
+          ? "Gmail, Drive, and passport samples use generated demo data. Device files never leave your browser in portfolio mode."
           : `Supported: ${evidenceFileTypeListLabel}, up to ${evidenceMaxUploadSizeLabel} each. Connected Gmail and Drive demo sources import only the items you select.`}
       </p>
     </section>
@@ -252,6 +274,7 @@ interface SourceOptionProps {
 }
 
 interface SourceActionProps {
+  className?: string;
   compact?: boolean;
   description: string;
   icon: ReactNode;
@@ -325,6 +348,7 @@ function SourceOption({
 }
 
 function SourceAction({
+  className,
   compact = false,
   description,
   icon,
@@ -336,7 +360,8 @@ function SourceAction({
     <button
       className={cn(
         "group grid cursor-pointer grid-rows-[auto_1fr_auto] border border-border bg-card text-left transition-colors hover:border-primary/55 hover:bg-secondary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        compact ? "min-h-40 gap-2 rounded-md p-3" : "min-h-56 gap-4 rounded-md p-4"
+        compact ? "min-h-40 gap-2 rounded-md p-3" : "min-h-56 gap-4 rounded-md p-4",
+        className
       )}
       onClick={onClick}
       type="button"
@@ -376,6 +401,20 @@ function SourceAction({
         aria-hidden="true"
       />
     </button>
+  );
+}
+
+function PassportDemoIcon() {
+  return (
+    <span className="relative h-full w-full overflow-hidden rounded-[inherit]">
+      <Image
+        alt=""
+        className="object-cover"
+        fill
+        sizes="4rem"
+        src="/brand/proofpilot-open-passport-display.webp"
+      />
+    </span>
   );
 }
 

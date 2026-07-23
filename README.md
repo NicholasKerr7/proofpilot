@@ -286,7 +286,7 @@ In portfolio mode:
 - Visitors can reset their browser workspace to a fresh copy without affecting anyone else; the previous copy is expired for storage-aware cleanup.
 - Sessions expire with the workspace, which defaults to two hours.
 - Direct device uploads, external collaboration invitations, packet-share delivery, and notification email are disabled.
-- Trusted Gmail and Google Drive sample imports remain available, with caps on cases, evidence, packet generation, and active workspaces.
+- Trusted Gmail and Google Drive sample imports remain available, together with a guided synthetic passport capture and review. All three paths use generated demo data and the same capped private evidence pipeline.
 - The worker deletes expired database records and associated private storage objects every 15 minutes.
 
 The isolated copy includes the sample evidence graph, timeline sources, statement history, and prior submission outcome, so the Proof Map and submission tracker remain complete. The seed account is a provisioning template in this mode; visitors never authenticate as or mutate it. Run `pnpm db:seed` after migrations in the controlled portfolio environment so the template exists. Generate the shared service key with `openssl rand -hex 32` and keep it out of browser-exposed environment variables.

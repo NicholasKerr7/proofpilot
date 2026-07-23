@@ -15,7 +15,7 @@ export class PortfolioDemoPolicyService {
   assertDirectUploadAllowed(user: RequestUser) {
     if (user.isPortfolioDemo) {
       throw new ForbiddenException(
-        "Device uploads are disabled in the portfolio demo. Use the sample Gmail or Google Drive sources."
+        "Device uploads are disabled in the portfolio demo. Use the sample Gmail, Google Drive, or passport sources."
       );
     }
   }

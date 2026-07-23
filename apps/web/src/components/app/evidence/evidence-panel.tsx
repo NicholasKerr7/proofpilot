@@ -20,6 +20,7 @@ import {
   getEvidenceUploadMimeType,
   type EvidenceUploadSource
 } from "@/components/app/evidence/evidence-upload-utils";
+import { PassportDemoWorkspace } from "@/components/app/evidence/passport-demo-workspace";
 import { ProviderImportWorkspace } from "@/components/app/evidence/provider-import-workspace";
 import { useEvidenceUploadQueue } from "@/components/app/evidence/use-evidence-upload-queue";
 import { useSelectedEvidenceProcessing } from "@/components/app/evidence/use-selected-evidence-processing";
@@ -48,7 +49,8 @@ export type EvidenceCaptureState =
   | "camera"
   | "review"
   | "gmail"
-  | "google-drive";
+  | "google-drive"
+  | "passport";
 
 /** Coordinates evidence capture surfaces with the document vault and upload queue. */
 export function EvidencePanel({
@@ -65,6 +67,7 @@ export function EvidencePanel({
   const [documentToDelete, setDocumentToDelete] = useState<EvidenceDocument | null>(null);
   const [scanFile, setScanFile] = useState<File | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [isPassportDemoOpen, setIsPassportDemoOpen] = useState(false);
   const [activeProvider, setActiveProvider] = useState<ProviderImportProvider | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
@@ -150,6 +153,7 @@ export function EvidencePanel({
       resetUploadQueue();
       setScanFile(null);
       setIsCameraOpen(false);
+      setIsPassportDemoOpen(false);
       setActiveProvider(null);
       onCaptureStateChange("idle");
 
@@ -279,9 +283,24 @@ export function EvidencePanel({
     focusEvidenceSurface("provider-import-heading", "page");
   }
 
+  /** Opens the portfolio-safe synthetic passport walkthrough. */
+  function openPassportDemo() {
+    setNotice(null);
+    setIsPassportDemoOpen(true);
+    onCaptureStateChange("passport");
+    focusEvidenceSurface("passport-demo-heading", "page");
+  }
+
   /** Closes provider import and restores focus to evidence sources. */
   function closeProviderImport() {
     setActiveProvider(null);
+    onCaptureStateChange("idle");
+    focusEvidenceSurface("evidence-sources-heading", "element");
+  }
+
+  /** Closes the synthetic passport walkthrough and restores evidence sources. */
+  function closePassportDemo() {
+    setIsPassportDemoOpen(false);
     onCaptureStateChange("idle");
     focusEvidenceSurface("evidence-sources-heading", "element");
   }
@@ -298,6 +317,18 @@ export function EvidencePanel({
       } imported and entered background processing.`
     });
     closeProviderImport();
+  }
+
+  /** Refreshes evidence after the synthetic passport enters processing. */
+  async function handlePassportImported(response: ProviderImportResponse) {
+    const preferredDocumentId = response.documents.at(-1)?.id;
+    await refreshDocuments(preferredDocumentId);
+    await onDocumentsChanged();
+    setNotice({
+      tone: "success",
+      text: "The synthetic passport was saved and entered background processing."
+    });
+    closePassportDemo();
   }
 
   /** Closes camera or scan review and restores the intake surface. */
@@ -387,6 +418,18 @@ export function EvidencePanel({
     (document) => document.status === "FAILED" || document.status === "NEEDS_REVIEW"
   ).length;
 
+  if (isPassportDemoOpen) {
+    return (
+      <div id="evidence-intake" className="scroll-mt-28 lg:scroll-mt-24">
+        <PassportDemoWorkspace
+          caseRecord={selectedCase}
+          onBack={closePassportDemo}
+          onImported={handlePassportImported}
+        />
+      </div>
+    );
+  }
+
   if (activeProvider) {
     return (
       <div id="evidence-intake" className="scroll-mt-28 lg:scroll-mt-24">
@@ -437,6 +480,7 @@ export function EvidencePanel({
             onFilesSelected={enqueueFiles}
             onGmailRequested={() => openProviderImport("GMAIL")}
             onGoogleDriveRequested={() => openProviderImport("GOOGLE_DRIVE")}
+            onPassportDemoRequested={openPassportDemo}
             onScanRequested={openCamera}
             trustedSourcesOnly={portfolioDemo}
           />
