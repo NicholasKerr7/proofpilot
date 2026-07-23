@@ -13,7 +13,6 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ProofPilot",
   description: "Case packet automation for account appeals, disputes, and escalations.",
 };
 

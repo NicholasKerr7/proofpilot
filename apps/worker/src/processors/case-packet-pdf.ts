@@ -1,5 +1,6 @@
 import { PDFDocument as PdfLibDocument, PDFName, StandardFonts, rgb } from "pdf-lib";
 import PDFDocument from "pdfkit";
+import { formatCaseReference } from "@proofpilot/types";
 
 export type PacketSupportingContentKind = "jpeg" | "pdf" | "png";
 
@@ -9,6 +10,7 @@ export interface PacketSupportingContent {
 }
 
 export interface PacketPdfCase {
+  id: string;
   title: string;
   platform: string;
   summary: string | null;
@@ -103,6 +105,10 @@ const bottomMargin = 120;
 const maxAttachedPdfPages = 100;
 const maxAttachedPages = 150;
 const maxExtractedTextCharacters = 8_000;
+const a4PageSize = {
+  height: 841.89,
+  width: 595.28
+};
 const colors = {
   accent: "#bd6f3e",
   border: "#d7c4a2",
@@ -244,7 +250,7 @@ function generateBasePdf(input: PacketPdfCase, documents: PreparedPacketPdfDocum
         Title: input.title
       },
       margin,
-      size: "LETTER"
+      size: "A4"
     });
 
     doc.on("data", (chunk: Buffer | Uint8Array) => {
@@ -296,7 +302,7 @@ async function assemblePacket(
       continue;
     }
 
-    const page = output.addPage([612, 792]);
+    const page = output.addPage([a4PageSize.width, a4PageSize.height]);
     const image =
       document.inclusion.source.kind === "png"
         ? await output.embedPng(document.inclusion.source.bytes)
@@ -331,6 +337,10 @@ async function assemblePacket(
   const pages = output.getPages();
 
   pages.forEach((page, index) => {
+    if (index === 0) {
+      return;
+    }
+
     const width = page.getWidth();
     const label = truncateText(sanitizeText(pageLabels[index] ?? "ProofPilot case packet"), 58);
     const count = `Page ${index + 1} of ${pages.length}`;
@@ -394,44 +404,206 @@ function renderPacket(
 }
 
 function renderCoverPage(doc: PDFKit.PDFDocument, input: PacketPdfCase) {
-  doc.rect(0, 0, doc.page.width, doc.page.height).fill(colors.surface);
-  doc.fillColor(colors.accent).font("Helvetica-Bold").fontSize(12).text("PROOFPILOT", margin, 64);
+  const coverBackground = "#081117";
+  const coverAccent = "#ff6b16";
+  const coverForeground = "#f3f4f5";
+  const coverMuted = "#8d969f";
+  const coverX = 74;
+  const coverWidth = doc.page.width - coverX * 2;
+  const title = sanitizeText(input.title);
+  const titleFontSize = title.length > 85 ? 20 : title.length > 52 ? 23 : 26;
+  const titleOptions = {
+    ellipsis: true,
+    height: 104,
+    lineGap: 4,
+    width: coverWidth
+  };
+
+  doc.rect(0, 0, doc.page.width, doc.page.height).fill(coverBackground);
   doc
-    .moveTo(margin, 88)
-    .lineTo(doc.page.width - margin, 88)
-    .lineWidth(1.25)
-    .strokeColor(colors.border)
+    .save()
+    .fillColor(coverAccent)
+    .fillOpacity(0.028)
+    .circle(doc.page.width - 112, doc.page.height - 214, 122)
+    .fill()
+    .restore();
+  doc
+    .roundedRect(18, 18, doc.page.width - 36, doc.page.height - 36, 7)
+    .lineWidth(0.6)
+    .strokeColor("#25323a")
     .stroke();
 
-  doc.moveDown(4);
-  doc.fillColor(colors.ink).font("Helvetica-Bold").fontSize(28).text("Case Packet", {
-    lineGap: 4
-  });
-  doc.moveDown(0.4);
-  doc.fillColor(colors.graphite).fontSize(19).text(sanitizeText(input.title), {
-    lineGap: 3
+  drawProofPilotMark(doc, {
+    background: coverBackground,
+    color: coverAccent,
+    opacity: 1,
+    size: 29,
+    x: coverX,
+    y: 68
   });
 
-  doc.moveDown(1.4);
-  keyValue(doc, "Platform", input.platform);
-  keyValue(doc, "Case type", input.caseType.name);
-  keyValue(doc, "Prepared for", input.owner.name || input.owner.email);
-  keyValue(doc, "Generated", formatDate(new Date()));
-  if (input.deadline) {
-    keyValue(doc, "Deadline", formatDate(input.deadline));
-  }
+  doc
+    .fillColor(coverForeground)
+    .font("Helvetica-BoldOblique")
+    .fontSize(17)
+    .text("Proof", coverX + 37, 71, { continued: true });
+  doc.fillColor(coverAccent).text("Pilot");
 
-  doc.moveDown(1.2);
-  sectionEyebrow(doc, "Packet contents");
-  bulletList(doc, [
-    "Case summary",
-    "User statement",
-    "Timeline of events",
-    "Evidence checklist",
-    "Evidence index",
-    "Supporting documents",
-    "Next steps"
-  ]);
+  doc
+    .moveTo(coverX, 160)
+    .lineTo(doc.page.width - coverX, 160)
+    .lineWidth(1)
+    .strokeColor("#d95718")
+    .stroke();
+
+  doc
+    .fillColor(coverForeground)
+    .font("Helvetica-Bold")
+    .fontSize(titleFontSize)
+    .text(title, coverX, 218, titleOptions);
+
+  const titleHeight = Math.min(
+    doc.heightOfString(title, {
+      lineGap: titleOptions.lineGap,
+      width: titleOptions.width
+    }),
+    titleOptions.height
+  );
+  const referenceY = 218 + titleHeight + 48;
+  const preparedForY = Math.max(referenceY + 70, 404);
+  const preparedByY = preparedForY + 114;
+
+  doc
+    .fillColor(coverAccent)
+    .font("Helvetica")
+    .fontSize(12)
+    .text(`Case ID: ${formatCaseReference(input)}`, coverX, referenceY, {
+      width: coverWidth
+    });
+
+  coverKeyValue(
+    doc,
+    "Prepared for:",
+    `${sanitizeText(input.platform)} Account Review Team`,
+    coverX,
+    preparedForY,
+    coverWidth,
+    coverForeground,
+    coverMuted
+  );
+  coverKeyValue(
+    doc,
+    "Prepared by:",
+    input.owner.name || input.owner.email,
+    coverX,
+    preparedByY,
+    coverWidth,
+    coverForeground,
+    coverMuted
+  );
+
+  drawProofPilotMark(doc, {
+    background: coverBackground,
+    color: "#5f2e1c",
+    opacity: 0.48,
+    size: 185,
+    x: doc.page.width - 260,
+    y: doc.page.height - 326
+  });
+
+  doc
+    .fillColor(coverMuted)
+    .font("Helvetica")
+    .fontSize(10.5)
+    .text(formatDate(new Date()), coverX, doc.page.height - 104, {
+      width: coverWidth
+    });
+}
+
+function coverKeyValue(
+  doc: PDFKit.PDFDocument,
+  label: string,
+  value: string,
+  x: number,
+  y: number,
+  width: number,
+  foreground: string,
+  muted: string
+) {
+  doc.fillColor(muted).font("Helvetica").fontSize(9.5).text(label, x, y, { width });
+  doc
+    .fillColor(foreground)
+    .font("Helvetica")
+    .fontSize(12)
+    .text(sanitizeText(value || "Not provided"), x, y + 17, {
+      height: 34,
+      lineGap: 2,
+      width
+    });
+}
+
+interface ProofPilotMarkOptions {
+  background: string;
+  color: string;
+  opacity: number;
+  size: number;
+  x: number;
+  y: number;
+}
+
+function drawProofPilotMark(
+  doc: PDFKit.PDFDocument,
+  { background, color, opacity, size, x, y }: ProofPilotMarkOptions
+) {
+  const point = (horizontal: number, vertical: number) =>
+    `${x + (horizontal / 100) * size} ${y + (vertical / 100) * size}`;
+  const outerPath = [
+    `M ${point(7, 78)}`,
+    `L ${point(20, 16)}`,
+    `C ${point(22, 7)} ${point(27, 3)} ${point(37, 3)}`,
+    `L ${point(69, 3)}`,
+    `C ${point(86, 3)} ${point(97, 15)} ${point(94, 31)}`,
+    `L ${point(90, 47)}`,
+    `C ${point(87, 60)} ${point(77, 67)} ${point(64, 67)}`,
+    `L ${point(49, 67)}`,
+    `L ${point(25, 93)}`,
+    `L ${point(32, 67)}`,
+    `L ${point(20, 67)}`,
+    `Z`
+  ].join(" ");
+  const innerPath = [
+    `M ${point(37, 24)}`,
+    `L ${point(66, 24)}`,
+    `C ${point(74, 24)} ${point(79, 29)} ${point(77, 36)}`,
+    `L ${point(75, 41)}`,
+    `C ${point(73, 47)} ${point(68, 50)} ${point(61, 50)}`,
+    `L ${point(31, 50)}`,
+    `Z`
+  ].join(" ");
+  const starX = x + size * 0.93;
+  const starY = y + size * 0.09;
+  const starRadius = size * 0.09;
+
+  doc.save().fillColor(color).fillOpacity(opacity).path(outerPath).fill();
+  doc.fillOpacity(1).fillColor(background).path(innerPath).fill();
+  doc
+    .fillColor(color)
+    .fillOpacity(opacity)
+    .path(
+      [
+        `M ${starX} ${starY - starRadius}`,
+        `L ${starX + starRadius * 0.2} ${starY - starRadius * 0.2}`,
+        `L ${starX + starRadius} ${starY}`,
+        `L ${starX + starRadius * 0.2} ${starY + starRadius * 0.2}`,
+        `L ${starX} ${starY + starRadius}`,
+        `L ${starX - starRadius * 0.2} ${starY + starRadius * 0.2}`,
+        `L ${starX - starRadius} ${starY}`,
+        `L ${starX - starRadius * 0.2} ${starY - starRadius * 0.2}`,
+        "Z"
+      ].join(" ")
+    )
+    .fill()
+    .restore();
 }
 
 function renderCaseSummary(doc: PDFKit.PDFDocument, input: PacketPdfCase) {

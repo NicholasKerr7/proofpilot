@@ -58,6 +58,8 @@ describe("case packet PDF renderer", () => {
     expect(result.pageCount).toBe(renderedPdf.getPageCount());
     expect(result.pageCount).toBeGreaterThanOrEqual(4);
     expect(result.bytes.subarray(0, 4).toString()).toBe("%PDF");
+    expect(renderedPdf.getPage(0).getWidth()).toBeCloseTo(595.28, 1);
+    expect(renderedPdf.getPage(0).getHeight()).toBeCloseTo(841.89, 1);
   });
 
   it("falls back to extracted text when a visual source is invalid", async () => {
@@ -90,6 +92,7 @@ function createPacket(overrides: Partial<PacketPdfCase> = {}): PacketPdfCase {
   const timestamp = new Date("2026-01-01T12:00:00.000Z");
 
   return {
+    id: "demo-nicholas-paypal-appeal",
     title: "PayPal limitation appeal",
     platform: "PayPal",
     summary: "Account was limited after an automated review.",

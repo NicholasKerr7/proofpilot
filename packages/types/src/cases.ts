@@ -42,6 +42,21 @@ export const checklistStatuses = [
   "COMPLETE"
 ] as const;
 
+export interface CaseReferenceSource {
+  createdAt: Date | string;
+  id: string;
+}
+
+export function formatCaseReference(source: CaseReferenceSource) {
+  const year = new Date(source.createdAt).getFullYear();
+  const numericHash = Array.from(source.id).reduce(
+    (hash, character) => (hash * 31 + character.charCodeAt(0)) % 10_000,
+    0
+  );
+
+  return `PP-${year}-${String(numericHash).padStart(4, "0")}`;
+}
+
 export const createCaseSchema = z.object({
   title: singleLineUserText.pipe(z.string().min(3).max(160)),
   platform: singleLineUserText.pipe(z.string().min(2).max(80)),

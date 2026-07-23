@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { ProofPilotApp } from "@/components/app/proofpilot-app";
 
 export const metadata: Metadata = {
-  title: "ProofPilot Workspace",
   description: "Build, verify, and share structured case packets."
 };
 
@@ -13,6 +12,7 @@ interface WorkspaceLayoutProps {
 export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
   return (
     <>
+      <title>ProofPilot Workspace</title>
       <ProofPilotApp portfolioMode={process.env.PROOFPILOT_MODE === "portfolio"} />
       {children}
     </>

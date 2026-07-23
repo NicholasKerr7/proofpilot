@@ -81,7 +81,13 @@ export function PacketExportContent({
         sections={sections}
       />
 
-      {latestExport ? <PacketDocumentPreview packetExport={latestExport} /> : null}
+      {latestExport ? (
+        <PacketDocumentPreview
+          key={latestExport.id}
+          packetExport={latestExport}
+          selectedCase={selectedCase}
+        />
+      ) : null}
 
       <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_18rem]">
         <PacketSectionManifest sections={sections} />

@@ -1,6 +1,7 @@
 import {
   calculateCaseCompleteness,
-  caseCompletenessWeights
+  caseCompletenessWeights,
+  formatCaseReference as formatSharedCaseReference
 } from "@proofpilot/types";
 import type { CaseRecord } from "@/lib/client/types";
 
@@ -264,13 +265,7 @@ export function formatCaseDate(value: string, includeYear = true) {
 }
 
 export function formatCaseReference(caseRecord: CaseRecord) {
-  const year = new Date(caseRecord.createdAt).getFullYear();
-  const numericHash = Array.from(caseRecord.id).reduce(
-    (hash, character) => (hash * 31 + character.charCodeAt(0)) % 10_000,
-    0
-  );
-
-  return `PP-${year}-${String(numericHash).padStart(4, "0")}`;
+  return formatSharedCaseReference(caseRecord);
 }
 
 export function getCaseProgressMessage(completeness: number) {
