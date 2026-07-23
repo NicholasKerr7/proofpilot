@@ -32,3 +32,4 @@ pnpm-debug.log*
 
 # Prisma
 packages/database/prisma/dev.db
+.vercel
