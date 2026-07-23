@@ -53,7 +53,7 @@ export function HelpHome({ onContactSupport, onOpenArticle }: HelpHomeProps) {
 
   return (
     <section aria-labelledby="help-center-heading" className="grid gap-6">
-      <div>
+      <div className="proof-page-header">
         <p className="text-sm font-semibold text-primary">Guides and support</p>
         <h1 id="help-center-heading" className="mt-1 text-2xl font-semibold sm:text-3xl">
           Help Center

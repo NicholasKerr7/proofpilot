@@ -469,7 +469,7 @@ export function SettingsPanel({ onUpdate, settings }: SettingsPanelProps) {
 
 function SettingsHeading() {
   return (
-    <div>
+    <div className="proof-page-header">
       <p className="flex items-center gap-2 text-sm font-semibold text-primary">
         <Settings2 aria-hidden="true" className="h-4 w-4" />
         Workspace controls

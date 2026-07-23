@@ -31,7 +31,7 @@ type PacketSection = {
   status: string;
 };
 
-export type PacketReadinessState = {
+export type PacketCompletenessState = {
   badge: string;
   description: string;
   title: string;
@@ -50,8 +50,8 @@ interface PacketExportContentProps {
   onGenerate: () => Promise<void>;
   onOpenPacketShare: () => void;
   packets: CasePacket[];
-  readiness: number;
-  readinessState: PacketReadinessState;
+  completeness: number;
+  completenessState: PacketCompletenessState;
   selectedCase: CaseRecord;
 }
 
@@ -67,17 +67,17 @@ export function PacketExportContent({
   onGenerate,
   onOpenPacketShare,
   packets,
-  readiness,
-  readinessState,
+  completeness,
+  completenessState,
   selectedCase
 }: PacketExportContentProps) {
   const sections = getPacketSections(selectedCase);
 
   return (
     <>
-      <PacketReadinessSummary
-        readiness={readiness}
-        readinessState={readinessState}
+      <PacketCompletenessSummary
+        completeness={completeness}
+        completenessState={completenessState}
         sections={sections}
       />
 
@@ -109,43 +109,43 @@ export function PacketExportContent({
   );
 }
 
-interface PacketReadinessSummaryProps {
-  readiness: number;
-  readinessState: PacketReadinessState;
+interface PacketCompletenessSummaryProps {
+  completeness: number;
+  completenessState: PacketCompletenessState;
   sections: PacketSection[];
 }
 
-function PacketReadinessSummary({
-  readiness,
-  readinessState,
+function PacketCompletenessSummary({
+  completeness,
+  completenessState,
   sections
-}: PacketReadinessSummaryProps) {
+}: PacketCompletenessSummaryProps) {
   const readySectionCount = sections.filter((section) => section.ready).length;
 
   return (
     <section
-      aria-labelledby="packet-readiness-heading"
+      aria-labelledby="packet-completeness-heading"
       className="grid gap-4 border-y border-border py-4 md:grid-cols-[7.5rem_minmax(0,1fr)] md:items-center"
     >
       <div className="flex items-baseline gap-2 md:grid md:gap-1">
-        <span className="text-xs font-semibold uppercase text-muted-foreground">Readiness</span>
-        <strong className="text-4xl font-semibold text-foreground">{readiness}%</strong>
+        <span className="text-xs font-semibold uppercase text-muted-foreground">Completeness</span>
+        <strong className="text-4xl font-semibold text-foreground">{completeness}%</strong>
       </div>
       <div className="min-w-0">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <h4 id="packet-readiness-heading" className="text-sm font-semibold text-foreground">
-              {readinessState.title}
+            <h4 id="packet-completeness-heading" className="text-sm font-semibold text-foreground">
+              {completenessState.title}
             </h4>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              {readinessState.description}
+              {completenessState.description}
             </p>
           </div>
           <Badge variant={readySectionCount === sections.length ? "success" : "secondary"}>
             {readySectionCount}/{sections.length} sections
           </Badge>
         </div>
-        <Progress className="mt-3" value={readiness} label="Overall readiness" />
+        <Progress className="mt-3" value={completeness} label="Overall completeness" />
       </div>
     </section>
   );

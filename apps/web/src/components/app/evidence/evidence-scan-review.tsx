@@ -106,7 +106,7 @@ export function EvidenceScanReview({
 
   return (
     <section aria-labelledby="scan-review-heading" className="grid gap-5">
-      <header className="flex items-start justify-between gap-3">
+      <header className="proof-page-header flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
           <Button
             aria-label="Back to camera"

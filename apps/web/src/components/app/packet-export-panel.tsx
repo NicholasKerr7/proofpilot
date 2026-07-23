@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   PacketExportContent,
-  type PacketReadinessState
+  type PacketCompletenessState
 } from "@/components/app/packet-export-content";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +14,7 @@ interface PacketExportPanelProps {
   onCaseChanged: (caseId: string) => Promise<unknown>;
   onNotificationsChanged: () => void;
   onOpenPacketShare: () => void;
-  readiness: number;
+  completeness: number;
   selectedCase: CaseRecord;
 }
 
@@ -27,7 +27,7 @@ export function PacketExportPanel({
   onCaseChanged,
   onNotificationsChanged,
   onOpenPacketShare,
-  readiness,
+  completeness,
   selectedCase
 }: PacketExportPanelProps) {
   const [packets, setPackets] = useState<CasePacket[]>([]);
@@ -184,7 +184,7 @@ export function PacketExportPanel({
     (packet) => packet.status === "READY" && packet.exports.length > 0
   );
   const latestExport = latestReadyPacket?.exports[0] ?? null;
-  const readinessState = getReadinessState(readiness, latestPacket);
+  const completenessState = getCompletenessState(completeness, latestPacket);
   const generateLabel = getGenerateLabel(latestPacket, isGenerating, hasGeneratingPacket);
 
   return (
@@ -193,14 +193,14 @@ export function PacketExportPanel({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <CardTitle>Packet export</CardTitle>
-            <CardDescription>Review packet readiness, generate the PDF, and manage exports.</CardDescription>
+            <CardDescription>Review case completeness, generate the PDF, and manage exports.</CardDescription>
           </div>
           {latestPacket ? (
             <Badge variant={getPacketStatusVariant(latestPacket.status)}>
               {formatStatus(latestPacket.status)}
             </Badge>
           ) : (
-            <Badge variant={readinessState.variant}>{readinessState.badge}</Badge>
+            <Badge variant={completenessState.variant}>{completenessState.badge}</Badge>
           )}
         </div>
       </CardHeader>
@@ -227,8 +227,8 @@ export function PacketExportPanel({
           onGenerate={handleGeneratePacket}
           onOpenPacketShare={onOpenPacketShare}
           packets={packets}
-          readiness={readiness}
-          readinessState={readinessState}
+          completeness={completeness}
+          completenessState={completenessState}
           selectedCase={selectedCase}
         />
       </CardContent>
@@ -240,10 +240,10 @@ function fetchCasePackets(caseId: string) {
   return apiRequest<CasePacket[]>(`/api/cases/${caseId}/packets`);
 }
 
-function getReadinessState(
-  readiness: number,
+function getCompletenessState(
+  completeness: number,
   latestPacket: CasePacket | null
-): PacketReadinessState {
+): PacketCompletenessState {
   if (latestPacket?.status === "READY") {
     return {
       badge: "Packet ready",
@@ -271,16 +271,16 @@ function getReadinessState(
     };
   }
 
-  if (readiness === 100) {
+  if (completeness === 100) {
     return {
       badge: "Ready",
-      description: "All readiness checks pass. Generate the PDF for a final review.",
+      description: "All completeness checks pass. Generate the PDF for a final review.",
       title: "Packet is ready to generate",
       variant: "success"
     };
   }
 
-  if (readiness >= 70) {
+  if (completeness >= 70) {
     return {
       badge: "Final review",
       description: "The packet can be generated now, but remaining gaps should be reviewed first.",

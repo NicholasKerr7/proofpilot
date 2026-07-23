@@ -128,6 +128,92 @@ test.describe("ProofPilot responsive workspace", () => {
     ).toBeVisible();
   });
 
+  test("shared packet access verifies a recipient with a one-time code", async ({
+    page
+  }) => {
+    const shareToken = "S".repeat(43);
+    await page.route("**/api/public/packet-shares/metadata", async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({
+          expiresAt: "2099-07-28T16:00:00.000Z",
+          requireEmailVerification: true
+        }),
+        contentType: "application/json",
+        status: 200
+      });
+    });
+    await page.route("**/api/public/packet-shares/access/request", async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({
+          challengeId: "challenge-12345678",
+          deliveryMode: "DEVELOPMENT_LOG",
+          developmentCode: "482901",
+          expiresAt: "2099-07-28T15:10:00.000Z",
+          status: "CODE_REQUIRED"
+        }),
+        contentType: "application/json",
+        status: 200
+      });
+    });
+    await page.route("**/api/public/packet-shares/access/verify", async (route) => {
+      expect(route.request().postDataJSON()).toMatchObject({
+        challengeId: "challenge-12345678",
+        code: "482901",
+        email: "advisor@example.com",
+        token: shareToken
+      });
+      await route.fulfill({
+        body: JSON.stringify({
+          accessToken: "recipient-access-token",
+          expiresAt: "2099-07-28T16:00:00.000Z",
+          permission: "COMMENT"
+        }),
+        contentType: "application/json",
+        status: 200
+      });
+    });
+    await page.route("**/api/public/packet-shares/content", async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({
+          comments: [],
+          downloadUrl: null,
+          packet: {
+            byteSize: 2048,
+            createdAt: "2026-07-22T12:00:00.000Z",
+            title: "PayPal account closure appeal"
+          },
+          permission: "COMMENT",
+          viewUrl: "https://storage.proofpilot.test/packet.pdf"
+        }),
+        contentType: "application/json",
+        status: 200
+      });
+    });
+
+    await page.goto(`/shared-packet#${shareToken}`);
+    await expect(
+      page.getByRole("heading", { name: "A case packet was shared with you" })
+    ).toBeVisible();
+    await page.getByLabel("Email address").fill("advisor@example.com");
+    await page.getByRole("button", { name: "Open shared packet" }).click();
+
+    await expect(
+      page.getByRole("heading", { name: "Enter verification code" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("textbox", { name: "Verification code" })
+    ).toHaveValue("482901");
+    await page.getByRole("button", { name: "Verify and open" }).click();
+
+    await expect(
+      page.getByRole("heading", { name: "PayPal account closure appeal" })
+    ).toBeVisible();
+    await expect(page.getByText("Access confirmed", { exact: true })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await expectTouchTargets(page, "shared packet verification");
+    await expectAccessible(page, "shared packet verification");
+  });
+
   test("demo user can navigate the signed-in shell", async ({ page }) => {
     await loginAsDemoUser(page);
 
@@ -498,6 +584,16 @@ test.describe("ProofPilot responsive workspace", () => {
     ).toBeVisible();
     await expectTouchTargets(page, "case workspace");
 
+    const caseSections = page.getByRole("navigation", {
+      name: "Case workspace sections"
+    });
+    await caseSections.getByRole("button", { exact: true, name: "Timeline" }).click();
+    await expect(page).toHaveURL(/\/timeline$/);
+    await caseSections.getByRole("button", { exact: true, name: "Overview" }).click();
+    await expect(page).toHaveURL(/\/overview$/);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/timeline$/);
+
     const timeline = page.locator("#case-timeline");
     const eventTitle = `Timeline verification ${Date.now()}`;
     const updatedTitle = `${eventTitle} updated`;
@@ -564,11 +660,20 @@ test.describe("ProofPilot responsive workspace", () => {
       .first()
       .click();
 
+    await page
+      .getByRole("navigation", { name: "Case workspace sections" })
+      .getByRole("button", { exact: true, name: "Checklist" })
+      .click();
+    await expect(page).toHaveURL(/\/checklist$/);
+
     const checklist = page.locator("#evidence-checklist");
     await checklist.scrollIntoViewIfNeeded();
-    await checklist
-      .getByRole("button", { name: /Account ownership proof/ })
-      .click();
+    const ownershipProof = checklist.getByRole("button", {
+      name: /Account ownership proof/
+    });
+    if ((await ownershipProof.getAttribute("aria-expanded")) !== "true") {
+      await ownershipProof.click();
+    }
 
     await checklist.getByRole("button", { exact: true, name: "Mark complete" }).click();
     await expect(checklist.getByText("Checklist item marked complete.")).toBeVisible();
@@ -594,6 +699,12 @@ test.describe("ProofPilot responsive workspace", () => {
       .getByRole("button", { name: /PayPal account closure appeal/ })
       .first()
       .click();
+
+    const caseSections = page.getByRole("navigation", {
+      name: "Case workspace sections"
+    });
+    await caseSections.getByRole("button", { exact: true, name: "Statement" }).click();
+    await expect(page).toHaveURL(/\/statement$/);
 
     const statementBuilder = page.locator("#statement-builder");
     await statementBuilder.scrollIntoViewIfNeeded();
@@ -629,6 +740,8 @@ test.describe("ProofPilot responsive workspace", () => {
       statementBuilder.getByText("Statement version restored as the current version.")
     ).toBeVisible();
 
+    await caseSections.getByRole("button", { exact: true, name: "Packet" }).click();
+    await expect(page).toHaveURL(/\/packet$/);
     const packetExport = page.locator("#packet-export");
     await packetExport.scrollIntoViewIfNeeded();
     await expect(packetExport.getByText("8 section manifest")).toBeVisible();

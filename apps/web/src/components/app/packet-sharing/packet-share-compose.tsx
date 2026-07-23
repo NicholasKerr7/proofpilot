@@ -74,6 +74,7 @@ export function PacketShareCompose({
   const [defaultPermission, setDefaultPermission] = useState<PacketSharePermission>("VIEW");
   const [expiryMode, setExpiryMode] = useState<PacketShareExpiryMode>("seven-days");
   const [specificDate, setSpecificDate] = useState(getDefaultPacketShareDate);
+  const [requireEmailVerification, setRequireEmailVerification] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [revokingShareId, setRevokingShareId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -127,7 +128,7 @@ export function PacketShareCompose({
         expiresAt: resolvePacketShareExpiration(expiryMode, specificDate),
         packetExportId: preparation.packet.exportId,
         recipients: normalizedRecipients,
-        requireEmailVerification: false,
+        requireEmailVerification,
         watermarkDocuments: false
       });
       onCreated(createdShare);
@@ -257,13 +258,15 @@ export function PacketShareCompose({
                 Security options
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Additional processing stays off until the required providers are configured.
+                Add an identity check before a recipient can open the packet.
               </p>
             </div>
-            <UnavailableSecurityOption
+            <SecurityOption
+              checked={requireEmailVerification}
               description="Require a one-time email challenge before access."
               icon={MailCheck}
               label="Email verification"
+              onCheckedChange={setRequireEmailVerification}
             />
             <UnavailableSecurityOption
               description="Add recipient identity to every PDF page."
@@ -318,6 +321,7 @@ export function PacketShareCompose({
           ownerName={ownerName}
           packet={preparation.packet}
           recipients={recipients}
+          requireEmailVerification={requireEmailVerification}
           specificDate={specificDate}
         />
       </div>
@@ -459,6 +463,37 @@ interface UnavailableSecurityOptionProps {
   description: string;
   icon: typeof ShieldCheck;
   label: string;
+}
+
+interface SecurityOptionProps extends UnavailableSecurityOptionProps {
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}
+
+function SecurityOption({
+  checked,
+  description,
+  icon: Icon,
+  label,
+  onCheckedChange
+}: SecurityOptionProps) {
+  return (
+    <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3 border-t border-border pt-3">
+      <Icon className="mt-1 h-4 w-4 text-primary" aria-hidden="true" />
+      <div>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-medium">{label}</p>
+          <Badge variant="success">Recommended</Badge>
+        </div>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
+      </div>
+      <Switch
+        aria-label={label}
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+      />
+    </div>
+  );
 }
 
 function UnavailableSecurityOption({

@@ -88,11 +88,12 @@ Owner routes:
 Public recipient routes:
 
 - `POST /packet-shares/metadata`
-- `POST /packet-shares/access`
+- `POST /packet-shares/access/request`
+- `POST /packet-shares/access/verify`
 - `POST /packet-shares/content`
 - `POST /packet-shares/comments`
 
-Owner routes require an authenticated case-owner match and a ready packet export. Public routes accept the raw share token in a request body, never a URL path; content and comment calls also require a short-lived recipient access token. Share creation delivers the fragment-token link to each allowlisted recipient through the configured email mode and reports per-request delivery counts. Recipient email verification and PDF watermarking remain unavailable until their providers are configured.
+Owner routes require an authenticated case-owner match and a ready packet export. Public routes accept either the hash-backed manual token or a recipient-scoped signed token in a request body, never a URL path; content and comment calls also require a short-lived recipient access token. Share creation commits recipient invitation rows to an outbox and reports queued counts. The worker delivers signed fragment-token links with retries. When verification is enabled, access request sends a six-digit, ten-minute email code and access verify consumes it before issuing the recipient token. PDF watermarking remains unavailable until a processor is configured.
 
 ## Documents
 
@@ -210,4 +211,4 @@ Support request lists, details, and follow-ups are restricted to the authenticat
 
 - Add provider-backed payments, OAuth connections, and model generation.
 - Add two-factor and WebAuthn enrollment.
-- Add recipient email verification and PDF watermarking for packet shares.
+- Add PDF watermarking for packet shares.

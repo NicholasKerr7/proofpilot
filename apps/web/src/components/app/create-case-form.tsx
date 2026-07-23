@@ -110,7 +110,7 @@ export function CreateCaseForm({
 
   return (
     <section aria-labelledby="create-case-heading" className="mx-auto grid w-full max-w-6xl gap-5 2xl:max-w-none">
-      <div className="flex items-start gap-3">
+      <div className="proof-page-header flex items-start gap-3">
         <Button
           aria-label={step === 2 ? "Back to case details" : "Back to cases"}
           onClick={handleBack}

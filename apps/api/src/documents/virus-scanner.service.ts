@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { readStoredObjectChunks } from "@proofpilot/storage";
+import { createHash, type Hash } from "node:crypto";
 import { createConnection, type Socket } from "node:net";
 import { getApiEnv } from "../config/env.js";
 
@@ -20,6 +21,7 @@ export type VirusScanResult =
 
 export interface StoredObjectVirusScanResult {
   result: VirusScanResult;
+  sha256: string;
   sourceEtag: string | null;
 }
 
@@ -28,31 +30,48 @@ export class VirusScannerService {
   private readonly env = getApiEnv();
 
   async scanStoredObject(input: { key: string }): Promise<StoredObjectVirusScanResult> {
-    if (this.env.VIRUS_SCAN_MODE === "disabled") {
-      return {
-        result: {
-          engine: null,
-          reason: "disabled",
-          status: "skipped"
-        },
-        sourceEtag: null
-      };
-    }
-
     const storedObject = await readStoredObjectChunks({ key: input.key });
+    const hash = createHash("sha256");
+    const hashingChunks = addChunksToHash(storedObject.chunks, hash);
 
     try {
+      const result =
+        this.env.VIRUS_SCAN_MODE === "disabled"
+          ? await consumeWithoutVirusScan(hashingChunks)
+          : await scanChunksWithClamAv(hashingChunks, {
+              host: this.env.CLAMAV_HOST,
+              port: this.env.CLAMAV_PORT,
+              timeoutMs: this.env.CLAMAV_TIMEOUT_MS
+            });
+
       return {
-        result: await scanChunksWithClamAv(storedObject.chunks, {
-          host: this.env.CLAMAV_HOST,
-          port: this.env.CLAMAV_PORT,
-          timeoutMs: this.env.CLAMAV_TIMEOUT_MS
-        }),
+        result,
+        sha256: hash.digest("hex"),
         sourceEtag: storedObject.etag
       };
     } finally {
       await closeByteStream(storedObject.chunks);
     }
+  }
+}
+
+async function consumeWithoutVirusScan(chunks: AsyncIterable<Uint8Array>): Promise<VirusScanResult> {
+  for await (const chunk of chunks) {
+    void chunk;
+    // Reading the stream records its integrity fingerprint even when ClamAV is disabled.
+  }
+
+  return {
+    engine: null,
+    reason: "disabled",
+    status: "skipped"
+  };
+}
+
+async function* addChunksToHash(chunks: AsyncIterable<Uint8Array>, hash: Hash) {
+  for await (const chunk of chunks) {
+    hash.update(chunk);
+    yield chunk;
   }
 }
 

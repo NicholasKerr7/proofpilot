@@ -364,7 +364,7 @@ export function InboxPanel({
     <section aria-labelledby="inbox-heading" className="grid gap-4">
       <header
         className={cn(
-          "flex flex-wrap items-end justify-between gap-4",
+          "proof-page-header flex flex-wrap items-end justify-between gap-4",
           showMobileWorkspace ? "hidden md:flex" : null
         )}
       >

@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { getApiEnv } from "../config/env.js";
 import {
-  createPacketShareEmailHtml,
-  createPacketShareEmailSender,
+  createPacketShareAccessCodeEmailHtml,
+  createPacketShareAccessCodeEmailSender,
   type PacketShareEmailProvider
 } from "./packet-share-mailer.service.js";
 
@@ -13,30 +13,26 @@ const baseEnv = {
 
 function createEmailInput() {
   return {
-    caseTitle: "Account <appeal>",
-    expiresAt: new Date("2026-08-01T12:00:00.000Z"),
-    ownerName: "Nicholas & Team",
-    permission: "COMMENT" as const,
-    recipientId: "recipient-1",
-    shareId: "share-1",
-    shareUrl: "https://app.proofpilot.test/shared-packet#secret<&token",
+    challengeId: "challenge-12345678",
+    code: "482901",
+    expiresAt: new Date("2026-08-01T12:10:00.000Z"),
+    packetTitle: "Account <appeal>",
     to: "advisor@example.com"
   };
 }
 
-describe("createPacketShareEmailHtml", () => {
-  it("escapes user content and the fragment-token URL", () => {
-    const html = createPacketShareEmailHtml(createEmailInput());
+describe("createPacketShareAccessCodeEmailHtml", () => {
+  it("escapes packet titles and renders the one-time code", () => {
+    const html = createPacketShareAccessCodeEmailHtml(createEmailInput());
 
-    expect(html).toContain("Nicholas &amp; Team");
     expect(html).toContain("Account &lt;appeal&gt;");
-    expect(html).toContain("#secret&lt;&amp;token");
+    expect(html).toContain("482901");
     expect(html).not.toContain("Account <appeal>");
   });
 });
 
-describe("createPacketShareEmailSender", () => {
-  it("uses a recipient-specific idempotency key in Resend mode", async () => {
+describe("createPacketShareAccessCodeEmailSender", () => {
+  it("uses a challenge-specific idempotency key in Resend mode", async () => {
     const provider = {
       send: vi.fn().mockResolvedValue({
         data: { id: "provider-email-1" },
@@ -44,7 +40,7 @@ describe("createPacketShareEmailSender", () => {
         headers: null
       })
     };
-    const sender = createPacketShareEmailSender(
+    const sender = createPacketShareAccessCodeEmailSender(
       getApiEnv({
         ...baseEnv,
         AUTH_EMAIL_FROM: "ProofPilot <shares@proofpilot.test>",
@@ -54,16 +50,16 @@ describe("createPacketShareEmailSender", () => {
       provider as PacketShareEmailProvider
     );
 
-    await expect(sender.send(createEmailInput())).resolves.toEqual({
+    await expect(sender.sendAccessCode(createEmailInput())).resolves.toEqual({
       providerMessageId: "provider-email-1"
     });
     expect(sender.deliveryMode).toBe("RESEND");
     expect(provider.send).toHaveBeenCalledWith(
       expect.objectContaining({
-        subject: "Nicholas & Team shared a ProofPilot packet",
+        subject: "Your ProofPilot packet access code",
         to: "advisor@example.com"
       }),
-      { idempotencyKey: "proofpilot-packet-share-share-1-recipient-1" }
+      { idempotencyKey: "proofpilot-packet-access-challenge-12345678" }
     );
   });
 
@@ -79,7 +75,7 @@ describe("createPacketShareEmailSender", () => {
         headers: null
       })
     };
-    const sender = createPacketShareEmailSender(
+    const sender = createPacketShareAccessCodeEmailSender(
       getApiEnv({
         ...baseEnv,
         AUTH_EMAIL_FROM: "ProofPilot <shares@proofpilot.test>",
@@ -89,33 +85,33 @@ describe("createPacketShareEmailSender", () => {
       provider as PacketShareEmailProvider
     );
 
-    await expect(sender.send(createEmailInput())).rejects.toMatchObject({
+    await expect(sender.sendAccessCode(createEmailInput())).rejects.toMatchObject({
       code: "rate_limit_exceeded",
-      message: "Packet-share email delivery was rejected."
+      message: "Packet access code delivery was rejected."
     });
   });
 
-  it("simulates delivery without logging recipients, content, or tokens", async () => {
+  it("does not log recipient addresses, packet titles, or codes", async () => {
     const logger = { log: vi.fn() };
-    const sender = createPacketShareEmailSender(
+    const sender = createPacketShareAccessCodeEmailSender(
       getApiEnv(baseEnv),
       null,
       logger
     );
 
-    await expect(sender.send(createEmailInput())).resolves.toEqual({
+    await expect(sender.sendAccessCode(createEmailInput())).resolves.toEqual({
       providerMessageId: null
     });
     expect(sender.deliveryMode).toBe("DEVELOPMENT_LOG");
     expect(logger.log).toHaveBeenCalledWith(
       JSON.stringify({
-        event: "packet_share_email_simulated",
-        recipientId: "recipient-1",
-        shareId: "share-1"
+        challengeId: "challenge-12345678",
+        event: "packet_share_access_code_simulated"
       })
     );
-    expect(JSON.stringify(logger.log.mock.calls)).not.toContain("advisor@example.com");
-    expect(JSON.stringify(logger.log.mock.calls)).not.toContain("secret");
-    expect(JSON.stringify(logger.log.mock.calls)).not.toContain("Account");
+    const output = JSON.stringify(logger.log.mock.calls);
+    expect(output).not.toContain("advisor@example.com");
+    expect(output).not.toContain("482901");
+    expect(output).not.toContain("Account");
   });
 });

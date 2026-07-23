@@ -35,8 +35,8 @@ interface ReportCaseFixture {
   id: string;
   title: string;
   platform: string;
+  caseType: { name: string };
   status: CaseStatus;
-  summary: string | null;
   deadline: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -47,6 +47,9 @@ interface ReportCaseFixture {
   }>;
   checklist: Array<{
     status: ChecklistStatus;
+  }>;
+  events: Array<{
+    _count: { sources: number };
   }>;
   _count: {
     events: number;
@@ -67,8 +70,8 @@ function baseReportCase(): ReportCaseFixture {
     id: "case-1",
     title: "PayPal account appeal",
     platform: "PayPal",
+    caseType: { name: "Account Ban / Appeal Builder" },
     status: CaseStatus.NEEDS_MORE_EVIDENCE,
-    summary: "Appeal summary",
     deadline: new Date("2026-08-01T12:00:00.000Z"),
     createdAt,
     updatedAt,
@@ -79,6 +82,11 @@ function baseReportCase(): ReportCaseFixture {
     checklist: [
       { status: ChecklistStatus.COMPLETE },
       { status: ChecklistStatus.MISSING }
+    ],
+    events: [
+      { _count: { sources: 1 } },
+      { _count: { sources: 0 } },
+      { _count: { sources: 0 } }
     ],
     _count: {
       events: 3,
@@ -111,11 +119,14 @@ describe("ReportsService", () => {
         title: "Marketplace suspension",
         platform: "eBay",
         status: CaseStatus.RESOLVED,
-        summary: null,
         documents: [
           { byteSize: 2000, mimeType: "image/png", status: DocumentStatus.PROCESSING }
         ],
-        checklist: [{ status: ChecklistStatus.FOUND }],
+        checklist: [
+          { status: ChecklistStatus.FOUND },
+          { status: ChecklistStatus.OPTIONAL }
+        ],
+        events: [{ _count: { sources: 0 } }],
         _count: { events: 1, statements: 0, packets: 0 }
       })
     ]);
@@ -154,7 +165,7 @@ describe("ReportsService", () => {
       totalCases: 2,
       activeCases: 1,
       upcomingDeadlines: 1,
-      averageReadiness: 55,
+      averageCompleteness: 54,
       totalDocuments: 3,
       failedDocuments: 1,
       totalEvidenceBytes: 3500,
@@ -165,7 +176,7 @@ describe("ReportsService", () => {
       totalStatements: 1,
       totalPackets: 1
     });
-    expect(result.cases.map((caseRecord) => caseRecord.readiness)).toEqual([67, 43]);
+    expect(result.cases.map((caseRecord) => caseRecord.completeness)).toEqual([69, 39]);
     expect(result.evidenceBreakdown).toEqual([
       { category: "images", count: 1, byteSize: 2000 },
       { category: "documents", count: 1, byteSize: 1000 },

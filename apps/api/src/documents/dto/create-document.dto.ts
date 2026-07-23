@@ -1,8 +1,14 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { evidenceMaxUploadByteSize } from "@proofpilot/types/evidence";
 import {
+  evidenceMaxUploadByteSize,
+  evidenceSources,
+  type EvidenceSource
+} from "@proofpilot/types/evidence";
+import {
+  IsIn,
   IsInt,
   IsMimeType,
+  IsOptional,
   IsString,
   Matches,
   Max,
@@ -31,4 +37,9 @@ export class CreateDocumentDto {
   @Min(1)
   @Max(evidenceMaxUploadByteSize)
   byteSize!: number;
+
+  @ApiProperty({ enum: evidenceSources, example: "FILE_UPLOAD", required: false })
+  @IsOptional()
+  @IsIn(evidenceSources)
+  source?: EvidenceSource;
 }

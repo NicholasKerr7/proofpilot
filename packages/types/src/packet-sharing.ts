@@ -16,6 +16,7 @@ export interface PacketShareCapabilities {
 export interface PacketShareEmailDeliverySummary {
   attemptedCount: number;
   failedCount: number;
+  queuedCount: number;
   successfulCount: number;
 }
 
@@ -96,6 +97,11 @@ export interface AccessPacketShareInput {
   token: string;
 }
 
+export interface VerifyPacketShareAccessInput extends AccessPacketShareInput {
+  challengeId: string;
+  code: string;
+}
+
 export interface PacketShareTokenInput {
   token: string;
 }
@@ -105,6 +111,19 @@ export interface PacketShareAccessResponse {
   expiresAt: string;
   permission: PacketSharePermission;
 }
+
+export type PacketShareAccessRequestResponse =
+  | {
+      access: PacketShareAccessResponse;
+      status: "ACCESS_GRANTED";
+    }
+  | {
+      challengeId: string;
+      deliveryMode: PacketShareEmailDeliveryMode;
+      developmentCode?: string;
+      expiresAt: string;
+      status: "CODE_REQUIRED";
+    };
 
 export interface PacketShareCommentRecord {
   content: string;

@@ -117,7 +117,7 @@ export function ConnectedAccountsPanel() {
 
   return (
     <section aria-labelledby="connected-accounts-heading" className="grid gap-5">
-      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_24rem] md:items-end">
+      <div className="proof-page-header grid gap-4 md:grid-cols-[minmax(0,1fr)_24rem] md:items-end">
         <div>
           <p className="text-sm font-semibold text-primary">Account integrations</p>
           <h1

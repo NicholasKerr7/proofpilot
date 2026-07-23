@@ -72,7 +72,8 @@ Supported evidence formats are PDF, PNG, JPG, JPEG, TXT, DOCX, EML, CSV, and XLS
 - Owner, Editor, and Viewer case roles
 - Expiring, single-use collaboration invitations
 - Configurable Viewer download access
-- Recipient-scoped packet links with view, comment, and download permissions
+- Recipient-scoped packet links with one-time email verification and view, comment, or download permissions
+- Durable packet-invitation outbox with leases, provider idempotency, suppression, and automatic retries
 - Unified Inbox for support conversations and eligible notifications
 - Notification preferences, reminders, and transactional email delivery infrastructure
 
@@ -96,7 +97,8 @@ Browser -> Next.js web application -> NestJS REST API
                                       `-> Redis / BullMQ -> Worker
                                                             |-> document extraction and OCR
                                                             |-> packet generation
-                                                            |-> reminders and notification email
+                                                            |-> packet-share and notification email
+                                                            |-> reminders
                                                             `-> upload and demo-workspace cleanup
 ```
 
@@ -241,7 +243,7 @@ pnpm --filter @proofpilot/web exec playwright install chromium
 
 1. The API validates metadata and creates a database-backed upload reservation.
 2. The browser uploads directly to a short-lived signed URL in private staging storage.
-3. The API verifies object size and type, scans the exact stored bytes, and promotes clean content to a processing-only key.
+3. The API verifies object size and type, records a SHA-256 fingerprint, scans the exact stored bytes when ClamAV is enabled, and promotes accepted content to a processing-only key.
 4. A BullMQ job extracts text and metadata or performs OCR when needed.
 5. Processing results update the evidence record and can feed timeline and checklist analysis.
 6. Packet generation runs separately in the worker and writes the completed PDF to private storage.
@@ -254,7 +256,8 @@ Provider imports follow the same validation, scanning, storage, audit, and proce
 - Foreign resources return `404` so the API does not confirm that another user's data exists.
 - Viewer, Editor, and Owner permissions are enforced server-side.
 - Passwords are bcrypt-hashed; session-backed JWTs can be revoked before token expiry.
-- Password-reset, invitation, and share tokens are random, expiring, and stored as hashes where applicable.
+- Password-reset, invitation, and manual-share tokens are random; short-lived token types expire and database-backed bearer tokens are stored as hashes. Emailed recipient links are HMAC-signed and scoped to one recipient.
+- Packet access challenges are hashed, expire after ten minutes, allow five attempts, and are consumed once before a scoped access session is issued.
 - Evidence and generated packets remain private and are exposed only through short-lived signed URLs.
 - Uploads are validated before queueing and can be scanned before entering the processing boundary.
 - Request DTOs reject unknown fields and sanitize persisted user-authored text.
@@ -312,7 +315,7 @@ Production uses three independently scalable services:
 - Build the `api` Docker target for the NestJS API.
 - Build the `worker` Docker target for background jobs and schedulers.
 
-The API and worker require PostgreSQL, Redis, private S3-compatible storage, and a private ClamAV service. Production password recovery, invitations, and notification email require a verified Resend sender. Apply Prisma migrations and bootstrap the storage bucket before accepting traffic.
+The API and worker require PostgreSQL, Redis, private S3-compatible storage, and a private ClamAV service. Production password recovery, invitations, packet sharing, and notification email require a verified Resend sender. Apply Prisma migrations and bootstrap the storage bucket before accepting traffic.
 
 ```bash
 pnpm db:generate

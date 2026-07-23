@@ -95,7 +95,7 @@ export function ReportsPanel({ cases, onOpenCase }: ReportsPanelProps) {
       className="grid scroll-mt-24 gap-5"
       ref={panelRef}
     >
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="proof-page-header flex flex-wrap items-end justify-between gap-4">
         <div className="flex min-w-0 items-start gap-3">
           {mode === "export" ? (
             <Button

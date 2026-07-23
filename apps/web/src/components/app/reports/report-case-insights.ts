@@ -10,12 +10,12 @@ export function getCaseInsights(caseRecord: ReportCaseSummary) {
 
   return [
     {
-      detail: `Current readiness is ${caseRecord.readiness}%.`,
-      icon: caseRecord.readiness >= 80 ? CheckCircle2 : Clock3,
-      iconClassName: caseRecord.readiness >= 80 ? "text-teal-300" : "text-primary",
+      detail: `Current completeness is ${caseRecord.completeness}%.`,
+      icon: caseRecord.completeness >= 80 ? CheckCircle2 : Clock3,
+      iconClassName: caseRecord.completeness >= 80 ? "text-teal-300" : "text-primary",
       title:
-        caseRecord.readiness >= 80
-          ? "The case is approaching review readiness"
+        caseRecord.completeness >= 80
+          ? "The case record is nearly complete"
           : "The case still needs preparation"
     },
     {
@@ -45,7 +45,7 @@ export function getCaseInsights(caseRecord: ReportCaseSummary) {
 
 export function getCaseSummary(caseRecord: ReportCaseSummary, openChecklistItems: number) {
   if (!caseRecord.documentCount) {
-    return "Start with the platform notice and account ownership records to improve this case's evidence readiness.";
+    return "Start with the platform notice and account ownership records to improve this case's completeness.";
   }
 
   if (openChecklistItems) {

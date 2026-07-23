@@ -67,7 +67,7 @@ export function AccountPanel({
 
   return (
     <section aria-labelledby="account-heading" className="grid gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="proof-page-header flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-primary">Private workspace</p>
           <h1 id="account-heading" className="mt-1 text-2xl font-semibold sm:text-3xl">

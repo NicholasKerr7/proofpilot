@@ -144,7 +144,7 @@ export function SearchFilterPanel({
         compact ? "gap-3" : "md:flex md:min-h-[calc(100dvh-15rem)] md:flex-col md:gap-3"
       )}
     >
-      <div className="flex items-start gap-2 md:items-center">
+      <div className="proof-page-header flex items-start gap-2 md:items-center">
         {!compact ? (
           <Button
             aria-label="Back to results"

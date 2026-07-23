@@ -4,18 +4,18 @@ import {
   formatCaseDate,
   formatCaseReference,
   formatCaseStatus,
-  getCaseReadiness
+  getCaseCompletenessScore
 } from "@/components/app/cases/case-utils";
 import { Badge } from "@/components/ui/badge";
 import type { CaseRecord } from "@/lib/client/types";
 
 interface PacketShareHeroProps {
   caseRecord: CaseRecord;
-  showReadiness?: boolean;
+  showCompleteness?: boolean;
 }
 
-export function PacketShareHero({ caseRecord, showReadiness = true }: PacketShareHeroProps) {
-  const readiness = getCaseReadiness(caseRecord);
+export function PacketShareHero({ caseRecord, showCompleteness = true }: PacketShareHeroProps) {
+  const completeness = getCaseCompletenessScore(caseRecord);
 
   return (
     <section className="proof-accent-frame grid gap-5 rounded-md border p-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:p-6">
@@ -23,7 +23,7 @@ export function PacketShareHero({ caseRecord, showReadiness = true }: PacketShar
         <div className="flex flex-wrap items-center gap-2">
           <BriefcaseBusiness className="h-4 w-4 text-primary" aria-hidden="true" />
           <span className="text-xs font-semibold uppercase text-primary">Primary case</span>
-          <Badge variant={readiness >= 80 ? "success" : "warning"}>{readiness}% ready</Badge>
+          <Badge variant={completeness >= 80 ? "success" : "warning"}>{completeness}% complete</Badge>
         </div>
         <h2 className="mt-3 break-words text-xl font-semibold leading-7 md:text-2xl md:leading-8">
           {caseRecord.title}
@@ -51,8 +51,8 @@ export function PacketShareHero({ caseRecord, showReadiness = true }: PacketShar
         </dl>
       </div>
 
-      {showReadiness ? (
-        <CaseProgressRing className="hidden md:flex" value={readiness} />
+      {showCompleteness ? (
+        <CaseProgressRing className="hidden md:flex" label="Completeness" value={completeness} />
       ) : null}
     </section>
   );

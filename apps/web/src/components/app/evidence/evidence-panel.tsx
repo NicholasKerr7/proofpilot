@@ -529,7 +529,8 @@ export function EvidencePanel({
             body: JSON.stringify({
               originalName: item.file.name,
               mimeType,
-              byteSize: item.file.size
+              byteSize: item.file.size,
+              source: toEvidenceSource(item.source)
             }),
             method: "POST"
           }
@@ -943,6 +944,19 @@ export function EvidencePanel({
       ) : null}
     </div>
   );
+}
+
+function toEvidenceSource(source: EvidenceUploadSource) {
+  const sources = {
+    camera: "CAMERA_SCAN",
+    dropbox: "DROPBOX_IMPORT",
+    email: "EMAIL_ATTACHMENT",
+    files: "FILE_UPLOAD",
+    "google-drive": "GOOGLE_DRIVE_IMPORT",
+    photos: "PHOTO_LIBRARY"
+  } as const;
+
+  return sources[source];
 }
 
 function isActiveProcessingStatus(status: string | null | undefined) {

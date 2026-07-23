@@ -82,6 +82,8 @@ Set these only on `worker`:
 
 ```dotenv
 WEB_ORIGIN=https://REPLACE_WITH_VERCEL_PREVIEW_OR_CUSTOM_DOMAIN
+JWT_SECRET=REPLACE_WITH_THE_SAME_API_SECRET
+PACKET_SHARE_EMAIL_DELIVERY_MODE=resend
 NOTIFICATION_EMAIL_DELIVERY_MODE=resend
 RESEND_API_KEY=REPLACE_WITH_STAGING_RESEND_KEY
 AUTH_EMAIL_FROM=ProofPilot <updates@REPLACE_WITH_VERIFIED_DOMAIN>
@@ -141,4 +143,4 @@ PROOFPILOT_E2E_API_URL=https://REPLACE_WITH_RAILWAY_API_DOMAIN/health \
   pnpm test:e2e
 ```
 
-The staging gate is complete only when API readiness, all five queue health entries, private upload, ClamAV promotion, worker processing, notification email delivery, upload cleanup, packet generation, signed download, and responsive browser tests all pass.
+The staging gate is complete only when API readiness, all six queue health entries, private upload, ClamAV promotion, worker processing, notification and packet-share email delivery, upload cleanup, packet generation, signed download, and responsive browser tests all pass.

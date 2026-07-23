@@ -5,6 +5,6 @@ export class PacketShareTokenDto {
   @ApiProperty({ example: "secure-packet-share-token" })
   @IsString()
   @MinLength(32)
-  @MaxLength(128)
+  @MaxLength(512)
   token!: string;
 }

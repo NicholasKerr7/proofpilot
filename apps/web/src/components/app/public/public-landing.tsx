@@ -359,10 +359,10 @@ function LandingWorkspacePreview() {
 
         <div className="border-t border-border pt-4 md:border-l md:border-t-0 md:pl-5 md:pt-0">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-sm font-semibold">Case readiness</h3>
+            <h3 className="text-sm font-semibold">Case completeness</h3>
             <span className="text-lg font-semibold text-primary">68%</span>
           </div>
-          <progress aria-label="Case readiness" className="proof-progress mt-3" max={100} value={68} />
+          <progress aria-label="Case completeness" className="proof-progress mt-3" max={100} value={68} />
           <ul className="mt-4 grid gap-2 text-xs text-muted-foreground">
             <li className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-teal-300" aria-hidden="true" />

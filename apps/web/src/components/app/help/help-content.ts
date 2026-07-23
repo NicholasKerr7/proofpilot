@@ -267,7 +267,7 @@ export const helpArticles: HelpArticle[] = [
     slug: "generate-case-packet",
     categoryId: "statements-packets",
     title: "How do I generate a case packet?",
-    summary: "Create the private PDF after reviewing case readiness and packet sections.",
+    summary: "Create the private PDF after reviewing case completeness and packet sections.",
     intro:
       "Packet generation assembles the current case summary, statement, timeline, checklist, evidence index, and supporting records into a PDF.",
     updatedAt: "2026-07-11",
@@ -276,7 +276,7 @@ export const helpArticles: HelpArticle[] = [
       {
         heading: "Generate and download",
         steps: [
-          { title: "Review readiness", detail: "Resolve material evidence gaps and confirm the statement first." },
+          { title: "Review completeness", detail: "Resolve material evidence gaps and confirm the statement first." },
           { title: "Generate the packet", detail: "Open Packet export and start PDF generation." },
           { title: "Wait for processing", detail: "The packet moves through the background queue before it is ready." },
           { title: "Preview and download", detail: "Review the generated version, then use its private download link." }

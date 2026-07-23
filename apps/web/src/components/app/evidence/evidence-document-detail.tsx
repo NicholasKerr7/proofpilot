@@ -1,11 +1,20 @@
 "use client";
 
-import { Download, ExternalLink, FileText, RefreshCcw, Trash2 } from "lucide-react";
+import {
+  Download,
+  ExternalLink,
+  FileText,
+  Fingerprint,
+  RefreshCcw,
+  ShieldCheck,
+  Trash2
+} from "lucide-react";
 import { EvidenceDeleteConfirmation } from "@/components/app/evidence/evidence-delete-confirmation";
 import {
   formatEvidenceBytes,
   formatEvidenceDateTime,
   formatEvidenceMimeType,
+  formatEvidenceSource,
   formatEvidenceStatus,
   getEvidenceStatusVariant,
   isEvidenceProcessing
@@ -90,6 +99,34 @@ export function EvidenceDocumentDetailPanel({
         <Metadata label="Added" value={formatEvidenceDateTime(selectedDocument.createdAt)} />
         <Metadata label="Entities" value={String(selectedDocument.entities.length)} />
       </dl>
+
+      <section
+        aria-labelledby="document-provenance-heading"
+        className="mt-4 rounded-md border border-teal-400/20 bg-teal-400/5 p-3"
+      >
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="h-4 w-4 text-teal-200" aria-hidden="true" />
+          <h5 id="document-provenance-heading" className="text-xs font-semibold text-foreground">
+            Provenance
+          </h5>
+        </div>
+        <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
+          <Metadata label="Source" value={formatEvidenceSource(selectedDocument.source)} />
+          <Metadata label="Received" value={formatEvidenceDateTime(selectedDocument.createdAt)} />
+          {selectedDocument.sourceReference ? (
+            <Metadata label="Source record" value={selectedDocument.sourceReference} />
+          ) : null}
+        </dl>
+        <div className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] gap-2 border-t border-teal-400/15 pt-3">
+          <Fingerprint className="mt-0.5 h-4 w-4 text-teal-200" aria-hidden="true" />
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-foreground">SHA-256 fingerprint</p>
+            <p className="mt-1 break-all font-mono text-[11px] leading-5 text-muted-foreground">
+              {selectedDocument.sha256 ?? "Pending storage verification"}
+            </p>
+          </div>
+        </div>
+      </section>
 
       {isProcessing ? (
         <p className="mt-4 rounded-md border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-sm text-amber-100">

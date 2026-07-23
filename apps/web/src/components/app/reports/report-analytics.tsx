@@ -106,7 +106,7 @@ export function ReportAnalytics({ onExport, onOpenCase, summary }: ReportAnalyti
             <CardTitle>Completion overview</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-6 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
-            <CaseProgressRing label="Readiness" value={summary.metrics.averageReadiness} />
+            <CaseProgressRing label="Completeness" value={summary.metrics.averageCompleteness} />
             <div className="grid gap-4">
               <Progress label="Checklist coverage" value={checklistCompletion} />
               <Progress
@@ -213,7 +213,7 @@ export function ReportAnalytics({ onExport, onOpenCase, summary }: ReportAnalyti
                       <Badge variant="secondary">{caseRecord.platform}</Badge>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                      <span>{caseRecord.readiness}% ready</span>
+                      <span>{caseRecord.completeness}% complete</span>
                       <span>{caseRecord.documentCount} evidence files</span>
                       <span>Updated {formatReportDateTime(caseRecord.updatedAt)}</span>
                     </div>
@@ -350,14 +350,14 @@ function getReportInsights(summary: ReportSummary) {
     ...operationalInsights,
     {
       title:
-        summary.metrics.averageReadiness >= 80
-          ? "Cases are approaching review readiness"
+        summary.metrics.averageCompleteness >= 80
+          ? "Case records are nearly complete"
           : "Case packets are still being assembled",
-      detail: `Average readiness is ${summary.metrics.averageReadiness}% across ${summary.metrics.totalCases} ${
+      detail: `Average completeness is ${summary.metrics.averageCompleteness}% across ${summary.metrics.totalCases} ${
         summary.metrics.totalCases === 1 ? "case" : "cases"
       }.`,
-      icon: summary.metrics.averageReadiness >= 80 ? CheckCircle2 : Clock3,
-      iconClassName: summary.metrics.averageReadiness >= 80 ? "text-teal-300" : "text-primary"
+      icon: summary.metrics.averageCompleteness >= 80 ? CheckCircle2 : Clock3,
+      iconClassName: summary.metrics.averageCompleteness >= 80 ? "text-teal-300" : "text-primary"
     },
     {
       title: openChecklistItems

@@ -14,7 +14,7 @@ Use the dependency-aware endpoint before routing traffic:
 GET /health/ready
 ```
 
-Readiness checks PostgreSQL and the Redis connections behind all five BullMQ queues. It returns `200` with `status: ok` when both dependencies respond, or `503` with a sanitized `status: degraded` body when either dependency is unavailable or exceeds the three-second timeout. A readiness failure should remove the API replica from traffic without treating the process as dead.
+Readiness checks PostgreSQL and the Redis connections behind all six BullMQ queues. It returns `200` with `status: ok` when both dependencies respond, or `503` with a sanitized `status: degraded` body when either dependency is unavailable or exceeds the three-second timeout. A readiness failure should remove the API replica from traffic without treating the process as dead.
 
 If readiness is degraded, inspect `checks.database`, `checks.queues`, and the API `readiness_check_failed` structured log. Confirm `DATABASE_URL` and `REDIS_URL`, network policy, provider status, and credentials before restoring traffic. A retained failed queue job does not fail readiness; use the queue-health runbook below to diagnose job failures.
 
@@ -77,15 +77,18 @@ A worker crash can leave a row in `SENDING`; it becomes eligible again after the
 
 ## Packet Share Email Runbook
 
-Packet-share email runs synchronously in the API after the secure share is stored. Each recipient send has a stable share-and-recipient idempotency key. A failed send does not revoke the share; the creation response reports delivery counts and keeps copy and manual-email actions available.
+Packet-share invitations use a PostgreSQL outbox and the `packet-share-email` worker queue. Share creation stores one pending row per recipient before returning a queued summary. The API triggers immediate processing, and a one-minute worker scheduler recovers missed triggers. Each row has a ten-minute lease and a stable delivery-specific Resend idempotency key.
 
-If packet-share email fails:
+If packet-share email is delayed or exhausted:
 
-1. Confirm `PACKET_SHARE_EMAIL_DELIVERY_MODE=resend`, `RESEND_API_KEY`, `AUTH_EMAIL_FROM`, and `WEB_ORIGIN` are set on the API.
-2. Confirm the sender identity is verified in Resend and that the API can reach the provider.
-3. Inspect `case.packet_share_email_delivery` audit entries for attempted, successful, and failed counts.
-4. Correlate API `packet_share_email_delivery_failed` events by `shareId` and internal `recipientId`. Logs intentionally exclude addresses, content, bearer tokens, and provider response bodies.
-5. Use the owner's manual delivery action for failed recipients. Automatic retries are not enabled for packet-share email.
+1. Check `GET /health/queues` and confirm `packet-share-email` is not paused and has no growing failed count.
+2. Confirm the worker logs `ProofPilot worker is listening on packet-share-email.`
+3. Confirm `JWT_SECRET`, `PACKET_SHARE_EMAIL_DELIVERY_MODE=resend`, `RESEND_API_KEY`, `AUTH_EMAIL_FROM`, and `WEB_ORIGIN` are set on both API and worker where applicable.
+4. Confirm the sender identity is verified in Resend and inspect provider delivery events using `providerMessageId` from `PacketShareEmailDelivery`.
+5. Inspect `case.packet_share_email_delivery_failed` audit entries for the sanitized error code, attempt count, and retry time. Logs intentionally exclude addresses, content, access codes, link tokens, and provider response bodies.
+6. Confirm the share is active. Revoked and expired shares intentionally produce `case.packet_share_email_suppressed` instead of a send.
+
+Provider failures retry at 5 minutes, 15 minutes, 1 hour, and 6 hours. A worker crash leaves a row in `SENDING`; it becomes eligible after its ten-minute lease. Owners can still copy the manual share URL while delivery is pending or exhausted.
 
 ## Upload Security Runbook
 

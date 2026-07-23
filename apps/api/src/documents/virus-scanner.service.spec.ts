@@ -1,13 +1,22 @@
+import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:net";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   scanChunksWithClamAv,
-  type ClamAvConnectionConfig
+  type ClamAvConnectionConfig,
+  VirusScannerService
 } from "./virus-scanner.service.js";
+
+const storageMocks = vi.hoisted(() => ({
+  readStoredObjectChunks: vi.fn()
+}));
+
+vi.mock("@proofpilot/storage", () => storageMocks);
 
 const openServers: Server[] = [];
 
 afterEach(async () => {
+  vi.unstubAllEnvs();
   await Promise.all(
     openServers.splice(0).map(
       (server) =>
@@ -67,6 +76,27 @@ describe("scanChunksWithClamAv", () => {
     await expect(
       scanChunksWithClamAv(toAsyncChunks([Buffer.from("payload")]), fixture.config)
     ).rejects.toThrow("did not respond within 50ms");
+  });
+});
+
+describe("VirusScannerService", () => {
+  it("records a SHA-256 fingerprint when virus scanning is disabled", async () => {
+    vi.stubEnv("DATABASE_URL", "postgresql://proofpilot.test/proofpilot");
+    vi.stubEnv("JWT_SECRET", "test-secret-with-at-least-24-characters");
+    vi.stubEnv("VIRUS_SCAN_MODE", "disabled");
+    const payload = Buffer.from("proofpilot provenance");
+    storageMocks.readStoredObjectChunks.mockResolvedValue({
+      chunks: toAsyncChunks([payload]),
+      etag: '"source-etag"'
+    });
+
+    const result = await new VirusScannerService().scanStoredObject({ key: "evidence.txt" });
+
+    expect(result).toEqual({
+      result: { engine: null, reason: "disabled", status: "skipped" },
+      sha256: createHash("sha256").update(payload).digest("hex"),
+      sourceEtag: '"source-etag"'
+    });
   });
 });
 

@@ -161,7 +161,7 @@ export function AssistantPanel({
 
   return (
     <section aria-labelledby="assistant-heading" className="grid gap-5">
-      <div className="md:hidden">
+      <div className="proof-page-header md:hidden">
         <p className="text-sm font-semibold text-primary">Case guidance</p>
         <h1 id="assistant-heading" className="mt-1 text-2xl font-semibold sm:text-3xl">
           AI Assistant

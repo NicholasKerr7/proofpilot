@@ -12,6 +12,7 @@ import {
   formatEvidenceBytes,
   formatEvidenceDateTime,
   formatEvidenceMimeType,
+  formatEvidenceSource,
   formatEvidenceStatus,
   getEvidenceStatusVariant
 } from "@/components/app/evidence/evidence-format";
@@ -106,6 +107,8 @@ export function EvidenceRecentImports({
                 <span>{formatEvidenceMimeType(document.mimeType)}</span>
                 <span aria-hidden="true">·</span>
                 <span>{formatEvidenceBytes(document.byteSize)}</span>
+                <span aria-hidden="true">·</span>
+                <span>{formatEvidenceSource(document.source)}</span>
               </span>
               <span className="mt-1 block text-xs text-muted-foreground sm:hidden">
                 {formatEvidenceDateTime(document.createdAt)}

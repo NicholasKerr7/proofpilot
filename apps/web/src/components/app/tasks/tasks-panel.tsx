@@ -24,7 +24,7 @@ import {
   formatCaseDate,
   formatCaseReference,
   formatCaseStatus,
-  getCaseReadiness,
+  getCaseCompletenessScore,
   getCaseStatusVariant
 } from "@/components/app/cases/case-utils";
 import { CaseProgressRing } from "@/components/app/cases/case-progress-ring";
@@ -270,7 +270,7 @@ export function TasksPanel({
 
   return (
     <section aria-labelledby="tasks-heading" className="grid gap-5">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+      <header className="proof-page-header flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-primary">Case workflow</p>
           <h1 className="mt-1 text-2xl font-semibold sm:text-3xl" id="tasks-heading">
@@ -556,11 +556,11 @@ function TaskCaseHero({
   caseRecord: CaseRecord;
   onOpenCase: () => void;
 }) {
-  const readiness = getCaseReadiness(caseRecord);
+  const completeness = getCaseCompletenessScore(caseRecord);
 
   return (
     <section className="proof-accent-frame grid gap-5 rounded-md border border-primary/35 bg-card p-5 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center md:p-6">
-      <CaseProgressRing className="mx-auto md:mx-0" size="compact" value={readiness} />
+      <CaseProgressRing className="mx-auto md:mx-0" label="Completeness" size="compact" value={completeness} />
       <div className="min-w-0">
         <p className="text-xs font-semibold uppercase text-primary">Primary case</p>
         <h2 className="mt-2 break-words text-lg font-semibold md:text-xl">{caseRecord.title}</h2>

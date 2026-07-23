@@ -5,7 +5,7 @@ import {
   NotFoundException,
   ServiceUnavailableException
 } from "@nestjs/common";
-import { analyzeCaseChecklist, DocumentStatus } from "@proofpilot/database";
+import { analyzeCaseChecklist, DocumentSource, DocumentStatus } from "@proofpilot/database";
 import {
   copyStoredObject,
   createPresignedDownloadUrl,
@@ -86,6 +86,7 @@ export class DocumentsService {
         byteSize: input.byteSize,
         storageKey,
         status: DocumentStatus.UPLOADED,
+        source: (input.source as DocumentSource | undefined) ?? DocumentSource.FILE_UPLOAD,
         versions: {
           create: {
             version: 1,
@@ -99,6 +100,9 @@ export class DocumentsService {
         mimeType: true,
         byteSize: true,
         status: true,
+        source: true,
+        sourceReference: true,
+        sha256: true,
         createdAt: true,
         updatedAt: true
       }
@@ -163,6 +167,11 @@ export class DocumentsService {
         byteSize,
         storageKey,
         status: DocumentStatus.UPLOADED,
+        source:
+          input.provider === "GMAIL"
+            ? DocumentSource.GMAIL_IMPORT
+            : DocumentSource.GOOGLE_DRIVE_IMPORT,
+        sourceReference: input.itemId,
         versions: {
           create: {
             version: 1,
@@ -214,6 +223,9 @@ export class DocumentsService {
         mimeType: true,
         originalName: true,
         status: true,
+        source: true,
+        sourceReference: true,
+        sha256: true,
         updatedAt: true
       }
     });
@@ -521,6 +533,9 @@ export class DocumentsService {
         mimeType: true,
         byteSize: true,
         status: true,
+        source: true,
+        sourceReference: true,
+        sha256: true,
         createdAt: true,
         updatedAt: true
       }
@@ -543,6 +558,9 @@ export class DocumentsService {
         mimeType: true,
         byteSize: true,
         status: true,
+        source: true,
+        sourceReference: true,
+        sha256: true,
         extractedText: true,
         quarantinedAt: true,
         storageKey: true,
@@ -872,6 +890,18 @@ export class DocumentsService {
 
     const skipped = result.status === "skipped";
     await this.prisma.$transaction([
+      this.prisma.document.update({
+        where: { id: document.id },
+        data: { sha256: scan.sha256 }
+      }),
+      this.prisma.documentProcessingLog.create({
+        data: {
+          documentId: document.id,
+          step: "integrity_hash",
+          status: "completed",
+          message: "SHA-256 fingerprint recorded for provenance verification."
+        }
+      }),
       this.prisma.documentProcessingLog.create({
         data: {
           documentId: document.id,

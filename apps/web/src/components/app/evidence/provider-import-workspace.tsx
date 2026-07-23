@@ -122,7 +122,7 @@ export function ProviderImportWorkspace({
 
   return (
     <section aria-labelledby="provider-import-heading" className="grid gap-5">
-      <header className="flex items-start gap-3">
+      <header className="proof-page-header flex items-start gap-3">
         <Button
           aria-label="Back to evidence sources"
           className="shrink-0"

@@ -90,7 +90,7 @@ export function MoreMenu({
 }: MoreMenuProps) {
   return (
     <section aria-labelledby="more-menu-heading" className="grid gap-5">
-      <div>
+      <div className="proof-page-header">
         <p className="text-sm font-semibold text-primary">Workspace navigation</p>
         <h1 id="more-menu-heading" className="mt-1 text-2xl font-semibold sm:text-3xl">
           More
@@ -212,7 +212,7 @@ export function MoreMenu({
               onClick={onOpenSearch}
             />
             <MoreDestination
-              detail="Compare current readiness and export case data."
+              detail="Compare current completeness and export case data."
               icon={BarChart3}
               label="Reports"
               onClick={onOpenReports}

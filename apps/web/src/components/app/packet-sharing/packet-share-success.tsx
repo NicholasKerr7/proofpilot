@@ -113,7 +113,7 @@ export function PacketShareSuccess({
         </div>
       </header>
 
-      <PacketShareHero caseRecord={caseRecord} showReadiness={false} />
+      <PacketShareHero caseRecord={caseRecord} showCompleteness={false} />
 
       <section className={deliveryNotice.containerClassName}>
         <span className={deliveryNotice.iconClassName}>
@@ -149,6 +149,11 @@ export function PacketShareSuccess({
                   {share.expiresAt
                     ? `Expires ${formatPacketShareDate(share.expiresAt)}`
                     : "No expiration"}
+                </Badge>
+                <Badge variant={share.requireEmailVerification ? "success" : "secondary"}>
+                  {share.requireEmailVerification
+                    ? "One-time code required"
+                    : "Recipient email check"}
                 </Badge>
               </div>
             </div>
@@ -206,53 +211,55 @@ export function PacketShareSuccess({
           </div>
         </section>
       ) : (
-        <section aria-labelledby="packet-share-actions-heading" className="rounded-md border border-border bg-card p-4 md:p-5">
-        <h2 id="packet-share-actions-heading" className="text-sm font-semibold uppercase text-primary">
-          Share actions
-        </h2>
-        <div className="mt-3 divide-y divide-border border-y border-border">
-          <ShareActionButton
-            description="Copy the recipient link to your clipboard"
-            icon={didCopy ? Check : Copy}
-            label={didCopy ? "Link copied" : "Copy link"}
-            onClick={() => {
-              void handleCopy();
-            }}
-          />
-          <ShareActionLink
-            description="Open a prefilled backup message in your email app"
-            href={emailHref}
-            icon={Mail}
-            label={
-              share.deliveryMode === "RESEND" && share.emailDelivery.failedCount === 0
-                ? "Email recipients again"
-                : "Email recipients manually"
-            }
-          />
-          <ShareActionLink
-            description="Download the owner copy of this PDF"
-            href={share.ownerDownloadUrl}
-            icon={Download}
-            label="Export PDF"
-            newTab
-          />
-          <ShareActionButton
-            description="Open support with this case selected"
-            icon={LifeBuoy}
-            label="Contact support"
-            onClick={onOpenSupport}
-          />
-          <ShareActionButton
-            description="End recipient access to this share immediately"
-            disabled={isRevoking}
-            icon={Trash2}
-            label={isRevoking ? "Revoking link..." : "Revoke link"}
-            onClick={() => {
-              void handleRevoke();
-            }}
-          />
-        </div>
-      </section>
+        <section
+          aria-labelledby="packet-share-actions-heading"
+          className="rounded-md border border-border bg-card p-4 md:p-5"
+        >
+          <h2
+            id="packet-share-actions-heading"
+            className="text-sm font-semibold uppercase text-primary"
+          >
+            Share actions
+          </h2>
+          <div className="mt-3 divide-y divide-border border-y border-border">
+            <ShareActionButton
+              description="Copy the recipient link to your clipboard"
+              icon={didCopy ? Check : Copy}
+              label={didCopy ? "Link copied" : "Copy link"}
+              onClick={() => {
+                void handleCopy();
+              }}
+            />
+            <ShareActionLink
+              description="Open a prefilled backup message in your email app"
+              href={emailHref}
+              icon={Mail}
+              label="Send backup email"
+            />
+            <ShareActionLink
+              description="Download the owner copy of this PDF"
+              href={share.ownerDownloadUrl}
+              icon={Download}
+              label="Export PDF"
+              newTab
+            />
+            <ShareActionButton
+              description="Open support with this case selected"
+              icon={LifeBuoy}
+              label="Contact support"
+              onClick={onOpenSupport}
+            />
+            <ShareActionButton
+              description="End recipient access to this share immediately"
+              disabled={isRevoking}
+              icon={Trash2}
+              label={isRevoking ? "Revoking link..." : "Revoke link"}
+              onClick={() => {
+                void handleRevoke();
+              }}
+            />
+          </div>
+        </section>
       )}
 
       <Button className="min-h-12" onClick={onDone} type="button">
@@ -263,20 +270,35 @@ export function PacketShareSuccess({
 }
 
 function getDeliveryNotice(share: PacketShareCreatedResponse) {
-  const { attemptedCount, failedCount, successfulCount } = share.emailDelivery;
-  const recipientLabel = attemptedCount === 1 ? "recipient" : "recipients";
+  const { attemptedCount, failedCount, queuedCount, successfulCount } = share.emailDelivery;
+  const recipientCount = Math.max(queuedCount, attemptedCount);
+  const recipientLabel = recipientCount === 1 ? "recipient" : "recipients";
 
   if (share.deliveryMode === "DEVELOPMENT_LOG") {
     return {
       containerClassName:
         "grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4 rounded-md border border-amber-300/30 bg-amber-300/10 p-4 md:p-5",
-      detail: `Email delivery was simulated for ${attemptedCount} ${recipientLabel}. Use a share action below to send the link manually.`,
+      detail: `${queuedCount} ${recipientLabel} queued for simulated delivery. Use a share action below to send the link manually in this environment.`,
       detailClassName: "mt-1 text-sm leading-6 text-amber-100/75",
       icon: TriangleAlert,
       iconClassName:
         "flex h-12 w-12 items-center justify-center rounded-full border border-amber-300/50 text-amber-200",
-      title: "Share link created; delivery simulated",
+      title: "Share link created; delivery queued",
       titleClassName: "font-semibold text-amber-50"
+    };
+  }
+
+  if (queuedCount > 0) {
+    return {
+      containerClassName:
+        "grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4 rounded-md border border-teal-400/35 bg-teal-400/10 p-4 md:p-5",
+      detail: `${queuedCount} secure ${recipientLabel === "recipient" ? "invitation is" : "invitations are"} queued for delivery with automatic retries.`,
+      detailClassName: "mt-1 text-sm leading-6 text-teal-100/75",
+      icon: CheckCircle2,
+      iconClassName:
+        "flex h-12 w-12 items-center justify-center rounded-full border border-teal-300/60 text-teal-200",
+      title: "Share link created and queued",
+      titleClassName: "font-semibold text-teal-50"
     };
   }
 

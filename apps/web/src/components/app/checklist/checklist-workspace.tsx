@@ -187,7 +187,7 @@ function ChecklistSummary({
   return (
     <aside className="hidden gap-3 xl:grid" aria-label="Checklist summary">
       <section className="rounded-md border border-border bg-secondary/25 p-4">
-        <h4 className="text-xs font-semibold uppercase text-primary">Readiness summary</h4>
+        <h4 className="text-xs font-semibold uppercase text-primary">Completeness summary</h4>
         <p className="mt-3 text-3xl font-semibold text-foreground">{completion}%</p>
         <Progress className="mt-3" value={completion} label="Requirements ready" />
         <dl className="mt-4 divide-y divide-border text-sm">

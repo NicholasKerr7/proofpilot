@@ -89,7 +89,7 @@ export function ReportCaseAnalytics({
             </div>
           </div>
 
-          <CaseProgressRing label="Progress" value={caseRecord.readiness} />
+          <CaseProgressRing label="Completeness" value={caseRecord.completeness} />
 
           <p className="border-l border-border pl-5 text-sm leading-7 text-muted-foreground">
             {getCaseSummary(caseRecord, openChecklistItems)}
@@ -113,7 +113,7 @@ export function ReportCaseAnalytics({
           <CaseMetric
             icon={CheckCircle2}
             label="Overall progress"
-            value={`${caseRecord.readiness}%`}
+            value={`${caseRecord.completeness}%`}
           />
           <CaseMetric
             icon={ListChecks}
@@ -183,7 +183,7 @@ export function ReportCaseAnalytics({
           </CardHeader>
           <CardContent className="divide-y divide-border p-0">
             <StatusRow
-              icon={caseRecord.readiness >= 80 ? CheckCircle2 : Clock3}
+              icon={caseRecord.completeness >= 80 ? CheckCircle2 : Clock3}
               label="Case status"
               value={formatReportStatus(caseRecord.status)}
             />

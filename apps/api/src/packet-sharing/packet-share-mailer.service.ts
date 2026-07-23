@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import type { PacketShareEmailDeliveryMode, PacketSharePermission } from "@proofpilot/types";
+import type { PacketShareEmailDeliveryMode } from "@proofpilot/types";
 import {
   Resend,
   type CreateEmailOptions,
@@ -8,24 +8,19 @@ import {
 } from "resend";
 import { getApiEnv } from "../config/env.js";
 
-export interface PacketShareEmailInput {
-  caseTitle: string;
-  expiresAt: Date | null;
-  ownerName: string;
-  permission: PacketSharePermission;
-  recipientId: string;
-  shareId: string;
-  shareUrl: string;
+export interface PacketShareAccessCodeEmailInput {
+  challengeId: string;
+  code: string;
+  expiresAt: Date;
+  packetTitle: string;
   to: string;
 }
 
-export interface PacketShareEmailSendResult {
-  providerMessageId: string | null;
-}
-
-export interface PacketShareEmailSender {
+export interface PacketShareAccessCodeEmailSender {
   deliveryMode: PacketShareEmailDeliveryMode;
-  send(input: PacketShareEmailInput): Promise<PacketShareEmailSendResult>;
+  sendAccessCode(
+    input: PacketShareAccessCodeEmailInput
+  ): Promise<{ providerMessageId: string | null }>;
 }
 
 export interface PacketShareEmailProvider {
@@ -37,22 +32,22 @@ export interface PacketShareEmailProvider {
 
 @Injectable()
 export class PacketShareMailerService {
-  private readonly sender = createPacketShareEmailSender();
+  private readonly sender = createPacketShareAccessCodeEmailSender();
 
   get deliveryMode() {
     return this.sender.deliveryMode;
   }
 
-  send(input: PacketShareEmailInput) {
-    return this.sender.send(input);
+  sendAccessCode(input: PacketShareAccessCodeEmailInput) {
+    return this.sender.sendAccessCode(input);
   }
 }
 
-export function createPacketShareEmailSender(
+export function createPacketShareAccessCodeEmailSender(
   config = getApiEnv(),
   providerOverride?: PacketShareEmailProvider | null,
   logger: Pick<Logger, "log"> = new Logger(PacketShareMailerService.name)
-): PacketShareEmailSender {
+): PacketShareAccessCodeEmailSender {
   const deliveryMode: PacketShareEmailDeliveryMode =
     config.PACKET_SHARE_EMAIL_DELIVERY_MODE === "resend"
       ? "RESEND"
@@ -66,13 +61,12 @@ export function createPacketShareEmailSender(
 
   return {
     deliveryMode,
-    async send(input) {
+    async sendAccessCode(input) {
       if (deliveryMode === "DEVELOPMENT_LOG") {
         logger.log(
           JSON.stringify({
-            event: "packet_share_email_simulated",
-            recipientId: input.recipientId,
-            shareId: input.shareId
+            challengeId: input.challengeId,
+            event: "packet_share_access_code_simulated"
           })
         );
         return { providerMessageId: null };
@@ -89,25 +83,25 @@ export function createPacketShareEmailSender(
         {
           from: config.AUTH_EMAIL_FROM,
           to: input.to,
-          subject: normalizeSubject(`${input.ownerName} shared a ProofPilot packet`),
-          text: createPacketShareEmailText(input),
-          html: createPacketShareEmailHtml(input)
+          subject: "Your ProofPilot packet access code",
+          text: createPacketShareAccessCodeEmailText(input),
+          html: createPacketShareAccessCodeEmailHtml(input)
         },
         {
-          idempotencyKey: `proofpilot-packet-share-${input.shareId}-${input.recipientId}`
+          idempotencyKey: `proofpilot-packet-access-${input.challengeId}`
         }
       );
 
       if (error) {
         throw createDeliveryError(
-          "Packet-share email delivery was rejected.",
+          "Packet access code delivery was rejected.",
           error.name
         );
       }
 
       if (!data?.id) {
         throw createDeliveryError(
-          "Packet-share email provider returned an invalid response.",
+          "Packet access code provider returned an invalid response.",
           "EMAIL_PROVIDER_NO_ID"
         );
       }
@@ -117,67 +111,40 @@ export function createPacketShareEmailSender(
   };
 }
 
-export function createPacketShareEmailHtml(input: PacketShareEmailInput) {
-  const expiration = getExpirationLabel(input.expiresAt);
-  const permission = getPermissionLabel(input.permission);
-  const shareUrl = escapeHtml(input.shareUrl);
+export function createPacketShareAccessCodeEmailHtml(
+  input: PacketShareAccessCodeEmailInput
+) {
+  const expiration = input.expiresAt.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "UTC",
+    timeZoneName: "short"
+  });
 
   return `<!doctype html>
 <html lang="en">
   <body style="margin:0;background:#0a0d10;color:#f8f6f2;font-family:Arial,sans-serif">
     <div style="max-width:560px;margin:0 auto;padding:40px 24px">
-      <p style="margin:0 0 12px;color:#e58a45;font-size:13px;font-weight:700;text-transform:uppercase">ProofPilot secure packet</p>
-      <h1 style="margin:0 0 16px;font-size:28px;line-height:1.2">A case packet was shared with you</h1>
-      <p style="margin:0 0 12px;color:#c7c2bb;line-height:1.6"><strong style="color:#f8f6f2">${escapeHtml(input.ownerName)}</strong> shared <strong style="color:#f8f6f2">${escapeHtml(input.caseTitle)}</strong>.</p>
-      <p style="margin:0 0 24px;color:#c7c2bb;line-height:1.6">Access: ${permission}. ${expiration}</p>
-      <a href="${shareUrl}" style="display:inline-block;border-radius:8px;background:#df621f;color:#fff;padding:14px 20px;font-weight:700;text-decoration:none">Open secure packet</a>
-      <p style="margin:28px 0 0;color:#8f8b85;font-size:13px;line-height:1.6">Open this link only if you recognize the sender. Your invited email address is required for access.</p>
+      <p style="margin:0 0 12px;color:#e58a45;font-size:13px;font-weight:700;text-transform:uppercase">ProofPilot recipient verification</p>
+      <h1 style="margin:0 0 16px;font-size:28px;line-height:1.2">Confirm your packet access</h1>
+      <p style="margin:0 0 20px;color:#c7c2bb;line-height:1.6">Use this one-time code to open <strong style="color:#f8f6f2">${escapeHtml(input.packetTitle)}</strong>.</p>
+      <p style="margin:0 0 20px;border:1px solid #6f3f24;border-radius:8px;background:#17110e;padding:18px 20px;color:#fff;font-family:monospace;font-size:30px;font-weight:700;text-align:center">${input.code}</p>
+      <p style="margin:0;color:#8f8b85;font-size:13px;line-height:1.6">This code expires at ${expiration}. If you did not request access, you can ignore this email.</p>
     </div>
   </body>
 </html>`;
 }
 
-function createPacketShareEmailText(input: PacketShareEmailInput) {
+function createPacketShareAccessCodeEmailText(
+  input: PacketShareAccessCodeEmailInput
+) {
   return [
-    `${input.ownerName} shared the ProofPilot case packet "${input.caseTitle}" with you.`,
-    `Access: ${getPermissionLabel(input.permission)}.`,
-    getExpirationLabel(input.expiresAt),
+    `Use this one-time code to open the ProofPilot packet "${input.packetTitle}":`,
     "",
-    `Open secure packet: ${input.shareUrl}`,
+    input.code,
     "",
-    "Open this link only if you recognize the sender.",
-    "Your invited email address is required for access."
+    "The code expires in 10 minutes. If you did not request access, ignore this email."
   ].join("\n");
-}
-
-function getExpirationLabel(expiresAt: Date | null) {
-  if (!expiresAt) {
-    return "The link does not expire automatically.";
-  }
-
-  const date = expiresAt.toLocaleDateString("en-US", {
-    day: "numeric",
-    month: "long",
-    timeZone: "UTC",
-    year: "numeric"
-  });
-
-  return `The link expires ${date}.`;
-}
-
-function getPermissionLabel(permission: PacketSharePermission) {
-  switch (permission) {
-    case "COMMENT":
-      return "View and comment";
-    case "DOWNLOAD":
-      return "View and download";
-    default:
-      return "View only";
-  }
-}
-
-function normalizeSubject(value: string) {
-  return value.replace(/[\r\n]+/g, " ").trim().slice(0, 160) || "ProofPilot packet shared";
 }
 
 function createDeliveryError(message: string, code: string) {

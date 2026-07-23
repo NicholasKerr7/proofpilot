@@ -42,6 +42,8 @@ Set on the API service in addition to its database, Redis, storage, JWT, origin,
 Set on the worker service:
 
 - `PROOFPILOT_MODE=portfolio`
+- `JWT_SECRET` same value as the API
+- `PACKET_SHARE_EMAIL_DELIVERY_MODE=log`
 - `NOTIFICATION_EMAIL_DELIVERY_MODE=log`
 - The same portfolio database, Redis, and private storage configuration as the API
 
@@ -105,7 +107,9 @@ Set these for the worker service:
 - `PROOFPILOT_MODE=standard`
 - `WEB_ORIGIN` exact deployed web origin
 - `DATABASE_URL`
+- `JWT_SECRET` same value as the API
 - `REDIS_URL`
+- `PACKET_SHARE_EMAIL_DELIVERY_MODE=resend`
 - `NOTIFICATION_EMAIL_DELIVERY_MODE=resend`
 - `RESEND_API_KEY`
 - `AUTH_EMAIL_FROM` verified sender identity
@@ -119,7 +123,7 @@ Set these for the worker service:
 - `OCR_CACHE_PATH=/tmp/proofpilot-ocr`
 - `TESSERACT_LANG_PATH` optional path or URL for pre-hosted Tesseract traineddata files
 
-Image OCR, packet PDF generation, reminder delivery, notification email delivery, staging-upload cleanup, and temporary portfolio-workspace cleanup run in the worker service. Keep at least one worker replica active so the idempotent schedulers can enqueue work. Give `OCR_CACHE_PATH` writable storage so language data can be reused between jobs; for locked-down production networks, provide `TESSERACT_LANG_PATH` instead of relying on the default language-data download path.
+Image OCR, packet PDF generation, packet-share invitation delivery, reminder delivery, notification email delivery, staging-upload cleanup, and temporary portfolio-workspace cleanup run in the worker service. Keep at least one worker replica active so the idempotent schedulers can enqueue work. Give `OCR_CACHE_PATH` writable storage so language data can be reused between jobs; for locked-down production networks, provide `TESSERACT_LANG_PATH` instead of relying on the default language-data download path.
 
 Set this for the web service:
 
@@ -135,7 +139,9 @@ Every signed JWT contains an opaque database session ID. Protected requests requ
 
 Password recovery stores only SHA-256 token hashes, enforces one-time redemption and expiry, invalidates older links when a new one is issued, and returns the same acknowledgement for known and unknown addresses. Collaboration invitations use the same delivery configuration and also store hash-only, single-use tokens. Development logs reset and invitation links with `PASSWORD_RESET_DELIVERY_MODE=log`; production startup requires `PASSWORD_RESET_DELIVERY_MODE=resend`, `RESEND_API_KEY`, and a verified `AUTH_EMAIL_FROM` sender.
 
-Packet-share delivery uses the API-specific `PACKET_SHARE_EMAIL_DELIVERY_MODE`. Development `log` mode simulates each recipient delivery without recording email addresses, message content, or bearer tokens. Standard production startup requires `resend` mode and the verified sender credentials. Each recipient request uses a stable share-and-recipient idempotency key. A provider failure is reported in the creation response and audit log without invalidating the secure link, so the owner can use the manual delivery action.
+Packet-share delivery uses `PACKET_SHARE_EMAIL_DELIVERY_MODE` on both the API and worker. Share creation commits recipient delivery rows before returning, then triggers the `packet-share-email` queue; the worker also sweeps the outbox every minute. Rows are leased for ten minutes and provider failures retry after 5 minutes, 15 minutes, 1 hour, and 6 hours before the fifth attempt is retained for operator review. Revoked or expired shares are suppressed before send. Resend receives a stable per-delivery idempotency key, and each email contains a recipient-specific HMAC-signed link produced with the shared `JWT_SECRET`; the raw manual-share token is never stored for asynchronous delivery.
+
+When owner-selected email verification is enabled, the public access flow sends a six-digit, ten-minute challenge through the API before issuing a one-hour recipient JWT. Challenge hashes, attempt counts, expiry, and one-time consumption are persisted; five failed attempts require a new challenge. Development `log` mode exposes the code only in a non-production API response for local testing and does not write addresses, codes, packet content, or link tokens to logs. Standard production startup requires `resend`, `RESEND_API_KEY`, and a verified `AUTH_EMAIL_FROM` on both services.
 
 Transactional case notifications use a separate worker mode, `NOTIFICATION_EMAIL_DELIVERY_MODE`. Development `log` mode records delivery without exposing recipient addresses or message content in worker logs. Production worker startup requires `resend` mode and the same verified sender credentials. Notification rows are leased from PostgreSQL, preferences are rechecked immediately before delivery, and Resend receives a stable per-notification idempotency key. Provider failures retry at 5 minutes, 15 minutes, 1 hour, and 6 hours before the fifth attempt is retained as exhausted for operator review.
 

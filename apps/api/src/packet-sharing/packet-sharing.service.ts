@@ -1,90 +1,33 @@
 import {
   BadRequestException,
-  ForbiddenException,
-  GoneException,
   Injectable,
   Logger,
-  NotFoundException,
-  ServiceUnavailableException,
-  UnauthorizedException
+  NotFoundException
 } from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
 import { createHash, randomBytes } from "node:crypto";
 import {
   CaseCollaboratorStatus,
   PacketSharePermission as DatabasePacketSharePermission,
-  PacketStatus,
-  Prisma
+  PacketStatus
 } from "@proofpilot/database";
 import { createPresignedDownloadUrl } from "@proofpilot/storage";
 import type {
-  PacketShareAccessResponse,
   PacketShareCapabilities,
-  PacketShareCommentRecord,
-  PacketShareContentResponse,
   PacketShareCreatedResponse,
   PacketShareEmailDeliverySummary,
   PacketSharePacketSummary,
   PacketSharePermission,
   PacketSharePreparationResponse,
-  PacketShareRevokedResponse,
-  PublicPacketShareMetadata
+  PacketShareRevokedResponse
 } from "@proofpilot/types";
 import { getApiEnv } from "../config/env.js";
 import { PrismaService } from "../prisma/prisma.service.js";
-import type { AccessPacketShareDto } from "./dto/access-packet-share.dto.js";
-import type { CreatePacketShareCommentDto } from "./dto/create-packet-share-comment.dto.js";
+import { PacketShareEmailQueueService } from "../queue/packet-share-email-queue.service.js";
 import type { CreatePacketShareDto } from "./dto/create-packet-share.dto.js";
 import { PacketShareMailerService } from "./packet-share-mailer.service.js";
 
-const maximumShareLifetimeMs = 365 * 24 * 60 * 60 * 1000;
-const minimumShareLifetimeMs = 5 * 60 * 1000;
-const accessLifetimeMs = 60 * 60 * 1000;
-
-const publicShareSelect = {
-  id: true,
-  createdById: true,
-  expiresAt: true,
-  requireEmailVerification: true,
-  revokedAt: true,
-  packetExport: {
-    select: {
-      byteSize: true,
-      createdAt: true,
-      storageKey: true,
-      packet: {
-        select: {
-          id: true,
-          case: {
-            select: {
-              id: true,
-              title: true
-            }
-          }
-        }
-      }
-    }
-  },
-  recipients: {
-    orderBy: { createdAt: "asc" as const },
-    select: {
-      id: true,
-      email: true,
-      permission: true,
-      lastAccessedAt: true
-    }
-  }
-} satisfies Prisma.PacketShareSelect;
-
-type PublicShareRecord = Prisma.PacketShareGetPayload<{
-  select: typeof publicShareSelect;
-}>;
-
-interface PacketShareAccessPayload {
-  shareId: string;
-  sub: string;
-  type: "packet-share-access";
-}
+const maximumShareLifetimeMs = 365 * 24 * 60 * 60 * 1_000;
+const minimumShareLifetimeMs = 5 * 60 * 1_000;
 
 @Injectable()
 export class PacketSharingService {
@@ -93,11 +36,14 @@ export class PacketSharingService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly jwtService: JwtService,
-    private readonly packetShareMailer: PacketShareMailerService
+    private readonly packetShareMailer: PacketShareMailerService,
+    private readonly packetShareEmailQueue: PacketShareEmailQueueService
   ) {}
 
-  async prepare(ownerId: string, caseId: string): Promise<PacketSharePreparationResponse> {
+  async prepare(
+    ownerId: string,
+    caseId: string
+  ): Promise<PacketSharePreparationResponse> {
     const foundCase = await this.prisma.case.findFirst({
       where: {
         archivedAt: null,
@@ -200,12 +146,12 @@ export class PacketSharingService {
     }
 
     const revokedAt = new Date();
-    await this.prisma.$transaction(async (tx) => {
-      await tx.packetShare.update({
+    await this.prisma.$transaction(async (transaction) => {
+      await transaction.packetShare.update({
         where: { id: share.id },
         data: { revokedAt }
       });
-      await tx.auditLog.create({
+      await transaction.auditLog.create({
         data: {
           action: "case.packet_share_revoked",
           caseId,
@@ -267,19 +213,22 @@ export class PacketSharingService {
     const ownerEmail = packetExport.packet.case.owner.email.trim().toLowerCase();
 
     if (recipients.some((recipient) => recipient.email === ownerEmail)) {
-      throw new BadRequestException("The case owner does not need a recipient share link.");
+      throw new BadRequestException(
+        "The case owner does not need a recipient share link."
+      );
     }
 
     const rawToken = randomBytes(32).toString("base64url");
     const tokenHash = hashToken(rawToken);
-    const share = await this.prisma.$transaction(async (tx) => {
-      const createdShare = await tx.packetShare.create({
+    const queuedAt = new Date();
+    const share = await this.prisma.$transaction(async (transaction) => {
+      const createdShare = await transaction.packetShare.create({
         data: {
           caseId,
           createdById: ownerId,
           expiresAt,
           packetExportId: packetExport.id,
-          requireEmailVerification: false,
+          requireEmailVerification: input.requireEmailVerification,
           tokenHash,
           watermarkDocuments: false,
           recipients: {
@@ -304,16 +253,27 @@ export class PacketSharingService {
         }
       });
 
-      await tx.auditLog.create({
+      await transaction.packetShareEmailDelivery.createMany({
+        data: createdShare.recipients.map((recipient) => ({
+          nextAttemptAt: queuedAt,
+          recipientId: recipient.id,
+          shareId: createdShare.id
+        }))
+      });
+      await transaction.auditLog.create({
         data: {
           action: "case.packet_share_created",
           caseId,
           userId: ownerId,
           metadata: {
+            emailDeliveryQueuedCount: createdShare.recipients.length,
             expiresAt: expiresAt?.toISOString() ?? null,
             packetExportId: packetExport.id,
-            permissions: [...new Set(recipients.map((recipient) => recipient.permission))],
+            permissions: [
+              ...new Set(recipients.map((recipient) => recipient.permission))
+            ],
             recipientCount: recipients.length,
+            requireEmailVerification: input.requireEmailVerification,
             shareId: createdShare.id
           }
         }
@@ -321,6 +281,19 @@ export class PacketSharingService {
 
       return createdShare;
     });
+
+    try {
+      await this.packetShareEmailQueue.triggerDelivery();
+    } catch (error) {
+      this.logger.warn(
+        JSON.stringify({
+          errorCode: getErrorCode(error),
+          event: "packet_share_email_queue_trigger_failed",
+          shareId: share.id
+        })
+      );
+    }
+
     const ownerDownloadUrl = await createPresignedDownloadUrl({
       disposition: "attachment",
       expiresInSeconds: 900,
@@ -328,17 +301,12 @@ export class PacketSharingService {
       key: packetExport.storageKey
     });
     const shareUrl = `${this.webOrigin}/shared-packet#${rawToken}`;
-    const emailDelivery = await this.deliverPacketShareEmails({
-      caseTitle: packetExport.packet.case.title,
-      expiresAt: share.expiresAt,
-      ownerName:
-        packetExport.packet.case.owner.name?.trim() ||
-        packetExport.packet.case.owner.email,
-      recipients: share.recipients,
-      shareId: share.id,
-      shareUrl
-    });
-    await this.recordEmailDeliveryAudit(ownerId, caseId, share.id, emailDelivery);
+    const emailDelivery: PacketShareEmailDeliverySummary = {
+      attemptedCount: 0,
+      failedCount: 0,
+      queuedCount: share.recipients.length,
+      successfulCount: 0
+    };
 
     return {
       capabilities: this.getCapabilities(),
@@ -361,281 +329,17 @@ export class PacketSharingService {
     };
   }
 
-  async getPublicMetadata(rawToken: string): Promise<PublicPacketShareMetadata> {
-    const share = await this.loadActiveShare(rawToken);
-
-    return {
-      expiresAt: share.expiresAt?.toISOString() ?? null,
-      requireEmailVerification: share.requireEmailVerification
-    };
-  }
-
-  async createAccess(input: AccessPacketShareDto): Promise<PacketShareAccessResponse> {
-    const share = await this.loadActiveShare(input.token);
-
-    if (share.requireEmailVerification) {
-      throw new ServiceUnavailableException(
-        "Email verification is not configured for packet sharing."
-      );
-    }
-
-    const email = input.email.trim().toLowerCase();
-    const recipient = share.recipients.find((candidate) => candidate.email === email);
-
-    if (!recipient) {
-      throw new UnauthorizedException("This email is not authorized for the shared packet.");
-    }
-
-    const expiresAt = new Date(
-      Math.min(Date.now() + accessLifetimeMs, share.expiresAt?.getTime() ?? Number.MAX_SAFE_INTEGER)
-    );
-    const expiresIn = Math.max(1, Math.floor((expiresAt.getTime() - Date.now()) / 1000));
-    const accessToken = await this.jwtService.signAsync(
-      {
-        shareId: share.id,
-        sub: recipient.id,
-        type: "packet-share-access"
-      } satisfies PacketShareAccessPayload,
-      { expiresIn }
-    );
-
-    await this.prisma.packetShareRecipient.update({
-      where: { id: recipient.id },
-      data: { lastAccessedAt: new Date() }
-    });
-
-    return {
-      accessToken,
-      expiresAt: expiresAt.toISOString(),
-      permission: recipient.permission as PacketSharePermission
-    };
-  }
-
-  async getContent(
-    rawToken: string,
-    accessToken: string
-  ): Promise<PacketShareContentResponse> {
-    const { recipient, share } = await this.authorize(rawToken, accessToken);
-    const fileName = toPacketFileName(share.packetExport.packet.case.title);
-    const [viewUrl, downloadUrl, comments] = await Promise.all([
-      createPresignedDownloadUrl({
-        disposition: "inline",
-        expiresInSeconds: 300,
-        fileName,
-        key: share.packetExport.storageKey
-      }),
-      recipient.permission === DatabasePacketSharePermission.DOWNLOAD
-        ? createPresignedDownloadUrl({
-            disposition: "attachment",
-            expiresInSeconds: 300,
-            fileName,
-            key: share.packetExport.storageKey
-          })
-        : Promise.resolve(null),
-      this.prisma.packetShareComment.findMany({
-        where: { shareId: share.id },
-        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-        take: 100,
-        select: {
-          id: true,
-          recipientId: true,
-          content: true,
-          createdAt: true
-        }
-      })
-    ]);
-
-    return {
-      comments: comments.map((comment) => ({
-        content: comment.content,
-        createdAt: comment.createdAt.toISOString(),
-        id: comment.id,
-        isOwn: comment.recipientId === recipient.id
-      })),
-      downloadUrl,
-      packet: this.toPublicPacketSummary(share),
-      permission: recipient.permission as PacketSharePermission,
-      viewUrl
-    };
-  }
-
-  async addComment(
-    rawToken: string,
-    accessToken: string,
-    input: CreatePacketShareCommentDto
-  ): Promise<PacketShareCommentRecord> {
-    const { recipient, share } = await this.authorize(rawToken, accessToken);
-
-    if (recipient.permission === DatabasePacketSharePermission.VIEW) {
-      throw new ForbiddenException("This recipient can view but cannot comment.");
-    }
-
-    const content = input.content.trim();
-
-    if (!content) {
-      throw new BadRequestException("Comment cannot be blank.");
-    }
-
-    const comment = await this.prisma.packetShareComment.create({
-      data: {
-        content,
-        recipientId: recipient.id,
-        shareId: share.id
-      },
-      select: {
-        id: true,
-        content: true,
-        createdAt: true
-      }
-    });
-
-    return {
-      content: comment.content,
-      createdAt: comment.createdAt.toISOString(),
-      id: comment.id,
-      isOwn: true
-    };
-  }
-
   private getCapabilities(): PacketShareCapabilities {
     return {
       comments: true,
       emailDelivery: true,
       emailDeliveryMode: this.packetShareMailer.deliveryMode,
-      emailVerification: false,
+      emailVerification: true,
       watermarking: false
     };
   }
 
-  private async deliverPacketShareEmails(input: {
-    caseTitle: string;
-    expiresAt: Date | null;
-    ownerName: string;
-    recipients: Array<{
-      email: string;
-      id: string;
-      permission: DatabasePacketSharePermission;
-    }>;
-    shareId: string;
-    shareUrl: string;
-  }): Promise<PacketShareEmailDeliverySummary> {
-    const outcomes = await Promise.all(
-      input.recipients.map(async (recipient) => {
-        try {
-          await this.packetShareMailer.send({
-            caseTitle: input.caseTitle,
-            expiresAt: input.expiresAt,
-            ownerName: input.ownerName,
-            permission: recipient.permission as PacketSharePermission,
-            recipientId: recipient.id,
-            shareId: input.shareId,
-            shareUrl: input.shareUrl,
-            to: recipient.email
-          });
-          return true;
-        } catch (error) {
-          this.logger.warn(
-            JSON.stringify({
-              errorCode: getDeliveryErrorCode(error),
-              event: "packet_share_email_delivery_failed",
-              recipientId: recipient.id,
-              shareId: input.shareId
-            })
-          );
-          return false;
-        }
-      })
-    );
-    const successfulCount = outcomes.filter(Boolean).length;
-
-    return {
-      attemptedCount: outcomes.length,
-      failedCount: outcomes.length - successfulCount,
-      successfulCount
-    };
-  }
-
-  private async recordEmailDeliveryAudit(
-    ownerId: string,
-    caseId: string,
-    shareId: string,
-    delivery: PacketShareEmailDeliverySummary
-  ) {
-    try {
-      await this.prisma.auditLog.create({
-        data: {
-          action: "case.packet_share_email_delivery",
-          caseId,
-          metadata: {
-            ...delivery,
-            deliveryMode: this.packetShareMailer.deliveryMode,
-            shareId
-          },
-          userId: ownerId
-        }
-      });
-    } catch (error) {
-      this.logger.error(
-        JSON.stringify({
-          errorCode: getDeliveryErrorCode(error),
-          event: "packet_share_email_audit_failed",
-          shareId
-        })
-      );
-    }
-  }
-
-  private async authorize(rawToken: string, accessToken: string) {
-    if (!accessToken) {
-      throw new UnauthorizedException("Packet share access is required.");
-    }
-
-    let payload: PacketShareAccessPayload;
-
-    try {
-      payload = await this.jwtService.verifyAsync<PacketShareAccessPayload>(accessToken);
-    } catch {
-      throw new UnauthorizedException("Packet share access has expired or is invalid.");
-    }
-
-    if (payload.type !== "packet-share-access" || !payload.shareId || !payload.sub) {
-      throw new UnauthorizedException("Packet share access is invalid.");
-    }
-
-    const share = await this.loadActiveShare(rawToken);
-    const recipient = share.recipients.find((candidate) => candidate.id === payload.sub);
-
-    if (share.id !== payload.shareId || !recipient) {
-      throw new UnauthorizedException("Packet share access is invalid.");
-    }
-
-    return { recipient, share };
-  }
-
-  private async loadActiveShare(rawToken: string): Promise<PublicShareRecord> {
-    const share = await this.prisma.packetShare.findUnique({
-      where: { tokenHash: hashToken(rawToken) },
-      select: publicShareSelect
-    });
-
-    if (!share || share.revokedAt) {
-      throw new NotFoundException("Shared packet not found.");
-    }
-
-    if (share.expiresAt && share.expiresAt <= new Date()) {
-      throw new GoneException("This shared packet link has expired.");
-    }
-
-    return share;
-  }
-
   private assertSupportedSecurityOptions(input: CreatePacketShareDto) {
-    if (input.requireEmailVerification) {
-      throw new BadRequestException(
-        "Email verification requires a configured delivery provider."
-      );
-    }
-
     if (input.watermarkDocuments) {
       throw new BadRequestException(
         "Packet watermarking requires a configured watermark processor."
@@ -648,10 +352,14 @@ export class PacketSharingService {
       email: recipient.email.trim().toLowerCase(),
       permission: recipient.permission as DatabasePacketSharePermission
     }));
-    const uniqueEmails = new Set(normalized.map((recipient) => recipient.email));
+    const uniqueEmails = new Set(
+      normalized.map((recipient) => recipient.email)
+    );
 
     if (uniqueEmails.size !== normalized.length) {
-      throw new BadRequestException("Each packet recipient must have a unique email address.");
+      throw new BadRequestException(
+        "Each packet recipient must have a unique email address."
+      );
     }
 
     return normalized;
@@ -666,11 +374,15 @@ export class PacketSharingService {
     const lifetimeMs = expiresAt.getTime() - Date.now();
 
     if (!Number.isFinite(expiresAt.getTime()) || lifetimeMs < minimumShareLifetimeMs) {
-      throw new BadRequestException("Packet share expiration must be at least five minutes away.");
+      throw new BadRequestException(
+        "Packet share expiration must be at least five minutes away."
+      );
     }
 
     if (lifetimeMs > maximumShareLifetimeMs) {
-      throw new BadRequestException("Packet share expiration cannot exceed one year.");
+      throw new BadRequestException(
+        "Packet share expiration cannot exceed one year."
+      );
     }
 
     return expiresAt;
@@ -693,21 +405,13 @@ export class PacketSharingService {
       title
     };
   }
-
-  private toPublicPacketSummary(share: PublicShareRecord) {
-    return {
-      byteSize: share.packetExport.byteSize,
-      createdAt: share.packetExport.createdAt.toISOString(),
-      title: share.packetExport.packet.case.title
-    };
-  }
 }
 
 function hashToken(value: string) {
   return createHash("sha256").update(value).digest("hex");
 }
 
-function getDeliveryErrorCode(error: unknown) {
+function getErrorCode(error: unknown) {
   const code =
     typeof error === "object" &&
     error !== null &&
@@ -717,9 +421,7 @@ function getDeliveryErrorCode(error: unknown) {
       : error instanceof Error
         ? error.name
         : "UnknownError";
-  const sanitizedCode = code.replace(/[^a-zA-Z0-9_.:-]/g, "_").slice(0, 80);
-
-  return sanitizedCode || "UnknownError";
+  return code.replace(/[^a-zA-Z0-9_.:-]/g, "_").slice(0, 80) || "UnknownError";
 }
 
 function toPacketFileName(title: string) {

@@ -19,6 +19,18 @@
   height: 4rem;
 }
 
+.responsive {
+  width: 5.75rem;
+  height: 5.75rem;
+}
+
+@media (min-width: 640px) {
+  .responsive {
+    width: 7rem;
+    height: 7rem;
+  }
+}
+
 .progress {
   --proof-orb-color: #ff7a00;
   background: radial-gradient(

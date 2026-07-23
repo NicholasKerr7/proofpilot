@@ -11,6 +11,7 @@ import type {
   ReportEvidenceCategory,
   ReportSummary
 } from "@proofpilot/types";
+import { calculateCaseCompleteness } from "@proofpilot/types";
 
 const completedChecklistStatuses = new Set<ChecklistStatus>([
   ChecklistStatus.COMPLETE,
@@ -21,8 +22,10 @@ export const reportCaseSelect = {
   id: true,
   title: true,
   platform: true,
+  caseType: {
+    select: { name: true }
+  },
   status: true,
-  summary: true,
   deadline: true,
   createdAt: true,
   updatedAt: true,
@@ -36,6 +39,11 @@ export const reportCaseSelect = {
   checklist: {
     select: {
       status: true
+    }
+  },
+  events: {
+    select: {
+      _count: { select: { sources: true } }
     }
   },
   _count: {
@@ -66,7 +74,10 @@ export function buildReportSummary(
     caseSummaries,
     (caseRecord) => caseRecord.completedChecklistCount
   );
-  const totalReadiness = sum(caseSummaries, (caseRecord) => caseRecord.readiness);
+  const totalCompleteness = sum(
+    caseSummaries,
+    (caseRecord) => caseRecord.completeness
+  );
   const statusCounts = new Map<string, number>();
 
   for (const caseRecord of caseSummaries) {
@@ -89,8 +100,8 @@ export function buildReportSummary(
           caseRecord.status !== CaseStatus.RESOLVED &&
           new Date(caseRecord.deadline).getTime() >= now.getTime()
       ).length,
-      averageReadiness: caseSummaries.length
-        ? Math.round(totalReadiness / caseSummaries.length)
+      averageCompleteness: caseSummaries.length
+        ? Math.round(totalCompleteness / caseSummaries.length)
         : 0,
       totalDocuments: sum(caseSummaries, (caseRecord) => caseRecord.documentCount),
       failedDocuments: sum(
@@ -121,7 +132,10 @@ export function buildReportSummary(
 }
 
 export function toReportCaseSummary(caseRecord: ReportCaseRecord): ReportCaseSummary {
-  const completedChecklistCount = caseRecord.checklist.filter((item) =>
+  const requiredChecklist = caseRecord.checklist.filter(
+    (item) => item.status !== ChecklistStatus.OPTIONAL
+  );
+  const completedChecklistCount = requiredChecklist.filter((item) =>
     completedChecklistStatuses.has(item.status)
   ).length;
   const documentCount = caseRecord.documents.length;
@@ -129,14 +143,25 @@ export function toReportCaseSummary(caseRecord: ReportCaseRecord): ReportCaseSum
     (total, document) => total + document.byteSize,
     0
   );
-  const checklistCount = caseRecord.checklist.length;
-  const readiness = calculateReadiness({
-    documentCount,
+  const checklistCount = requiredChecklist.length;
+  const completeness = calculateCaseCompleteness({
+    caseTypeName: caseRecord.caseType.name,
+    checklistStatuses: caseRecord.checklist.map((item) => item.status),
     eventCount: caseRecord._count.events,
-    checklistCount,
-    completedChecklistCount,
-    hasStatement: Boolean(caseRecord.summary || caseRecord._count.statements)
-  });
+    failedDocumentCount: caseRecord.documents.filter(
+      (document) => document.status === DocumentStatus.FAILED
+    ).length,
+    platform: caseRecord.platform,
+    processedDocumentCount: caseRecord.documents.filter(
+      (document) => document.status === DocumentStatus.PROCESSED
+    ).length,
+    sourcedEventCount: caseRecord.events.filter(
+      (event) => event._count.sources > 0
+    ).length,
+    statementCount: caseRecord._count.statements,
+    title: caseRecord.title,
+    totalDocumentCount: documentCount
+  }).score;
 
   return {
     id: caseRecord.id,
@@ -146,7 +171,7 @@ export function toReportCaseSummary(caseRecord: ReportCaseRecord): ReportCaseSum
     deadline: caseRecord.deadline?.toISOString() ?? null,
     createdAt: caseRecord.createdAt.toISOString(),
     updatedAt: caseRecord.updatedAt.toISOString(),
-    readiness,
+    completeness,
     documentCount,
     evidenceByteSize,
     eventCount: caseRecord._count.events,
@@ -155,22 +180,6 @@ export function toReportCaseSummary(caseRecord: ReportCaseRecord): ReportCaseSum
     statementCount: caseRecord._count.statements,
     packetCount: caseRecord._count.packets
   };
-}
-
-function calculateReadiness(input: {
-  documentCount: number;
-  eventCount: number;
-  checklistCount: number;
-  completedChecklistCount: number;
-  hasStatement: boolean;
-}) {
-  const documentScore = Math.min(40, input.documentCount * 10);
-  const eventScore = Math.min(25, input.eventCount * 8);
-  const checklistScore = input.checklistCount
-    ? Math.round((input.completedChecklistCount / input.checklistCount) * 25)
-    : 0;
-  const statementScore = input.hasStatement ? 10 : 0;
-  return Math.min(100, documentScore + eventScore + checklistScore + statementScore);
 }
 
 function createEvidenceBreakdown(cases: ReportCaseRecord[]): ReportEvidenceBreakdownItem[] {

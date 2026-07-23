@@ -20,7 +20,7 @@ const groupContent: Record<
     label: "Needs review"
   },
   optional: {
-    description: "Helpful context that is not required for packet readiness.",
+    description: "Helpful context that is not required for packet completeness.",
     label: "Optional"
   }
 };

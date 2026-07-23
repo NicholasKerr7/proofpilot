@@ -177,7 +177,7 @@ export function AppShell({
   }
 
   return (
-    <div className="min-h-screen pb-28 lg:pb-0">
+    <div className="proof-app-shell min-h-screen pb-28 lg:pb-0">
       <a
         href="#proofpilot-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:font-semibold focus:text-foreground focus:ring-2 focus:ring-ring"
@@ -185,7 +185,7 @@ export function AppShell({
         Skip to workspace
       </a>
 
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-border bg-background/95 backdrop-blur lg:flex lg:flex-col">
+      <aside className="proof-sidebar fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-border bg-background/95 backdrop-blur lg:flex lg:flex-col">
         <div className="flex h-20 shrink-0 items-center border-b border-border px-5">
           <ProofPilotWordmark />
         </div>
@@ -230,7 +230,7 @@ export function AppShell({
           })}
         </nav>
 
-        <div className="proof-sidebar-promo mx-4 mt-auto grid gap-4 rounded-md border border-primary/30 bg-card p-4">
+        <div className="proof-sidebar-promo mx-4 mt-auto grid gap-4 rounded-md border border-primary/25 bg-card p-4">
           <div>
             <div className="flex items-center gap-2 text-primary">
               <Sparkles className="h-5 w-5" aria-hidden="true" />
@@ -250,10 +250,10 @@ export function AppShell({
         </div>
       </aside>
 
-      <header className="fixed left-64 right-0 top-0 z-30 hidden h-20 items-center justify-between gap-6 border-b border-border bg-background/92 px-6 backdrop-blur lg:flex xl:px-8">
+      <header className="proof-shell-header fixed left-64 right-0 top-0 z-30 hidden h-20 items-center justify-between gap-6 border-b border-border bg-background/92 px-6 backdrop-blur lg:flex xl:px-8">
         <button
           aria-label="Open global search"
-          className="flex h-12 w-full max-w-xl items-center gap-3 rounded-md border border-border bg-input px-4 text-left text-sm text-muted-foreground transition-colors hover:border-primary/35 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="proof-command-search flex h-12 w-full max-w-xl items-center gap-3 rounded-md border border-border bg-input px-4 text-left text-sm text-muted-foreground transition-colors hover:border-primary/35 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           onClick={() => handleNavigate("search")}
           type="button"
         >
@@ -326,17 +326,47 @@ export function AppShell({
         </div>
       </header>
 
-      <header className="sticky top-0 z-30 border-b border-border bg-background/90 px-4 py-3 backdrop-blur md:px-8 md:py-4 lg:hidden">
+      <header className="proof-shell-header sticky top-0 z-30 border-b border-border bg-background/90 px-4 py-3 backdrop-blur md:px-8 md:py-4 lg:hidden">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
           <ProofPilotWordmark />
 
-          <div className="relative flex items-center gap-2">
+          <div className="relative flex items-center gap-1.5">
             <div className="hidden text-right sm:block">
               <p className="max-w-40 truncate text-sm font-semibold">{user.name ?? "ProofPilot user"}</p>
               <p className="text-xs text-primary">
                 {user.isPortfolioDemo ? "Portfolio demo" : "Private workspace"}
               </p>
             </div>
+            <Button
+              aria-label="Open global search"
+              onClick={() => handleNavigate("search")}
+              size="icon"
+              title="Search"
+              type="button"
+              variant={activeView === "search" ? "secondary" : "ghost"}
+            >
+              <Search className="h-5 w-5" aria-hidden="true" />
+            </Button>
+            <Button
+              aria-label={
+                unreadNotificationCount
+                  ? `Open notifications, ${unreadNotificationCount} unread`
+                  : "Open notifications"
+              }
+              className="relative"
+              onClick={() => handleNavigate("notifications")}
+              size="icon"
+              title="Notifications"
+              type="button"
+              variant={activeView === "notifications" ? "secondary" : "ghost"}
+            >
+              <Bell className="h-5 w-5" aria-hidden="true" />
+              {unreadNotificationCount > 0 ? (
+                <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-semibold text-primary-foreground">
+                  {Math.min(unreadNotificationCount, 99)}
+                </span>
+              ) : null}
+            </Button>
             <button
               aria-expanded={isAccountMenuOpen}
               aria-controls="account-popover"
@@ -373,11 +403,11 @@ export function AppShell({
       <main
         id="proofpilot-content"
         tabIndex={-1}
-        className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-4 focus:outline-none sm:px-6 md:gap-6 md:px-8 md:py-6 lg:ml-64 lg:w-auto lg:max-w-none lg:px-6 lg:pb-8 lg:pt-24 xl:px-8"
+        className="relative mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-4 focus:outline-none sm:px-6 md:gap-6 md:px-8 md:py-6 lg:ml-64 lg:w-auto lg:max-w-none lg:px-6 lg:pb-8 lg:pt-24 xl:px-8"
       >
         {user.isPortfolioDemo ? (
           <div
-            className="grid gap-2 rounded-md border border-primary/35 bg-primary/10 px-4 py-3 text-sm sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center"
+            className="proof-demo-banner grid gap-2 rounded-md border border-primary/30 bg-primary/10 px-4 py-3 text-sm sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center"
             role="status"
           >
             <Clock3 className="h-5 w-5 text-primary" aria-hidden="true" />
@@ -500,7 +530,7 @@ function BottomNavigation({
   return (
     <nav
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 mx-auto max-w-3xl border-t border-border bg-background/95 px-1 pb-4 pt-2 backdrop-blur md:border-x md:px-3 lg:hidden",
+        "proof-bottom-navigation fixed inset-x-0 bottom-0 z-50 mx-auto max-w-3xl border-t border-border bg-background/95 px-1 pb-4 pt-2 backdrop-blur md:border-x md:px-3 lg:hidden",
         className
       )}
       aria-label="Primary mobile"
@@ -514,7 +544,7 @@ function BottomNavigation({
             aria-current={isActive ? "page" : undefined}
             className={cn(
               "flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-md px-1 text-[11px] text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-xs",
-              isActive ? "proof-nav-active text-primary" : null
+              isActive ? "proof-bottom-nav-active text-primary" : null
             )}
             onClick={() => onNavigate(item.view)}
             type="button"

@@ -14,7 +14,7 @@ export const premiumPlanFeatures = [
     label: "Evidence storage"
   },
   {
-    description: "Detailed readiness insights and case analytics.",
+    description: "Detailed completeness insights and case analytics.",
     label: "Advanced analytics"
   },
   {

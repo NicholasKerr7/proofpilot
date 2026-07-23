@@ -29,6 +29,7 @@ interface PacketShareSummaryProps {
   ownerName: string;
   packet: PacketSharePacketSummary;
   recipients: PacketShareRecipientDraft[];
+  requireEmailVerification: boolean;
   specificDate: string;
 }
 
@@ -38,6 +39,7 @@ export function PacketShareSummary({
   ownerName,
   packet,
   recipients,
+  requireEmailVerification,
   specificDate
 }: PacketShareSummaryProps) {
   const populatedRecipients = recipients.filter((recipient) => recipient.email.trim());
@@ -78,11 +80,16 @@ export function PacketShareSummary({
             value={formatPacketShareDate(expiration)}
           />
           <SummaryRow
+            icon={ShieldCheck}
+            label="Verification"
+            value={requireEmailVerification ? "One-time email code" : "Recipient email only"}
+          />
+          <SummaryRow
             icon={Mail}
             label="Delivery"
             value={
               sendsRecipientEmail
-                ? "Email recipients automatically"
+                ? "Queued with automatic retries"
                 : "Simulated; send manually"
             }
           />
@@ -91,7 +98,11 @@ export function PacketShareSummary({
 
       <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-md border border-primary/25 bg-primary/5 p-3 text-sm leading-6 text-muted-foreground">
         <ShieldCheck className="mt-0.5 h-4 w-4 text-primary" aria-hidden="true" />
-        <p>Only listed recipient emails can exchange the share link for packet access.</p>
+        <p>
+          {requireEmailVerification
+            ? "Listed recipients must verify a one-time code before packet access is issued."
+            : "Only listed recipient emails can exchange the share link for packet access."}
+        </p>
       </div>
 
       <section aria-labelledby="packet-email-preview-heading">

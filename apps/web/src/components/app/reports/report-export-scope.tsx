@@ -4,7 +4,7 @@ import {
   formatCaseDate,
   formatCaseReference,
   formatCaseStatus,
-  getCaseReadiness,
+  getCaseCompletenessScore,
   getCaseStatusVariant
 } from "@/components/app/cases/case-utils";
 import { Badge } from "@/components/ui/badge";
@@ -38,7 +38,7 @@ export function ReportExportScope({ scopeLabel, selectedCase }: ReportExportScop
     );
   }
 
-  const readiness = getCaseReadiness(selectedCase);
+  const completeness = getCaseCompletenessScore(selectedCase);
 
   return (
     <Card className="border-primary/45">
@@ -75,10 +75,10 @@ export function ReportExportScope({ scopeLabel, selectedCase }: ReportExportScop
         </div>
 
         <div className="hidden items-center gap-3 border-t border-border pt-4 md:flex md:border-l md:border-t-0 md:pl-5 md:pt-0">
-          <CaseProgressRing label="Report readiness" size="compact" value={readiness} />
+          <CaseProgressRing label="Case completeness" size="compact" value={completeness} />
           <div>
             <p className="text-xs text-muted-foreground">Progress</p>
-            <p className="mt-1 text-sm font-semibold text-foreground">{readiness}% ready</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">{completeness}% complete</p>
           </div>
         </div>
       </CardContent>

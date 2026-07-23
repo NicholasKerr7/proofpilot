@@ -9,7 +9,7 @@ import {
   formatCaseDate,
   formatCaseReference,
   formatCaseStatus,
-  getCaseReadiness,
+  getCaseCompletenessScore,
   getCaseStatusVariant
 } from "@/components/app/cases/case-utils";
 import { Badge } from "@/components/ui/badge";
@@ -88,7 +88,7 @@ export function CollaborationCaseHero({ caseRecord, onBack }: CollaborationCaseH
           <CaseProgressRing
             className="hidden md:grid"
             label="Case progress"
-            value={getCaseReadiness(caseRecord)}
+            value={getCaseCompletenessScore(caseRecord)}
           />
         </CardContent>
       </Card>

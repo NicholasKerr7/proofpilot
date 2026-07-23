@@ -1,4 +1,5 @@
 import type { CaseAccess } from "@proofpilot/types";
+import type { EvidenceSource } from "@proofpilot/types/evidence";
 
 export interface AuthUser {
   id: string;
@@ -80,6 +81,9 @@ export interface EvidenceDocument {
   mimeType: string;
   byteSize: number;
   status: string;
+  source: EvidenceSource;
+  sourceReference: string | null;
+  sha256: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -8,7 +8,7 @@ const orbParticles = Array.from({ length: 11 }, (_, index) => index);
 interface CaseProgressRingProps {
   className?: string;
   label?: string;
-  size?: "compact" | "default";
+  size?: "compact" | "default" | "responsive";
   value: number;
 }
 
@@ -32,7 +32,11 @@ export function CaseProgressRing({
         "proof-progress-orb",
         styles.orb,
         isComplete ? styles.complete : styles.progress,
-        size === "compact" ? styles.compact : styles.default,
+        size === "compact"
+          ? styles.compact
+          : size === "responsive"
+            ? styles.responsive
+            : styles.default,
         className
       )}
       role="progressbar"

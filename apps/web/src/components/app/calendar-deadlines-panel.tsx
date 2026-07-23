@@ -135,7 +135,7 @@ export function CalendarDeadlinesPanel({
 
   return (
     <section aria-labelledby="calendar-deadlines-heading" className="grid gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="proof-page-header flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-primary">Workspace schedule</p>
           <h1 className="mt-1 text-2xl font-semibold sm:text-3xl" id="calendar-deadlines-heading">

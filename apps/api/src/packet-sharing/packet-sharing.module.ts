@@ -5,11 +5,16 @@ import {
   PublicPacketSharingController
 } from "./packet-sharing.controller.js";
 import { PacketShareMailerService } from "./packet-share-mailer.service.js";
+import { PacketShareAccessService } from "./packet-share-access.service.js";
 import { PacketSharingService } from "./packet-sharing.service.js";
 
 @Module({
   imports: [AuthModule],
   controllers: [PacketSharingController, PublicPacketSharingController],
-  providers: [PacketShareMailerService, PacketSharingService]
+  providers: [
+    PacketShareAccessService,
+    PacketShareMailerService,
+    PacketSharingService
+  ]
 })
 export class PacketSharingModule {}

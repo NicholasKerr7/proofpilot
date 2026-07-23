@@ -8,13 +8,16 @@ import {
   Download,
   ExternalLink,
   FileCheck2,
+  KeyRound,
   LockKeyhole,
+  MailCheck,
   MessageSquareText,
   Send,
   ShieldCheck
 } from "lucide-react";
 import type {
   PacketShareAccessResponse,
+  PacketShareAccessRequestResponse,
   PacketShareCommentRecord,
   PacketShareContentResponse,
   PublicPacketShareMetadata
@@ -44,6 +47,10 @@ function SharedPacketSession({ token }: { token: string | null }) {
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [email, setEmail] = useState("");
   const [access, setAccess] = useState<PacketShareAccessResponse | null>(null);
+  const [challenge, setChallenge] = useState<
+    Extract<PacketShareAccessRequestResponse, { status: "CODE_REQUIRED" }> | null
+  >(null);
+  const [code, setCode] = useState("");
   const [content, setContent] = useState<PacketShareContentResponse | null>(null);
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -101,13 +108,20 @@ function SharedPacketSession({ token }: { token: string | null }) {
     setIsSubmitting(true);
 
     try {
-      const nextAccess = await apiRequest<PacketShareAccessResponse>(
-        "/api/public/packet-shares/access",
+      const response = await apiRequest<PacketShareAccessRequestResponse>(
+        "/api/public/packet-shares/access/request",
         {
           body: JSON.stringify({ email, token }),
           method: "POST"
         }
       );
+      if (response.status === "CODE_REQUIRED") {
+        setChallenge(response);
+        setCode(response.developmentCode ?? "");
+        return;
+      }
+
+      const nextAccess = response.access;
       const nextContent = await loadPacketContent(token, nextAccess.accessToken);
       setAccess(nextAccess);
       setContent(nextContent);
@@ -116,6 +130,43 @@ function SharedPacketSession({ token }: { token: string | null }) {
         accessError instanceof Error
           ? accessError.message
           : "Packet access could not be confirmed."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleVerification(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!challenge || !token) {
+      return;
+    }
+
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      const nextAccess = await apiRequest<PacketShareAccessResponse>(
+        "/api/public/packet-shares/access/verify",
+        {
+          body: JSON.stringify({
+            challengeId: challenge.challengeId,
+            code,
+            email,
+            token
+          }),
+          method: "POST"
+        }
+      );
+      const nextContent = await loadPacketContent(token, nextAccess.accessToken);
+      setAccess(nextAccess);
+      setContent(nextContent);
+    } catch (verificationError) {
+      setError(
+        verificationError instanceof Error
+          ? verificationError.message
+          : "The verification code could not be confirmed."
       );
     } finally {
       setIsSubmitting(false);
@@ -220,6 +271,64 @@ function SharedPacketSession({ token }: { token: string | null }) {
             aria-labelledby="recipient-access-heading"
             className="grid gap-5 rounded-md border border-border bg-card p-5 md:grid-cols-[minmax(0,1fr)_16rem] md:items-start md:p-6"
           >
+            {challenge ? (
+              <form className="grid gap-4" onSubmit={handleVerification}>
+                <div>
+                  <div className="flex items-center gap-2 text-primary">
+                    <MailCheck className="h-5 w-5" aria-hidden="true" />
+                    <h2 id="recipient-access-heading" className="text-lg font-semibold text-foreground">
+                      Enter verification code
+                    </h2>
+                  </div>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    We sent a six-digit code to {maskEmail(email)}. It expires in 10 minutes.
+                  </p>
+                </div>
+                {challenge.developmentCode ? (
+                  <div className="rounded-md border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
+                    Local preview code: <span className="font-mono font-semibold">{challenge.developmentCode}</span>
+                  </div>
+                ) : null}
+                <div className="grid gap-2">
+                  <Label htmlFor="packet-access-code">Verification code</Label>
+                  <Input
+                    autoComplete="one-time-code"
+                    className="h-14 text-center font-mono text-xl"
+                    id="packet-access-code"
+                    inputMode="numeric"
+                    maxLength={6}
+                    onChange={(event) =>
+                      setCode(event.target.value.replace(/\D/g, "").slice(0, 6))
+                    }
+                    pattern="\d{6}"
+                    required
+                    value={code}
+                  />
+                </div>
+                {error ? (
+                  <p className="text-sm text-red-200" role="alert">
+                    {error}
+                  </p>
+                ) : null}
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Button disabled={isSubmitting || code.length !== 6} type="submit">
+                    <KeyRound className="h-4 w-4" aria-hidden="true" />
+                    {isSubmitting ? "Verifying..." : "Verify and open"}
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setChallenge(null);
+                      setCode("");
+                      setError(null);
+                    }}
+                    type="button"
+                    variant="outline"
+                  >
+                    Use another email
+                  </Button>
+                </div>
+              </form>
+            ) : (
             <form className="grid gap-4" onSubmit={handleAccess}>
               <div>
                 <h2 id="recipient-access-heading" className="text-lg font-semibold">
@@ -251,6 +360,7 @@ function SharedPacketSession({ token }: { token: string | null }) {
                 {isSubmitting ? "Confirming..." : "Open shared packet"}
               </Button>
             </form>
+            )}
 
             <dl className="grid gap-3 border-t border-border pt-4 text-sm md:border-l md:border-t-0 md:pl-5 md:pt-0">
               <div>
@@ -320,6 +430,12 @@ function SharedPacketSession({ token }: { token: string | null }) {
       </main>
     </div>
   );
+}
+
+function maskEmail(value: string) {
+  const [local = "", domain = ""] = value.split("@");
+  const visibleLocal = local.slice(0, Math.min(2, local.length));
+  return `${visibleLocal}${"*".repeat(Math.max(2, local.length - visibleLocal.length))}@${domain}`;
 }
 
 interface SharedPacketCommentsProps {

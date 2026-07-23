@@ -51,7 +51,7 @@ function getCsvColumns(section: ReportExportSection): CsvColumn[] {
         { header: "Deadline", value: (caseRecord) => caseRecord.deadline },
         { header: "Created At", value: (caseRecord) => caseRecord.createdAt },
         { header: "Updated At", value: (caseRecord) => caseRecord.updatedAt },
-        { header: "Readiness Percent", value: (caseRecord) => caseRecord.readiness }
+        { header: "Completeness Percent", value: (caseRecord) => caseRecord.completeness }
       ];
     case "evidence":
       return [

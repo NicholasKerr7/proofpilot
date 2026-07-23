@@ -24,10 +24,11 @@ import {
   formatCaseStatus,
   getCaseNextActions,
   getCaseProgressMessage,
-  getCaseReadiness,
+  getCaseCompletenessScore,
   getCaseStatusVariant,
   getCompletedChecklistCount,
   getMissingChecklistCount,
+  getRequiredChecklistCount,
   isChecklistReady,
   type CaseDestinationId
 } from "@/components/app/cases/case-utils";
@@ -65,7 +66,7 @@ export function HomeDashboard({
   if (!primaryCase) {
     return (
       <section aria-labelledby="home-dashboard-heading" className="grid gap-5">
-        <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="proof-page-header flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-primary">Case command center</p>
             <h1 id="home-dashboard-heading" className="mt-1 text-2xl font-semibold sm:text-3xl">
@@ -94,7 +95,7 @@ export function HomeDashboard({
     );
   }
 
-  const readiness = getCaseReadiness(primaryCase);
+  const completeness = getCaseCompletenessScore(primaryCase);
   const metrics = getCaseMetrics(primaryCase);
   const actions = getCaseNextActions(primaryCase).slice(0, 3);
   const recentEvents = [...(primaryCase.events ?? [])]
@@ -106,14 +107,14 @@ export function HomeDashboard({
 
   return (
     <section aria-labelledby="home-dashboard-heading" className="grid gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="proof-page-header flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-primary">Case command center</p>
           <h1 id="home-dashboard-heading" className="mt-1 text-2xl font-semibold sm:text-3xl">
             Home
           </h1>
         </div>
-        <Button onClick={onViewCases} type="button" variant="outline">
+        <Button className="min-h-12" onClick={onViewCases} type="button" variant="outline">
           <FolderOpen className="h-4 w-4" aria-hidden="true" />
           {cases.length} {cases.length === 1 ? "case" : "cases"}
         </Button>
@@ -148,12 +149,12 @@ export function HomeDashboard({
             </dl>
           </div>
 
-          <CaseProgressRing value={readiness} />
+          <CaseProgressRing label="Completeness" value={completeness} />
 
           <div className="col-span-2 border-t border-border pt-4 md:col-span-1 md:border-l md:border-t-0 md:pl-5 md:pt-0">
             <p className="text-sm font-semibold text-foreground">Keep building the case</p>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              {getCaseProgressMessage(readiness)}
+              {getCaseProgressMessage(completeness)}
             </p>
             <Button
               className="mt-4 w-full"
@@ -171,7 +172,7 @@ export function HomeDashboard({
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {metrics.map((metric) => (
-          <Card key={metric.label}>
+          <Card className="proof-metric-surface" key={metric.label}>
             <CardContent className="grid min-h-32 content-between gap-3 p-4">
               <metric.icon className={`h-5 w-5 ${metric.iconClassName}`} aria-hidden="true" />
               <div>
@@ -188,6 +189,7 @@ export function HomeDashboard({
           <CardHeader className="grid-cols-[minmax(0,1fr)_auto] items-center">
             <CardTitle>Next actions</CardTitle>
             <Button
+              className="min-h-12"
               onClick={() => {
                 void onOpenCase(primaryCase.id, "case-overview");
               }}
@@ -205,7 +207,7 @@ export function HomeDashboard({
               return (
                 <button
                   key={action.destinationId}
-                  className="group grid min-h-20 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-md border border-border bg-secondary/30 p-3 text-left hover:bg-secondary/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="proof-interactive-surface group grid min-h-20 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-md border border-border bg-secondary/30 p-3 text-left hover:bg-secondary/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   onClick={() => {
                     void onOpenCase(primaryCase.id, action.destinationId);
                   }}
@@ -245,7 +247,7 @@ export function HomeDashboard({
               <OverviewRow label="Status" value={formatCaseStatus(primaryCase.status)} />
             </dl>
             <p className="mt-3 rounded-md border border-primary/25 bg-primary/10 px-3 py-3 text-sm leading-6 text-muted-foreground">
-              {getCaseProgressMessage(readiness)}
+              {getCaseProgressMessage(completeness)}
             </p>
           </CardContent>
         </Card>
@@ -254,6 +256,7 @@ export function HomeDashboard({
         <CardHeader className="grid-cols-[minmax(0,1fr)_auto] items-center">
           <CardTitle>Recent activity</CardTitle>
           <Button
+            className="min-h-12"
             onClick={() => {
               void onOpenCase(primaryCase.id, "case-timeline");
             }}
@@ -301,6 +304,7 @@ export function HomeDashboard({
           <CardHeader className="grid-cols-[minmax(0,1fr)_auto] items-center">
             <CardTitle>Case checklist overview</CardTitle>
             <Button
+              className="min-h-12"
               onClick={() => {
                 void onOpenCase(primaryCase.id, "evidence-checklist");
               }}
@@ -308,7 +312,7 @@ export function HomeDashboard({
               type="button"
               variant="ghost"
             >
-              {getCompletedChecklistCount(primaryCase)} of {primaryCase.checklist.length} ready
+              {getCompletedChecklistCount(primaryCase)} of {getRequiredChecklistCount(primaryCase)} ready
             </Button>
           </CardHeader>
           <CardContent>

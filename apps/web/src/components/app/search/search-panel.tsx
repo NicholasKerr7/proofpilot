@@ -126,7 +126,7 @@ export function SearchPanel({ cases, onOpenResult }: SearchPanelProps) {
 
   return (
     <section aria-labelledby="global-search-heading" className="grid gap-5">
-      <div>
+      <div className="proof-page-header">
         <p className="text-sm font-semibold text-primary">Across your private workspace</p>
         <h1 className="mt-1 text-2xl font-semibold sm:text-3xl" id="global-search-heading">
           Search

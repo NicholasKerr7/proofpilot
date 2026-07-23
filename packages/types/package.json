@@ -13,6 +13,10 @@
     "./evidence": {
       "types": "./dist/evidence.d.ts",
       "default": "./dist/evidence.js"
+    },
+    "./packet-share-security": {
+      "types": "./dist/packet-share-security.d.ts",
+      "default": "./dist/packet-share-security.js"
     }
   },
   "scripts": {
@@ -25,6 +29,7 @@
     "zod": "^4.2.1"
   },
   "devDependencies": {
+    "@types/node": "^20.19.43",
     "typescript": "^5.9.3"
   }
 }

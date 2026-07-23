@@ -6,7 +6,7 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 
 - `apps/web`: Next.js App Router frontend.
 - `apps/api`: NestJS REST API with Swagger documentation.
-- `apps/worker`: BullMQ worker for document processing, packet generation, reminder delivery, notification email delivery, and staging-upload cleanup.
+- `apps/worker`: BullMQ worker for document processing, packet generation, packet-share invitation delivery, reminder delivery, notification email delivery, and staging-upload cleanup.
 
 ## Packages
 
@@ -17,7 +17,7 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 ## Local Services
 
 - PostgreSQL stores users, cases, tasks, support requests and messages, assistant threads and messages, audit logs, connection metadata, billing metadata, evidence metadata, timelines, checklist data, statements, packet exports, packet shares, notifications, and jobs.
-- Redis backs document processing, notification email delivery, packet generation, reminder delivery, and upload cleanup BullMQ queues.
+- Redis backs document processing, notification email delivery, packet-share invitation delivery, packet generation, reminder delivery, and upload cleanup BullMQ queues.
 - MinIO provides a local S3-compatible private storage target.
 - ClamAV can scan private uploads through an opt-in local security profile or a private production service.
 
@@ -69,9 +69,9 @@ Reminder, case-status, evidence-processing, and packet-result producers independ
 
 Packet share URLs place a 256-bit random bearer token in the URL fragment. Browsers do not send fragments in the initial HTTP request, and the database stores only the token's SHA-256 hash. Public API calls send the raw token in JSON request bodies so it does not enter route parameters or ordinary URL logs.
 
-Before packet details are returned, the recipient must submit an address on the share's normalized allowlist. The API then issues a short-lived JWT scoped to that share and recipient. Every content and comment request validates both the raw link token and the scoped JWT, and revoked or expired shares fail before a new signed object URL is created. Owners can revoke active shares from the sharing workspace.
+Before packet details are returned, the recipient must submit an address on the share's normalized allowlist. When the owner enables verification, the API stores a hash-only six-digit challenge with a ten-minute expiry and five-attempt limit, then consumes it once before issuing a short-lived JWT scoped to that share and recipient. Every content and comment request validates both the link token and scoped JWT, and revoked or expired shares fail before a new signed object URL is created. Owners can revoke active shares from the sharing workspace.
 
-`VIEW`, `COMMENT`, and `DOWNLOAD` permissions control whether the API returns an attachment URL and accepts comments. An inline signed PDF response is an authorization boundary, not DRM: a recipient who can view document bytes may still capture them. The UI does not claim stronger prevention. Share creation delivers the same fragment-token URL to each recipient through a separately configured API email mode. Development simulation logs only internal share and recipient IDs; standard production requires Resend, and each recipient request has an idempotency key. Delivery failures leave the valid share available for manual delivery. One-time email verification and document watermarking remain disabled until their providers are configured.
+`VIEW`, `COMMENT`, and `DOWNLOAD` permissions control whether the API returns an attachment URL and accepts comments. An inline signed PDF response is an authorization boundary, not DRM: a recipient who can view document bytes may still capture them. The UI does not claim stronger prevention. Share creation writes one invitation outbox row per recipient and returns without waiting for the provider. The worker leases rows, suppresses revoked or expired shares, signs a recipient-specific fragment token with the shared server secret, and retries failures with bounded backoff. Resend calls use the delivery ID for idempotency. Development simulation logs only internal IDs; addresses, packet content, codes, and link tokens are excluded. Document watermarking remains disabled until a processor is configured.
 
 ## Collaboration Foundation
 

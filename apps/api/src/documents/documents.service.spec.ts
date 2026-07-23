@@ -41,6 +41,7 @@ const ownerId = "user-1";
 const caseId = "case-1";
 const documentId = "document-1";
 const storageKey = "users/user-1/cases/case-1/documents/document-1.png";
+const testSha256 = "a".repeat(64);
 
 function createPrismaMock() {
   return {
@@ -138,6 +139,7 @@ describe("DocumentsService upload hardening", () => {
     });
     scanner.scanStoredObject.mockResolvedValue({
       result: { engine: "clamav", status: "clean" },
+      sha256: testSha256,
       sourceEtag: '"source-etag"'
     });
   });
@@ -257,6 +259,18 @@ describe("DocumentsService upload hardening", () => {
         message: "ClamAV found no known threats in the uploaded file."
       }
     });
+    expect(prisma.documentProcessingLog.create).toHaveBeenCalledWith({
+      data: {
+        documentId,
+        step: "integrity_hash",
+        status: "completed",
+        message: "SHA-256 fingerprint recorded for provenance verification."
+      }
+    });
+    expect(prisma.document.update).toHaveBeenCalledWith({
+      where: { id: documentId },
+      data: { sha256: testSha256 }
+    });
     expect(queue.addProcessDocumentJob).toHaveBeenCalledWith(
       {
         documentId,
@@ -326,6 +340,7 @@ describe("DocumentsService upload hardening", () => {
         status: "infected",
         threatName: "Eicar-Signature"
       },
+      sha256: testSha256,
       sourceEtag: '"source-etag"'
     });
 
@@ -635,6 +650,7 @@ describe("DocumentsService upload hardening", () => {
         reason: "disabled",
         status: "skipped"
       },
+      sha256: testSha256,
       sourceEtag: null
     });
     queue.addProcessDocumentJob.mockResolvedValue({
@@ -668,6 +684,7 @@ describe("DocumentsService upload hardening", () => {
     });
     scanner.scanStoredObject.mockResolvedValue({
       result: { engine: "clamav", status: "clean" },
+      sha256: testSha256,
       sourceEtag: '"scanned-etag"'
     });
     queue.addProcessDocumentJob.mockResolvedValue({
@@ -715,6 +732,7 @@ describe("DocumentsService upload hardening", () => {
     });
     scanner.scanStoredObject.mockResolvedValue({
       result: { engine: "clamav", status: "clean" },
+      sha256: testSha256,
       sourceEtag: '"replacement-etag"'
     });
 

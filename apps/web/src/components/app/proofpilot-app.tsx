@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   type CaseInvitationDecisionResponse,
   type CaseInvitationPreview,
@@ -9,37 +11,19 @@ import {
   type UpdateUserSettingsInput,
   type UserSettings
 } from "@proofpilot/types";
-import {
-  AccountPanel,
-  type AccountSection
-} from "@/components/app/account/account-panel";
+import type { AccountSection } from "@/components/app/account/account-panel";
 import { AppShell, type AppView } from "@/components/app/app-shell";
-import { AssistantPanel } from "@/components/app/assistant/assistant-panel";
 import { AuthPanel } from "@/components/app/auth-panel";
 import type { AuthMode } from "@/components/app/auth-panel";
-import { BillingPanel } from "@/components/app/billing/billing-panel";
-import { CaseDashboard } from "@/components/app/case-dashboard";
-import { CaseCollaborationPanel } from "@/components/app/collaboration/case-collaboration-panel";
-import { CollaborationInvitationPanel } from "@/components/app/collaboration/collaboration-invitation-panel";
-import { CaseWorkspace } from "@/components/app/case-workspace";
-import { CalendarDeadlinesPanel } from "@/components/app/calendar-deadlines-panel";
 import type { CaseDestinationId } from "@/components/app/cases/case-utils";
-import { CreateCaseForm } from "@/components/app/create-case-form";
-import { ConnectedAccountsPanel } from "@/components/app/connections/connected-accounts-panel";
-import { EvidenceUploadView } from "@/components/app/evidence-upload-view";
-import { HomeDashboard } from "@/components/app/home-dashboard";
-import { HelpCenterPanel } from "@/components/app/help/help-center-panel";
-import { InboxPanel } from "@/components/app/inbox/inbox-panel";
-import { MoreMenu } from "@/components/app/more-menu";
-import { NotificationCenter } from "@/components/app/notification-center";
 import { getSupportRequestIdFromNotification } from "@/components/app/notifications/notification-utils";
-import { PacketSharePanel } from "@/components/app/packet-sharing/packet-share-panel";
 import { PublicLanding } from "@/components/app/public/public-landing";
-import { ReportsPanel } from "@/components/app/reports/reports-panel";
-import { SearchPanel } from "@/components/app/search/search-panel";
-import { SecurityPrivacyPanel } from "@/components/app/security/security-privacy-panel";
-import { SettingsPanel } from "@/components/app/settings/settings-panel";
-import { TasksPanel } from "@/components/app/tasks/tasks-panel";
+import {
+  getCaseWorkspacePath,
+  getWorkspaceViewPath,
+  isWorkspacePath,
+  resolveWorkspaceRoute
+} from "@/components/app/workspace-routing";
 import { Badge } from "@/components/ui/badge";
 import { apiRequest, ApiClientError } from "@/lib/client/api";
 import type {
@@ -49,6 +33,128 @@ import type {
   CaseType,
   CreateCasePayload
 } from "@/lib/client/types";
+
+const AccountPanel = dynamic(
+  () => import("@/components/app/account/account-panel").then((module) => module.AccountPanel),
+  { loading: WorkspacePanelLoading }
+);
+const AssistantPanel = dynamic(
+  () =>
+    import("@/components/app/assistant/assistant-panel").then(
+      (module) => module.AssistantPanel
+    ),
+  { loading: WorkspacePanelLoading }
+);
+const BillingPanel = dynamic(
+  () => import("@/components/app/billing/billing-panel").then((module) => module.BillingPanel),
+  { loading: WorkspacePanelLoading }
+);
+const CalendarDeadlinesPanel = dynamic(
+  () =>
+    import("@/components/app/calendar-deadlines-panel").then(
+      (module) => module.CalendarDeadlinesPanel
+    ),
+  { loading: WorkspacePanelLoading }
+);
+const CaseCollaborationPanel = dynamic(
+  () =>
+    import("@/components/app/collaboration/case-collaboration-panel").then(
+      (module) => module.CaseCollaborationPanel
+    ),
+  { loading: WorkspacePanelLoading }
+);
+const CaseDashboard = dynamic(
+  () => import("@/components/app/case-dashboard").then((module) => module.CaseDashboard),
+  { loading: WorkspacePanelLoading }
+);
+const CaseWorkspace = dynamic(
+  () => import("@/components/app/case-workspace").then((module) => module.CaseWorkspace),
+  { loading: WorkspacePanelLoading }
+);
+const CollaborationInvitationPanel = dynamic(
+  () =>
+    import("@/components/app/collaboration/collaboration-invitation-panel").then(
+      (module) => module.CollaborationInvitationPanel
+    ),
+  { loading: WorkspacePanelLoading }
+);
+const ConnectedAccountsPanel = dynamic(
+  () =>
+    import("@/components/app/connections/connected-accounts-panel").then(
+      (module) => module.ConnectedAccountsPanel
+    ),
+  { loading: WorkspacePanelLoading }
+);
+const CreateCaseForm = dynamic(
+  () => import("@/components/app/create-case-form").then((module) => module.CreateCaseForm),
+  { loading: WorkspacePanelLoading }
+);
+const EvidenceUploadView = dynamic(
+  () =>
+    import("@/components/app/evidence-upload-view").then(
+      (module) => module.EvidenceUploadView
+    ),
+  { loading: WorkspacePanelLoading }
+);
+const HelpCenterPanel = dynamic(
+  () =>
+    import("@/components/app/help/help-center-panel").then(
+      (module) => module.HelpCenterPanel
+    ),
+  { loading: WorkspacePanelLoading }
+);
+const HomeDashboard = dynamic(
+  () => import("@/components/app/home-dashboard").then((module) => module.HomeDashboard),
+  { loading: WorkspacePanelLoading }
+);
+const InboxPanel = dynamic(
+  () => import("@/components/app/inbox/inbox-panel").then((module) => module.InboxPanel),
+  { loading: WorkspacePanelLoading }
+);
+const MoreMenu = dynamic(
+  () => import("@/components/app/more-menu").then((module) => module.MoreMenu),
+  { loading: WorkspacePanelLoading }
+);
+const NotificationCenter = dynamic(
+  () =>
+    import("@/components/app/notification-center").then(
+      (module) => module.NotificationCenter
+    ),
+  { loading: WorkspacePanelLoading }
+);
+const PacketSharePanel = dynamic(
+  () =>
+    import("@/components/app/packet-sharing/packet-share-panel").then(
+      (module) => module.PacketSharePanel
+    ),
+  { loading: WorkspacePanelLoading }
+);
+const ReportsPanel = dynamic(
+  () => import("@/components/app/reports/reports-panel").then((module) => module.ReportsPanel),
+  { loading: WorkspacePanelLoading }
+);
+const SearchPanel = dynamic(
+  () => import("@/components/app/search/search-panel").then((module) => module.SearchPanel),
+  { loading: WorkspacePanelLoading }
+);
+const SecurityPrivacyPanel = dynamic(
+  () =>
+    import("@/components/app/security/security-privacy-panel").then(
+      (module) => module.SecurityPrivacyPanel
+    ),
+  { loading: WorkspacePanelLoading }
+);
+const SettingsPanel = dynamic(
+  () =>
+    import("@/components/app/settings/settings-panel").then(
+      (module) => module.SettingsPanel
+    ),
+  { loading: WorkspacePanelLoading }
+);
+const TasksPanel = dynamic(
+  () => import("@/components/app/tasks/tasks-panel").then((module) => module.TasksPanel),
+  { loading: WorkspacePanelLoading }
+);
 
 const fallbackCaseTypes: CaseType[] = [
   {
@@ -60,11 +166,32 @@ const fallbackCaseTypes: CaseType[] = [
   }
 ];
 
+function WorkspacePanelLoading() {
+  return (
+    <div
+      aria-label="Loading workspace"
+      className="grid min-h-72 gap-4 rounded-md border border-border bg-card p-5"
+      role="status"
+    >
+      <div className="h-7 w-44 rounded bg-secondary motion-safe:animate-pulse" />
+      <div className="h-24 rounded bg-secondary/70 motion-safe:animate-pulse" />
+      <div className="h-24 rounded bg-secondary/45 motion-safe:animate-pulse" />
+    </div>
+  );
+}
+
 interface ProofPilotAppProps {
   portfolioMode?: boolean;
 }
 
 export function ProofPilotApp({ portfolioMode = false }: ProofPilotAppProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const initialPathnameRef = useRef(pathname);
+  const workspaceRoute = resolveWorkspaceRoute(pathname);
+  const activeView = workspaceRoute.view;
+  const activeCaseDestinationId = workspaceRoute.destinationId;
+  const accountSection = workspaceRoute.accountSection;
   const [user, setUser] = useState<AuthUser | null>(null);
   const [publicView, setPublicView] = useState<"landing" | "auth">("landing");
   const [publicAuthMode, setPublicAuthMode] = useState<AuthMode>("login");
@@ -76,11 +203,7 @@ export function ProofPilotApp({ portfolioMode = false }: ProofPilotAppProps) {
   const [isInvitationSubmitting, setIsInvitationSubmitting] = useState(false);
   const [cases, setCases] = useState<CaseRecord[]>([]);
   const [caseTypes, setCaseTypes] = useState<CaseType[]>(fallbackCaseTypes);
-  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<AppView>("home");
-  const [activeCaseDestinationId, setActiveCaseDestinationId] =
-    useState<CaseDestinationId>("case-overview");
-  const [accountSection, setAccountSection] = useState<AccountSection>("profile");
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(workspaceRoute.caseId);
   const [helpInitialView, setHelpInitialView] = useState<"home" | "contact">("home");
   const [helpInitialRequestId, setHelpInitialRequestId] = useState<string | null>(null);
   const [settings, setSettings] = useState<UserSettings | null>(null);
@@ -275,12 +398,28 @@ export function ProofPilotApp({ portfolioMode = false }: ProofPilotAppProps) {
           loadUnreadNotificationCount()
         ]);
 
-        if (isMounted && nextCases[0]) {
-          await loadCaseDetail(nextCases[0].id);
+        const route = resolveWorkspaceRoute(initialPathnameRef.current);
+        const targetCaseId = route.caseId ?? nextCases[0]?.id;
+
+        if (isMounted && targetCaseId) {
+          await loadCaseDetail(targetCaseId);
+        }
+
+        if (isMounted && !isWorkspacePath(initialPathnameRef.current)) {
+          router.replace("/app");
         }
       } catch (error) {
         if (isMounted && error instanceof ApiClientError && error.status !== 401) {
           setMessage(error.message);
+        }
+
+        if (
+          isMounted &&
+          error instanceof ApiClientError &&
+          error.status === 401 &&
+          isWorkspacePath(initialPathnameRef.current)
+        ) {
+          router.replace("/");
         }
       } finally {
         if (isMounted) {
@@ -301,8 +440,36 @@ export function ProofPilotApp({ portfolioMode = false }: ProofPilotAppProps) {
     loadSettings,
     loadUnreadInboxCount,
     loadUnreadNotificationCount,
-    portfolioMode
+    portfolioMode,
+    router
   ]);
+
+  useEffect(() => {
+    if (!user || isBooting || !isWorkspacePath(pathname)) {
+      return;
+    }
+
+    const route = resolveWorkspaceRoute(pathname);
+    const pendingCaseId = route.caseId !== selectedCaseId ? route.caseId : null;
+    const timeoutId = pendingCaseId
+      ? window.setTimeout(() => {
+          void loadCaseDetail(pendingCaseId).catch((error: unknown) => {
+            setMessage(
+              error instanceof Error ? error.message : "Case detail could not be loaded."
+            );
+            router.replace("/app/cases");
+          });
+        }, 0)
+      : null;
+
+    scrollToPageTop();
+
+    return () => {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [isBooting, loadCaseDetail, pathname, router, selectedCaseId, user]);
 
   async function authenticate(
     path: "/api/auth/demo" | "/api/auth/login" | "/api/auth/register",
@@ -317,7 +484,7 @@ export function ProofPilotApp({ portfolioMode = false }: ProofPilotAppProps) {
         method: "POST"
       });
       setUser(response.user);
-      setActiveView("home");
+      router.push("/app");
       refreshInbox();
       refreshNotifications();
       const [nextCases] = await Promise.all([loadCases(), loadCaseTypes(), loadSettings()]);
@@ -339,11 +506,10 @@ export function ProofPilotApp({ portfolioMode = false }: ProofPilotAppProps) {
     setCases([]);
     setSettings(null);
     setSelectedCaseId(null);
-    setActiveView("home");
-    setActiveCaseDestinationId("case-overview");
     setUnreadInboxCount(0);
     setUnreadNotificationCount(0);
     setPublicView("landing");
+    router.replace("/");
   }
 
   function clearPasswordResetToken() {
@@ -382,8 +548,7 @@ export function ProofPilotApp({ portfolioMode = false }: ProofPilotAppProps) {
       if (response.caseId) {
         await loadCases();
         await loadCaseDetail(response.caseId);
-        setActiveCaseDestinationId("case-overview");
-        setActiveView("case");
+        router.push(getCaseWorkspacePath(response.caseId));
         refreshNotifications();
         scrollToPageTop();
       }
@@ -451,9 +616,8 @@ export function ProofPilotApp({ portfolioMode = false }: ProofPilotAppProps) {
 
     try {
       await loadCaseDetail(caseId);
-      setActiveCaseDestinationId(destinationId);
-      setActiveView(destinationId === "evidence-intake" ? "upload" : "case");
-      scrollToDestination(destinationId);
+      router.push(getCaseWorkspacePath(caseId, destinationId));
+      scrollToPageTop();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Case detail could not be loaded.");
     }
@@ -508,14 +672,18 @@ export function ProofPilotApp({ portfolioMode = false }: ProofPilotAppProps) {
 
   function handleNavigate(view: AppView) {
     setMessage(null);
-    if (view === "account") {
-      setAccountSection("profile");
-    }
+    const nextAccountSection = view === "account" ? "profile" : accountSection;
     if (view === "help") {
       setHelpInitialView("home");
       setHelpInitialRequestId(null);
     }
-    setActiveView(view);
+    router.push(
+      getWorkspaceViewPath(view, {
+        accountSection: nextAccountSection,
+        caseId: selectedCaseId,
+        destinationId: activeCaseDestinationId
+      })
+    );
     scrollToPageTop();
   }
 
@@ -529,8 +697,7 @@ export function ProofPilotApp({ portfolioMode = false }: ProofPilotAppProps) {
 
   function handleOpenAccount(section: AccountSection) {
     setMessage(null);
-    setAccountSection(section);
-    setActiveView("account");
+    router.push(getWorkspaceViewPath("account", { accountSection: section }));
     scrollToPageTop();
   }
 
@@ -538,7 +705,7 @@ export function ProofPilotApp({ portfolioMode = false }: ProofPilotAppProps) {
     if (result.type === "SUPPORT") {
       setHelpInitialView("contact");
       setHelpInitialRequestId(result.id);
-      setActiveView("help");
+      router.push(getWorkspaceViewPath("help"));
       scrollToPageTop();
       return;
     }
@@ -563,7 +730,7 @@ export function ProofPilotApp({ portfolioMode = false }: ProofPilotAppProps) {
     setMessage(null);
     setHelpInitialView("contact");
     setHelpInitialRequestId(getSupportRequestIdFromNotification(notification.type));
-    setActiveView("help");
+    router.push(getWorkspaceViewPath("help"));
     scrollToPageTop();
   }
 
@@ -578,7 +745,7 @@ export function ProofPilotApp({ portfolioMode = false }: ProofPilotAppProps) {
     }
 
     setMessage(null);
-    setActiveView("share-packet");
+    router.push(getWorkspaceViewPath("share-packet", { caseId: selectedCase.id }));
     scrollToPageTop();
   }
 
@@ -588,20 +755,24 @@ export function ProofPilotApp({ portfolioMode = false }: ProofPilotAppProps) {
       return;
     }
 
-    handleNavigate("collaboration");
+    setMessage(null);
+    router.push(getWorkspaceViewPath("collaboration", { caseId: selectedCase.id }));
+    scrollToPageTop();
   }
 
   function handleClosePacketShare() {
     setMessage(null);
-    setActiveView("case");
-    scrollToDestination("packet-export");
+    if (selectedCase) {
+      router.push(getCaseWorkspacePath(selectedCase.id, "packet-export"));
+    }
+    scrollToPageTop();
   }
 
   function handleOpenPacketSupport() {
     setMessage(null);
     setHelpInitialView("contact");
     setHelpInitialRequestId(null);
-    setActiveView("help");
+    router.push(getWorkspaceViewPath("help"));
     scrollToPageTop();
   }
 
@@ -714,6 +885,7 @@ export function ProofPilotApp({ portfolioMode = false }: ProofPilotAppProps) {
       unreadNotificationCount={unreadNotificationCount}
       user={user}
     >
+      <div className="proof-view-enter grid gap-5" key={activeView}>
       {message ? (
         <p
           className="rounded-md border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-sm text-amber-100"
@@ -754,8 +926,7 @@ export function ProofPilotApp({ portfolioMode = false }: ProofPilotAppProps) {
           isSubmitting={isSubmitting}
           onCancel={() => handleNavigate("cases")}
           onComplete={() => {
-            setActiveView("upload");
-            scrollToDestination("evidence-intake");
+            handleNavigate("upload");
           }}
           onCreateCase={handleCreateCase}
         />
@@ -771,8 +942,9 @@ export function ProofPilotApp({ portfolioMode = false }: ProofPilotAppProps) {
           onNotificationsChanged={refreshNotifications}
           onOpenCollaboration={handleOpenCollaboration}
           onOpenPacketShare={handleOpenPacketShare}
-          onSectionChange={setActiveCaseDestinationId}
+          onSectionChange={handleNavigateCaseDestination}
           portfolioDemo={user.isPortfolioDemo}
+          activeDestinationId={activeCaseDestinationId}
           selectedCase={selectedCase}
         />
       ) : null}
@@ -944,12 +1116,13 @@ export function ProofPilotApp({ portfolioMode = false }: ProofPilotAppProps) {
       {activeView === "account" ? (
         <AccountPanel
           cases={cases}
-          onSectionChange={setAccountSection}
+          onSectionChange={handleOpenAccount}
           onUserChanged={setUser}
           section={accountSection}
           user={user}
         />
       ) : null}
+      </div>
     </AppShell>
   );
 }
@@ -957,20 +1130,6 @@ export function ProofPilotApp({ portfolioMode = false }: ProofPilotAppProps) {
 function scrollToPageTop() {
   window.requestAnimationFrame(() => {
     window.scrollTo({ behavior: getScrollBehavior(), top: 0 });
-  });
-}
-
-function scrollToDestination(destinationId: string) {
-  window.requestAnimationFrame(() => {
-    window.requestAnimationFrame(() => {
-      const destination = document.getElementById(destinationId);
-
-      if (destination) {
-        destination.scrollIntoView({ behavior: getScrollBehavior(), block: "start" });
-      } else {
-        window.scrollTo({ behavior: getScrollBehavior(), top: 0 });
-      }
-    });
   });
 }
 

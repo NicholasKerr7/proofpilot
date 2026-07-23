@@ -149,7 +149,7 @@ export function SecurityPrivacyPanel({
 
   return (
     <section aria-labelledby="security-privacy-heading" className="grid gap-5">
-      <div className="flex items-start gap-3">
+      <div className="proof-page-header flex items-start gap-3">
         <Button
           aria-label="Back to More"
           className="mt-0.5 shrink-0"

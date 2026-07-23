@@ -6,6 +6,18 @@ export const xlsxMimeType = "application/vnd.openxmlformats-officedocument.sprea
 export const evidenceMaxUploadByteSize = 25 * 1024 * 1024;
 export const evidenceMaxUploadSizeLabel = "25 MB";
 
+export const evidenceSources = [
+  "FILE_UPLOAD",
+  "CAMERA_SCAN",
+  "PHOTO_LIBRARY",
+  "EMAIL_ATTACHMENT",
+  "GMAIL_IMPORT",
+  "GOOGLE_DRIVE_IMPORT",
+  "DROPBOX_IMPORT"
+] as const;
+
+export type EvidenceSource = (typeof evidenceSources)[number];
+
 export const evidenceMimeTypes = [
   "application/pdf",
   "image/png",

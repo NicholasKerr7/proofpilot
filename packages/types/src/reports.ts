@@ -14,7 +14,7 @@ export interface ReportMetrics {
   totalCases: number;
   activeCases: number;
   upcomingDeadlines: number;
-  averageReadiness: number;
+  averageCompleteness: number;
   totalDocuments: number;
   failedDocuments: number;
   totalEvidenceBytes: number;
@@ -45,7 +45,7 @@ export interface ReportCaseSummary {
   deadline: string | null;
   createdAt: string;
   updatedAt: string;
-  readiness: number;
+  completeness: number;
   documentCount: number;
   evidenceByteSize: number;
   eventCount: number;

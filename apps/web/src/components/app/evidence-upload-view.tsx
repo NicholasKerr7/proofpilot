@@ -37,7 +37,7 @@ export function EvidenceUploadView({
   if (!selectedCase) {
     return (
       <section aria-labelledby="upload-view-heading" className="grid gap-5">
-        <div>
+        <div className="proof-page-header">
           <p className="text-sm font-semibold text-primary">Evidence intake</p>
           <h1 id="upload-view-heading" className="mt-1 text-2xl font-semibold sm:text-3xl">
             Import evidence
@@ -73,7 +73,7 @@ export function EvidenceUploadView({
   return (
     <section aria-labelledby="upload-view-heading" className="grid gap-5">
       {captureState === "idle" ? (
-        <header className="order-1 flex items-start gap-3 sm:order-2">
+        <header className="proof-page-header order-1 flex items-start gap-3 sm:order-2">
           <Button
             aria-label="Back to cases"
             className="shrink-0 sm:hidden"

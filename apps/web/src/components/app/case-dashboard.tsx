@@ -18,7 +18,7 @@ import {
   formatCaseDate,
   formatCaseReference,
   formatCaseStatus,
-  getCaseReadiness,
+  getCaseCompletenessScore,
   getCaseStatusVariant
 } from "@/components/app/cases/case-utils";
 import { Badge } from "@/components/ui/badge";
@@ -85,7 +85,7 @@ export function CaseDashboard({
 
   return (
     <section id="case-dashboard" aria-labelledby="cases-heading" className="grid scroll-mt-28 gap-5 lg:scroll-mt-24">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="proof-page-header flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-primary">Case management</p>
           <h1 id="cases-heading" className="mt-1 text-2xl font-semibold sm:text-3xl">
@@ -294,13 +294,13 @@ function CaseListItem({
   onOpen,
   onRequestArchive
 }: CaseListItemProps) {
-  const readiness = getCaseReadiness(caseRecord);
+  const completeness = getCaseCompletenessScore(caseRecord);
 
   return (
     <article
       aria-current={isSelected ? "true" : undefined}
       className={cn(
-        "rounded-md border border-border bg-card",
+        "proof-interactive-surface rounded-md border border-border bg-card",
         isSelected ? "border-primary/55" : null
       )}
     >
@@ -367,7 +367,12 @@ function CaseListItem({
             {caseRecord.deadline ? formatCaseDate(caseRecord.deadline) : "Not set"}
           </span>
 
-          <CaseProgressRing className="hidden sm:grid" size="compact" value={readiness} />
+          <CaseProgressRing
+            className="hidden sm:grid"
+            label="Completeness"
+            size="compact"
+            value={completeness}
+          />
           <ArrowRight
             className="h-5 w-5 shrink-0 text-muted-foreground group-hover:text-foreground"
             aria-hidden="true"
@@ -473,7 +478,7 @@ function sortCases(cases: CaseRecord[], sortOrder: SortOrder) {
     }
 
     if (sortOrder === "progress") {
-      return getCaseReadiness(second) - getCaseReadiness(first);
+      return getCaseCompletenessScore(second) - getCaseCompletenessScore(first);
     }
 
     return new Date(second.updatedAt).getTime() - new Date(first.updatedAt).getTime();

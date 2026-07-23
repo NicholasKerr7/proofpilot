@@ -2,6 +2,7 @@ import { Global, Module } from "@nestjs/common";
 import { DocumentProcessingQueueService } from "./document-processing-queue.service.js";
 import { NotificationEmailQueueService } from "./notification-email-queue.service.js";
 import { PacketGenerationQueueService } from "./packet-generation-queue.service.js";
+import { PacketShareEmailQueueService } from "./packet-share-email-queue.service.js";
 import { QueueHealthService } from "./queue-health.service.js";
 import { ReminderDeliveryQueueService } from "./reminder-delivery-queue.service.js";
 import { UploadCleanupQueueService } from "./upload-cleanup-queue.service.js";
@@ -12,6 +13,7 @@ import { UploadCleanupQueueService } from "./upload-cleanup-queue.service.js";
     DocumentProcessingQueueService,
     NotificationEmailQueueService,
     PacketGenerationQueueService,
+    PacketShareEmailQueueService,
     ReminderDeliveryQueueService,
     UploadCleanupQueueService,
     QueueHealthService
@@ -20,6 +22,7 @@ import { UploadCleanupQueueService } from "./upload-cleanup-queue.service.js";
     DocumentProcessingQueueService,
     NotificationEmailQueueService,
     PacketGenerationQueueService,
+    PacketShareEmailQueueService,
     ReminderDeliveryQueueService,
     UploadCleanupQueueService,
     QueueHealthService

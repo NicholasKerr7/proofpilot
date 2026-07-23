@@ -13,6 +13,10 @@ import {
   type DeliverNotificationEmailsJobData
 } from "./queues/notification-email.queue.js";
 import {
+  packetShareEmailQueueName,
+  type DeliverPacketShareEmailsJobData
+} from "./queues/packet-share-email.queue.js";
+import {
   reminderDeliveryQueueName,
   type DeliverRemindersJobData
 } from "./queues/reminder-delivery.queue.js";
@@ -25,6 +29,7 @@ import {
   shutdownDocumentProcessor
 } from "./processors/document-processing.processor.js";
 import { deliverNotificationEmails } from "./processors/notification-email.processor.js";
+import { deliverPacketShareEmails } from "./processors/packet-share-email.processor.js";
 import { generateCasePacket } from "./processors/packet-generation.processor.js";
 import { deliverDueReminders } from "./processors/reminder-delivery.processor.js";
 import { expireAbandonedUploads } from "./processors/upload-cleanup.processor.js";
@@ -105,6 +110,21 @@ const notificationEmailWorker = new Worker<DeliverNotificationEmailsJobData>(
   },
   { connection }
 );
+const packetShareEmailQueue = new Queue<DeliverPacketShareEmailsJobData>(
+  packetShareEmailQueueName,
+  { connection }
+);
+const packetShareEmailWorker = new Worker<DeliverPacketShareEmailsJobData>(
+  packetShareEmailQueueName,
+  async (job) => {
+    if (job.name === "deliver_packet_share_emails") {
+      return deliverPacketShareEmails(job);
+    }
+
+    throw new Error(`Unsupported job name: ${job.name}`);
+  },
+  { connection }
+);
 const uploadCleanupQueue = new Queue<UploadCleanupJobData>(uploadCleanupQueueName, {
   connection
 });
@@ -148,6 +168,18 @@ await notificationEmailQueue.upsertJobScheduler(
     }
   }
 );
+await packetShareEmailQueue.upsertJobScheduler(
+  "deliver-packet-share-emails-every-minute",
+  { every: 60_000 },
+  {
+    name: "deliver_packet_share_emails",
+    data: {},
+    opts: {
+      removeOnComplete: 100,
+      removeOnFail: 100
+    }
+  }
+);
 await uploadCleanupQueue.upsertJobScheduler(
   "expire-abandoned-uploads-hourly",
   { every: 60 * 60 * 1_000 },
@@ -177,6 +209,7 @@ attachWorkerLogging(documentWorker, documentProcessingQueueName);
 attachWorkerLogging(packetWorker, packetGenerationQueueName);
 attachWorkerLogging(reminderWorker, reminderDeliveryQueueName);
 attachWorkerLogging(notificationEmailWorker, notificationEmailQueueName);
+attachWorkerLogging(packetShareEmailWorker, packetShareEmailQueueName);
 attachWorkerLogging(uploadCleanupWorker, uploadCleanupQueueName);
 
 process.on("SIGTERM", async () => {
@@ -187,6 +220,8 @@ process.on("SIGTERM", async () => {
     reminderQueue.close(),
     notificationEmailWorker.close(),
     notificationEmailQueue.close(),
+    packetShareEmailWorker.close(),
+    packetShareEmailQueue.close(),
     uploadCleanupWorker.close(),
     uploadCleanupQueue.close()
   ]);

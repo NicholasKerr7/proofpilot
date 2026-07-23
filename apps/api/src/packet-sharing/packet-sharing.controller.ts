@@ -17,6 +17,8 @@ import { AccessPacketShareDto } from "./dto/access-packet-share.dto.js";
 import { CreatePacketShareCommentDto } from "./dto/create-packet-share-comment.dto.js";
 import { CreatePacketShareDto } from "./dto/create-packet-share.dto.js";
 import { PacketShareTokenDto } from "./dto/packet-share-token.dto.js";
+import { VerifyPacketShareAccessDto } from "./dto/verify-packet-share-access.dto.js";
+import { PacketShareAccessService } from "./packet-share-access.service.js";
 import { PacketSharingService } from "./packet-sharing.service.js";
 
 @ApiTags("packet sharing")
@@ -57,16 +59,21 @@ export class PacketSharingController {
 @ApiTags("public packet sharing")
 @Controller("packet-shares")
 export class PublicPacketSharingController {
-  constructor(private readonly packetSharingService: PacketSharingService) {}
+  constructor(private readonly packetShareAccessService: PacketShareAccessService) {}
 
   @Post("metadata")
   getMetadata(@Body() input: PacketShareTokenDto) {
-    return this.packetSharingService.getPublicMetadata(input.token);
+    return this.packetShareAccessService.getPublicMetadata(input.token);
   }
 
-  @Post("access")
-  access(@Body() input: AccessPacketShareDto) {
-    return this.packetSharingService.createAccess(input);
+  @Post("access/request")
+  requestAccess(@Body() input: AccessPacketShareDto) {
+    return this.packetShareAccessService.requestAccess(input);
+  }
+
+  @Post("access/verify")
+  verifyAccess(@Body() input: VerifyPacketShareAccessDto) {
+    return this.packetShareAccessService.verifyAccess(input);
   }
 
   @Post("content")
@@ -74,7 +81,7 @@ export class PublicPacketSharingController {
     @Headers("authorization") authorization: string | undefined,
     @Body() input: PacketShareTokenDto
   ) {
-    return this.packetSharingService.getContent(
+    return this.packetShareAccessService.getContent(
       input.token,
       readBearerToken(authorization)
     );
@@ -85,7 +92,7 @@ export class PublicPacketSharingController {
     @Headers("authorization") authorization: string | undefined,
     @Body() input: CreatePacketShareCommentDto
   ) {
-    return this.packetSharingService.addComment(
+    return this.packetShareAccessService.addComment(
       input.token,
       readBearerToken(authorization),
       input

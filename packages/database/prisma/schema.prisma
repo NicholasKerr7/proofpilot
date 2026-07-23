@@ -26,6 +26,16 @@ enum DocumentStatus {
   NEEDS_REVIEW
 }
 
+enum DocumentSource {
+  FILE_UPLOAD
+  CAMERA_SCAN
+  PHOTO_LIBRARY
+  EMAIL_ATTACHMENT
+  GMAIL_IMPORT
+  GOOGLE_DRIVE_IMPORT
+  DROPBOX_IMPORT
+}
+
 enum PacketStatus {
   NOT_STARTED
   GENERATING
@@ -141,6 +151,14 @@ enum PacketSharePermission {
   VIEW
   COMMENT
   DOWNLOAD
+}
+
+enum PacketShareEmailStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+  SUPPRESSED
 }
 
 enum TaskPriority {
@@ -401,6 +419,9 @@ model Document {
   byteSize                 Int
   storageKey               String
   status                   DocumentStatus          @default(UPLOADED)
+  source                   DocumentSource          @default(FILE_UPLOAD)
+  sourceReference          String?
+  sha256                   String?
   extractedText            String?
   quarantinedAt            DateTime?
   uploadExpiredAt          DateTime?
@@ -414,6 +435,7 @@ model Document {
   requirementMatches       CaseRequirementMatch[]
 
   @@index([caseId, status])
+  @@index([caseId, source])
   @@index([status, uploadExpiredAt, uploadCleanupAttemptedAt])
 }
 
@@ -631,40 +653,82 @@ model PacketExport {
 }
 
 model PacketShare {
-  id                       String                 @id @default(cuid())
+  id                       String                       @id @default(cuid())
   caseId                   String
-  case                     Case                   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  case                     Case                         @relation(fields: [caseId], references: [id], onDelete: Cascade)
   packetExportId           String
-  packetExport             PacketExport           @relation(fields: [packetExportId], references: [id], onDelete: Cascade)
+  packetExport             PacketExport                 @relation(fields: [packetExportId], references: [id], onDelete: Cascade)
   createdById              String
-  createdBy                User                   @relation("PacketShareCreator", fields: [createdById], references: [id], onDelete: Cascade)
-  tokenHash                String                 @unique
+  createdBy                User                         @relation("PacketShareCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  tokenHash                String                       @unique
   expiresAt                DateTime?
-  requireEmailVerification Boolean                @default(false)
-  watermarkDocuments       Boolean                @default(false)
+  requireEmailVerification Boolean                      @default(false)
+  watermarkDocuments       Boolean                      @default(false)
   revokedAt                DateTime?
-  createdAt                DateTime               @default(now())
-  updatedAt                DateTime               @updatedAt
+  createdAt                DateTime                     @default(now())
+  updatedAt                DateTime                     @updatedAt
   recipients               PacketShareRecipient[]
   comments                 PacketShareComment[]
+  accessChallenges         PacketShareAccessChallenge[]
+  emailDeliveries          PacketShareEmailDelivery[]
 
   @@index([caseId, createdAt])
   @@index([packetExportId])
 }
 
 model PacketShareRecipient {
-  id             String                @id @default(cuid())
-  shareId        String
-  share          PacketShare           @relation(fields: [shareId], references: [id], onDelete: Cascade)
-  email          String
-  permission     PacketSharePermission @default(VIEW)
-  lastAccessedAt DateTime?
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
-  comments       PacketShareComment[]
+  id               String                       @id @default(cuid())
+  shareId          String
+  share            PacketShare                  @relation(fields: [shareId], references: [id], onDelete: Cascade)
+  email            String
+  permission       PacketSharePermission        @default(VIEW)
+  lastAccessedAt   DateTime?
+  createdAt        DateTime                     @default(now())
+  updatedAt        DateTime                     @updatedAt
+  comments         PacketShareComment[]
+  accessChallenges PacketShareAccessChallenge[]
+  emailDeliveries  PacketShareEmailDelivery[]
 
   @@unique([shareId, email])
   @@index([shareId, permission])
+}
+
+model PacketShareAccessChallenge {
+  id           String               @id
+  shareId      String
+  share        PacketShare          @relation(fields: [shareId], references: [id], onDelete: Cascade)
+  recipientId  String
+  recipient    PacketShareRecipient @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  codeHash     String
+  attemptCount Int                  @default(0)
+  expiresAt    DateTime
+  consumedAt   DateTime?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  @@index([shareId, recipientId, createdAt])
+  @@index([expiresAt])
+}
+
+model PacketShareEmailDelivery {
+  id                String                 @id @default(cuid())
+  shareId           String
+  share             PacketShare            @relation(fields: [shareId], references: [id], onDelete: Cascade)
+  recipientId       String
+  recipient         PacketShareRecipient   @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  status            PacketShareEmailStatus @default(PENDING)
+  attemptCount      Int                    @default(0)
+  nextAttemptAt     DateTime?              @default(now())
+  lastAttemptAt     DateTime?
+  sentAt            DateTime?
+  providerMessageId String?
+  lastErrorCode     String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  @@unique([shareId, recipientId])
+  @@index([status, nextAttemptAt])
+  @@index([status, lastAttemptAt])
 }
 
 model PacketShareComment {
