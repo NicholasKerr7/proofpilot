@@ -2,9 +2,13 @@ import { Injectable } from "@nestjs/common";
 import { CaseAccessGuard } from "./case-access.guard.js";
 import { CaseChecklistService } from "./case-checklist.service.js";
 import { CasePacketsService } from "./case-packets.service.js";
+import { CaseProofMapService } from "./case-proof-map.service.js";
 import { CaseRecordsService } from "./case-records.service.js";
 import { CaseStatementsService } from "./case-statements.service.js";
+import { CaseSubmissionsService } from "./case-submissions.service.js";
 import { CaseTimelineService } from "./case-timeline.service.js";
+import type { CreateCaseSubmissionDto } from "./dto/create-case-submission.dto.js";
+import type { CreateSubmissionUpdateDto } from "./dto/create-submission-update.dto.js";
 import type { CreateCaseDto } from "./dto/create-case.dto.js";
 import type { CreateTimelineEventDto } from "./dto/create-timeline-event.dto.js";
 import type { ListCaseActivityQueryDto } from "./dto/list-case-activity-query.dto.js";
@@ -29,7 +33,9 @@ export class CasesService {
   private readonly timeline: CaseTimelineService;
   private readonly checklist: CaseChecklistService;
   private readonly statements: CaseStatementsService;
+  private readonly submissions: CaseSubmissionsService;
   private readonly packets: CasePacketsService;
+  private readonly proofMap: CaseProofMapService;
 
   constructor(
     prisma: PrismaService,
@@ -42,6 +48,8 @@ export class CasesService {
     this.checklist = new CaseChecklistService(prisma, access, this.records);
     this.statements = new CaseStatementsService(prisma, access);
     this.packets = new CasePacketsService(prisma, packetGenerationQueue, access);
+    this.proofMap = new CaseProofMapService(prisma, access);
+    this.submissions = new CaseSubmissionsService(prisma, access);
   }
 
   async create(ownerId: string, input: CreateCaseDto) {
@@ -91,6 +99,31 @@ export class CasesService {
 
   async listChecklist(userId: string, caseId: string) {
     return this.checklist.list(userId, caseId);
+  }
+
+  async getProofMap(userId: string, caseId: string) {
+    return this.proofMap.get(userId, caseId);
+  }
+
+  async listSubmissions(userId: string, caseId: string) {
+    return this.submissions.list(userId, caseId);
+  }
+
+  async createSubmission(
+    userId: string,
+    caseId: string,
+    input: CreateCaseSubmissionDto
+  ) {
+    return this.submissions.create(userId, caseId, input);
+  }
+
+  async addSubmissionUpdate(
+    userId: string,
+    caseId: string,
+    submissionId: string,
+    input: CreateSubmissionUpdateDto
+  ) {
+    return this.submissions.addUpdate(userId, caseId, submissionId, input);
   }
 
   async analyzeChecklist(userId: string, caseId: string) {

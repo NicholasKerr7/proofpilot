@@ -13,8 +13,10 @@ import {
   ListChecks,
   PenLine,
   Plus,
+  RadioTower,
   TriangleAlert,
   UploadCloud,
+  Waypoints,
   type LucideIcon
 } from "lucide-react";
 import { CaseProgressRing } from "@/components/app/cases/case-progress-ring";
@@ -47,11 +49,13 @@ interface HomeDashboardProps {
 
 const actionIcons: Record<CaseDestinationId, LucideIcon> = {
   "case-overview": FolderOpen,
+  "proof-map": Waypoints,
   "evidence-intake": UploadCloud,
   "case-timeline": Clock3,
   "evidence-checklist": ListChecks,
   "statement-builder": PenLine,
   "packet-export": FileArchive,
+  "submission-tracker": RadioTower,
   "case-reminders": CalendarDays,
   "case-activity": Activity
 };

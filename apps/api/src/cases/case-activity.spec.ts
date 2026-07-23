@@ -17,6 +17,8 @@ describe("case activity presentation", () => {
         "case.task_created",
         "case.task_updated",
         "case.task_deleted",
+        "case.submission_created",
+        "case.submission_updated",
         "report.csv_exported",
         "support.request_created",
         "demo.seeded"

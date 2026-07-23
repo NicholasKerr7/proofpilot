@@ -689,6 +689,70 @@ test.describe("ProofPilot responsive workspace", () => {
     await expectNoHorizontalOverflow(page);
   });
 
+  test("demo user can inspect claim evidence and the prior appeal outcome", async ({
+    page
+  }) => {
+    await loginAsDemoUser(page);
+
+    await getPrimaryNavigation(page)
+      .getByRole("button", { exact: true, name: "Cases" })
+      .click();
+    await page
+      .getByRole("button", { name: /PayPal account closure appeal/ })
+      .first()
+      .click();
+
+    const caseSections = page.getByRole("navigation", {
+      name: "Case workspace sections"
+    });
+    await caseSections.getByRole("button", { exact: true, name: "Proof Map" }).click();
+    await expect(page).toHaveURL(/\/proof$/);
+    await expect(
+      page.getByRole("heading", { exact: true, name: "Proof Map" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { exact: true, name: "Appeal claims" })
+    ).toBeVisible();
+
+    await page
+      .getByRole("button", { name: /The account action is documented/ })
+      .click();
+    const limitationSource = page
+      .getByRole("button", {
+        name: /limitation-notice\.eml evidence/
+      })
+      .first();
+    await expect(limitationSource).toBeVisible();
+    await expect(limitationSource).toContainText(
+      "PayPal has placed a permanent limitation"
+    );
+    await expectNoHorizontalOverflow(page);
+    await expectAccessible(page, "Proof Map workspace");
+
+    await caseSections
+      .getByRole("button", { exact: true, name: "Submission" })
+      .click();
+    await expect(page).toHaveURL(/\/submission$/);
+    await expect(
+      page.getByRole("heading", { exact: true, name: "Submission" })
+    ).toBeVisible();
+    const submissionOverview = page.locator(
+      "#submission-tracker .proof-accent-frame"
+    );
+    await expect(
+      submissionOverview.getByText("Appeal round 1", { exact: true })
+    ).toBeVisible();
+    await expect(
+      submissionOverview.getByRole("heading", { exact: true, name: "Denied" })
+    ).toBeVisible();
+    await expect(
+      submissionOverview.getByText("PP-2026-0147", { exact: true })
+    ).toBeVisible();
+    await expect(page.getByText("Initial appeal denied", { exact: true })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await expectAccessible(page, "submission tracker workspace");
+  });
+
   test("demo user can complete the guided statement and restore a version", async ({ page }) => {
     await loginAsDemoUser(page);
 

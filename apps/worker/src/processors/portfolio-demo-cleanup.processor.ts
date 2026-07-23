@@ -113,14 +113,24 @@ function collectWorkspaceStorageKeys(
 
   for (const caseRecord of cases) {
     for (const document of caseRecord.documents) {
-      keys.add(document.storageKey);
-      document.versions.forEach((version) => keys.add(version.storageKey));
+      addWorkspaceStorageKey(keys, document.storageKey);
+      document.versions.forEach((version) =>
+        addWorkspaceStorageKey(keys, version.storageKey)
+      );
     }
 
     for (const packet of caseRecord.packets) {
-      packet.exports.forEach((packetExport) => keys.add(packetExport.storageKey));
+      packet.exports.forEach((packetExport) =>
+        addWorkspaceStorageKey(keys, packetExport.storageKey)
+      );
     }
   }
 
   return [...keys];
+}
+
+function addWorkspaceStorageKey(keys: Set<string>, storageKey: string) {
+  if (!storageKey.startsWith("demo-samples/")) {
+    keys.add(storageKey);
+  }
 }

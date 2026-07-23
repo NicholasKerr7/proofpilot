@@ -9,8 +9,10 @@ import {
   Inbox,
   ListChecks,
   Menu,
+  RadioTower,
   Sparkles,
   UploadCloud,
+  Waypoints,
   type LucideIcon
 } from "lucide-react";
 import { ProofPilotWordmark } from "@/components/app/app-shell-header";
@@ -57,7 +59,9 @@ const desktopNavItems: DesktopNavigationItem[] = [
   { label: "Cases", view: "cases", icon: FolderOpen },
   { label: "Upload / Evidence", view: "upload", icon: UploadCloud },
   { label: "Inbox", view: "inbox", icon: Inbox },
+  { label: "Proof Map", destinationId: "proof-map", icon: Waypoints },
   { label: "Timeline", destinationId: "case-timeline", icon: Clock3 },
+  { label: "Submission", destinationId: "submission-tracker", icon: RadioTower },
   { label: "Tasks", view: "tasks", icon: ListChecks },
   { label: "Reports", view: "reports", icon: BarChart3 },
   { label: "More", view: "more", icon: Menu }
@@ -312,7 +316,9 @@ function isDesktopNavigationActive(
       activeView === "collaboration" ||
       activeView === "share-packet" ||
       (activeView === "case" &&
+        activeCaseDestinationId !== "proof-map" &&
         activeCaseDestinationId !== "case-timeline" &&
+        activeCaseDestinationId !== "submission-tracker" &&
         activeCaseDestinationId !== "evidence-checklist")
     );
   }

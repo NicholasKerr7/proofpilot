@@ -11,11 +11,13 @@ export interface WorkspaceRoute {
 
 const destinationSegments = {
   "case-overview": "overview",
+  "proof-map": "proof",
   "evidence-intake": "evidence",
   "case-timeline": "timeline",
   "evidence-checklist": "checklist",
   "statement-builder": "statement",
   "packet-export": "packet",
+  "submission-tracker": "submission",
   "case-reminders": "reminders",
   "case-activity": "activity"
 } satisfies Record<CaseDestinationId, string>;

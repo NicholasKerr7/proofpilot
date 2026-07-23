@@ -10,13 +10,13 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 
 ## Packages
 
-- `packages/types`: Shared case, assistant, auth, Inbox, settings, security, connection, billing, packet-sharing, and API schemas.
+- `packages/types`: Shared case, assistant, auth, Inbox, settings, security, connection, billing, proof-map, submission, packet-sharing, and API schemas.
 - `packages/database`: Prisma schema, client export, shared checklist analysis, and seed data.
 - `packages/storage`: S3-compatible private evidence storage helpers.
 
 ## Local Services
 
-- PostgreSQL stores users, cases, tasks, support requests and messages, assistant threads and messages, audit logs, connection metadata, billing metadata, evidence metadata, timelines, checklist data, statements, packet exports, packet shares, notifications, and jobs.
+- PostgreSQL stores users, cases, tasks, support requests and messages, assistant threads and messages, audit logs, connection metadata, billing metadata, evidence metadata, timelines, checklist data, statements, submission rounds and updates, packet exports, packet shares, notifications, and jobs.
 - Redis backs document processing, notification email delivery, packet-share invitation delivery, packet generation, reminder delivery, and upload cleanup BullMQ queues.
 - MinIO provides a local S3-compatible private storage target.
 - ClamAV can scan private uploads through an opt-in local security profile or a private production service.
@@ -48,6 +48,8 @@ ProofPilot is a pnpm/Turborepo monorepo with three runtime apps.
 - Collaboration management resolves every case through the authenticated owner ID. Audit metadata records collaborator IDs, roles, and changed setting names without storing invited email addresses.
 - Packet-share creation and revocation resolve the ready export through the authenticated case owner. Audit metadata stores share IDs, recipient counts, permissions, and expiry without storing raw tokens or recipient addresses.
 - Statement guidance, version restore, and summary generation resolve authenticated edit access to the active case. Audit metadata stores record IDs, answer counts, and source counts without duplicating answers, drafts, or summary text.
+- Proof Map reads resolve authenticated case access and derive their response from already-owned evidence, checklist, timeline, and statement records.
+- Submission reads require case read access; round creation and append-only updates require Editor or Owner access. Audit metadata excludes free-form submission notes and response details.
 - Task reads resolve authenticated case access, while task mutations require Editor or Owner access. Task audit metadata records identifiers, priority, status, and progress without duplicating user-authored task content.
 - Inbox list, detail, and read-state operations scope both support requests and notifications to the authenticated user. Invalid or foreign source-and-ID pairs return `404` without revealing record existence.
 
@@ -104,3 +106,13 @@ The schema reserves response-mode, model, token, and estimated-cost fields for a
 The statement workspace persists seven validated guidance answers in a one-to-one `StatementGuidance` record. Deterministic draft generation combines those answers with the owned case, timeline, checklist, and evidence metadata; it does not send case content to an external model provider. Every save, generation, or restore operation creates a new immutable `StatementVersion`, and restoring an older entry never removes later history.
 
 Case summary generation reads the same owned timeline and evidence boundary, creates a versioned `CaseSummary`, and updates `Case.summary` as the current packet-facing value in one transaction. The responsive editor presents guided steps on mobile and persistent question navigation, editor context, summary review, and recovery controls at wider breakpoints.
+
+## Proof Map
+
+The Proof Map is a read-only case projection rather than a second evidence store. Each checklist requirement becomes an appeal claim, and the API links it to exact matched document passages, document-backed timeline events, and relevant statement guidance. Strength reflects review state and source diversity; a missing source remains an explicit gap. The projection never changes checklist state and does not claim that an absent record disproves the user's account.
+
+## Submission And Outcome Tracking
+
+`CaseSubmission` preserves one record per appeal round, including channel, destination, confirmation code, response deadline, and current status. `SubmissionUpdate` is an append-only chronology of acknowledgements, information requests, follow-ups, status changes, notes, and decisions. Creating a round and assigning its next number occurs in one transaction. Terminal decisions record `resolvedAt`, while approved, denied, and action-required outcomes move the parent case into the appropriate workflow state. Future response deadlines create ordinary case reminders rather than a separate scheduler.
+
+Portfolio workspaces clone immutable sample evidence entities, processing logs, checklist matches, timeline source links, submission rounds, and submission updates with remapped IDs. Reset expires and detaches only the current visitor's isolated graph, immediately provisions a fresh copy from the unchanged seed template, and lets the cleanup worker remove visitor-created storage before deleting the old records. Immutable `demo-samples/` keys are excluded from cleanup.

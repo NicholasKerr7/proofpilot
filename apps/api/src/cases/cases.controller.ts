@@ -17,6 +17,8 @@ import { PortfolioDemoPolicyService } from "../common/services/portfolio-demo-po
 import { ResourceIdParam } from "../common/validation/resource-id.js";
 import { CasesService } from "./cases.service.js";
 import { CreateCaseDto } from "./dto/create-case.dto.js";
+import { CreateCaseSubmissionDto } from "./dto/create-case-submission.dto.js";
+import { CreateSubmissionUpdateDto } from "./dto/create-submission-update.dto.js";
 import { CreateTimelineEventDto } from "./dto/create-timeline-event.dto.js";
 import { ListCaseActivityQueryDto } from "./dto/list-case-activity-query.dto.js";
 import { ReorderTimelineEventsDto } from "./dto/reorder-timeline-events.dto.js";
@@ -111,6 +113,40 @@ export class CasesController {
   @Get(":id/checklist")
   listChecklist(@CurrentUser() user: RequestUser, @ResourceIdParam("id") id: string) {
     return this.casesService.listChecklist(user.id, id);
+  }
+
+  @Get(":id/proof-map")
+  getProofMap(@CurrentUser() user: RequestUser, @ResourceIdParam("id") id: string) {
+    return this.casesService.getProofMap(user.id, id);
+  }
+
+  @Get(":id/submissions")
+  listSubmissions(@CurrentUser() user: RequestUser, @ResourceIdParam("id") id: string) {
+    return this.casesService.listSubmissions(user.id, id);
+  }
+
+  @Post(":id/submissions")
+  createSubmission(
+    @CurrentUser() user: RequestUser,
+    @ResourceIdParam("id") id: string,
+    @Body() input: CreateCaseSubmissionDto
+  ) {
+    return this.casesService.createSubmission(user.id, id, input);
+  }
+
+  @Post(":id/submissions/:submissionId/updates")
+  addSubmissionUpdate(
+    @CurrentUser() user: RequestUser,
+    @ResourceIdParam("id") id: string,
+    @ResourceIdParam("submissionId") submissionId: string,
+    @Body() input: CreateSubmissionUpdateDto
+  ) {
+    return this.casesService.addSubmissionUpdate(
+      user.id,
+      id,
+      submissionId,
+      input
+    );
   }
 
   @Post(":id/checklist/analyze")

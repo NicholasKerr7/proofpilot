@@ -45,6 +45,7 @@ export interface CaseRecord {
     checklist: number;
     statements?: number;
     packets?: number;
+    submissions?: number;
   };
 }
 

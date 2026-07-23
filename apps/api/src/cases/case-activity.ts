@@ -22,6 +22,8 @@ const caseActions = [
   "case.task_created",
   "case.task_updated",
   "case.task_deleted",
+  "case.submission_created",
+  "case.submission_updated",
   "report.csv_exported",
   "support.request_created",
   "demo.seeded"
@@ -87,6 +89,10 @@ function getActivityPresentation(
       return activity("case", "Task updated", getTaskStateDetail(metadata));
     case "case.task_deleted":
       return activity("case", "Task removed", null);
+    case "case.submission_created":
+      return activity("case", "Appeal submitted", getSubmissionDetail(metadata));
+    case "case.submission_updated":
+      return activity("case", "Submission updated", getSubmissionDetail(metadata));
     case "report.csv_exported":
       return activity("case", "CSV report exported", getReportRowDetail(metadata));
     case "support.request_created":
@@ -208,6 +214,17 @@ function getTaskStateDetail(metadata: Record<string, unknown>) {
   }
 
   return status ? formatEnumValue(status) : null;
+}
+
+function getSubmissionDetail(metadata: Record<string, unknown>) {
+  const round = readNumber(metadata, "round");
+  const status = readString(metadata, "status");
+
+  if (round !== null && status) {
+    return `Round ${round}, ${formatEnumValue(status)}`;
+  }
+
+  return round === null ? null : `Round ${round}`;
 }
 
 function getDocumentName(metadata: Record<string, unknown>) {

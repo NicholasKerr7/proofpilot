@@ -10,8 +10,10 @@ import {
   FileArchive,
   ListChecks,
   PenLine,
+  RadioTower,
   UploadCloud,
   UsersRound,
+  Waypoints,
   type LucideIcon
 } from "lucide-react";
 import { ActivityPanel } from "@/components/app/activity/activity-panel";
@@ -30,8 +32,10 @@ import { ChecklistPanel } from "@/components/app/checklist-panel";
 import { EvidencePanel } from "@/components/app/evidence/evidence-panel";
 import type { EvidenceCaptureState } from "@/components/app/evidence/evidence-panel";
 import { PacketExportPanel } from "@/components/app/packet-export-panel";
+import { ProofMapPanel } from "@/components/app/proof-map/proof-map-panel";
 import { ReminderPanel } from "@/components/app/reminder-panel";
 import { StatementBuilder } from "@/components/app/statement-builder";
+import { SubmissionTrackerPanel } from "@/components/app/submissions/submission-tracker-panel";
 import { TimelinePanel } from "@/components/app/timeline-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -271,6 +275,15 @@ export function CaseWorkspace({
             readOnly={!canEdit}
           />
         ) : null}
+        {activeDestinationId === "proof-map" ? (
+          <ProofMapPanel
+            key={`proof-map-${selectedCase.id}`}
+            onCaseChanged={onCaseChanged}
+            onOpenDestination={onSectionChange}
+            readOnly={!canEdit}
+            selectedCase={selectedCase}
+          />
+        ) : null}
         {activeDestinationId === "case-reminders" ? (
           <ReminderPanel
             confirmBeforeDelete={confirmBeforeDelete}
@@ -296,6 +309,14 @@ export function CaseWorkspace({
             selectedCase={selectedCase}
           />
         ) : null}
+        {activeDestinationId === "submission-tracker" ? (
+          <SubmissionTrackerPanel
+            key={`submission-tracker-${selectedCase.id}`}
+            onCaseChanged={onCaseChanged}
+            readOnly={!canEdit}
+            selectedCase={selectedCase}
+          />
+        ) : null}
         {activeDestinationId === "case-activity" ? (
           <ActivityPanel key={`activity-${selectedCase.id}`} selectedCase={selectedCase} />
         ) : null}
@@ -306,11 +327,13 @@ export function CaseWorkspace({
 
 const workspaceNavItems = [
   { label: "Overview", destinationId: "case-overview", icon: FileArchive },
+  { label: "Proof Map", destinationId: "proof-map", icon: Waypoints },
   { label: "Evidence", destinationId: "evidence-intake", icon: UploadCloud },
   { label: "Timeline", destinationId: "case-timeline", icon: Clock3 },
   { label: "Checklist", destinationId: "evidence-checklist", icon: ListChecks },
   { label: "Statement", destinationId: "statement-builder", icon: PenLine },
   { label: "Packet", destinationId: "packet-export", icon: FileArchive },
+  { label: "Submission", destinationId: "submission-tracker", icon: RadioTower },
   { label: "Reminders", destinationId: "case-reminders", icon: CalendarDays },
   { label: "Activity", destinationId: "case-activity", icon: Activity }
 ] satisfies Array<{
@@ -327,11 +350,13 @@ interface NextActionsPanelProps {
 
 const actionIcons: Record<CaseDestinationId, LucideIcon> = {
   "case-overview": FileArchive,
+  "proof-map": Waypoints,
   "evidence-intake": UploadCloud,
   "case-timeline": Clock3,
   "evidence-checklist": ListChecks,
   "statement-builder": PenLine,
   "packet-export": FileArchive,
+  "submission-tracker": RadioTower,
   "case-reminders": CalendarDays,
   "case-activity": Activity
 };

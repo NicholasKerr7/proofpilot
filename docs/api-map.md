@@ -19,6 +19,7 @@ Authenticated cross-user lookups return `404` rather than confirming that anothe
 - `POST /auth/register`
 - `POST /auth/login`
 - `POST /auth/portfolio-demo` (server-to-server portfolio provisioning only)
+- `POST /auth/portfolio-demo/reset` (server-to-server portfolio reset only)
 - `POST /auth/request-password-reset`
 - `POST /auth/reset-password`
 - `GET /auth/me`
@@ -26,7 +27,7 @@ Authenticated cross-user lookups return `404` rather than confirming that anothe
 - `POST /auth/change-password`
 - `POST /auth/logout`
 
-In `portfolio` mode, registration, password login, and password recovery return `404`. The web server calls the portfolio provisioning endpoint with a shared server-only key and a random browser visitor token. The API stores only the visitor-token hash, reuses an active isolated workspace for that browser, and limits the session to the workspace expiry.
+In `portfolio` mode, registration, password login, and password recovery return `404`. The web server calls the portfolio provisioning endpoint with a shared server-only key and a random browser visitor token. The API stores only the visitor-token hash, reuses an active isolated workspace for that browser, and limits the session to the workspace expiry. Reset expires and detaches only that visitor's isolated workspace, provisions a fresh copy from the seed template, and leaves storage-object deletion to the cleanup worker.
 
 ## Case Types
 
@@ -38,6 +39,10 @@ In `portfolio` mode, registration, password login, and password recovery return 
 - `GET /cases`
 - `GET /cases/:id`
 - `GET /cases/:id/activity`
+- `GET /cases/:id/proof-map`
+- `GET /cases/:id/submissions`
+- `POST /cases/:id/submissions`
+- `POST /cases/:id/submissions/:submissionId/updates`
 - `PATCH /cases/:id`
 - `DELETE /cases/:id`
 - `POST /cases/:caseId/documents`
@@ -63,6 +68,10 @@ In `portfolio` mode, registration, password login, and password recovery return 
 - `POST /cases/:caseId/packet/generate`
 
 Statement routes resolve the active case through authenticated case access. Editors and Owners can mutate statement data; Viewers can read it. Guided answers are stored separately from statement versions, draft generation uses only saved case context, and restoration creates a new current version instead of overwriting history. Summary generation versions the result in `CaseSummary` and updates the case's current summary for packet export.
+
+The Proof Map is a read-only projection over the owned checklist, evidence matches, extracted passages, sourced timeline events, and current statement. It reports support strength and missing links without creating new claims or inferring contradictions.
+
+Submission reads require case read access; creating rounds and recording updates require Editor or Owner access. Rounds are numbered transactionally per case, updates remain append-only, terminal decisions set the submission resolution time, and case status changes follow recorded outcomes. A future response deadline also creates a case reminder.
 
 ## Case Collaboration
 

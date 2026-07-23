@@ -120,6 +120,25 @@ export class AuthService {
     return this.createAuthResponse(user, context);
   }
 
+  async resetPortfolioDemo(
+    visitorToken: string,
+    accessKey: string | undefined,
+    context: AuthClientContext = {}
+  ): Promise<AuthResponse> {
+    this.assertPortfolioDemoAccess(accessKey);
+    const user = await this.portfolioDemoWorkspaces.resetWorkspace(visitorToken);
+
+    await this.prisma.auditLog.create({
+      data: {
+        action: "auth.portfolio_demo_reset",
+        metadata: createSessionContext(context),
+        userId: user.id
+      }
+    });
+
+    return this.createAuthResponse(user, context);
+  }
+
   async findCurrentUser(userId: string): Promise<AuthUser> {
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },

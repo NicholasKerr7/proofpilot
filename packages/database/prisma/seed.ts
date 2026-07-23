@@ -1,5 +1,7 @@
 import { config } from "dotenv";
 import {
+  AppealSubmissionChannel,
+  AppealSubmissionStatus,
   AssistantMessageRole,
   AssistantResponseMode,
   BillingCycle,
@@ -11,17 +13,21 @@ import {
   ChecklistStatus,
   ConnectionMode,
   ConnectionProvider,
+  DocumentSource,
+  DocumentStatus,
   InvoiceStatus,
   SubscriptionStatus,
   SupportMessageAuthor,
   SupportRequestCategory,
   SupportRequestPriority,
   SupportRequestStatus,
+  SubmissionUpdateType,
   TaskPriority,
   TaskStatus,
   closePrismaClient,
   getPrismaClient
 } from "../src/index.js";
+import { createHash } from "node:crypto";
 
 config({ path: new URL("../../../.env", import.meta.url) });
 
@@ -70,6 +76,50 @@ const demoCaseId = "demo-nicholas-paypal-appeal";
 const demoStatementId = "demo-nicholas-paypal-statement";
 const demoCaseSummary =
   "PayPal limited the account after a payment review. The saved timeline covers the restriction notice, support contact, and appeal preparation. Current evidence includes the limitation notice and account records, with ownership proof still being gathered. Nicholas is requesting restored access or a specific explanation of any remaining requirements.";
+const demoEvidence = [
+  {
+    id: "demo-nicholas-document-limitation",
+    checklistItemId: "demo-nicholas-checklist-1",
+    confidence: 0.94,
+    content:
+      "From: PayPal Support <service@paypal.com>\nDate: May 4, 2026\nSubject: Permanent limitation notice\n\nHello Nicholas, PayPal has placed a permanent limitation on your account after a recent payment review. You can no longer use the account to send or receive payments.",
+    entity: { type: "DATE", value: "2026-05-04" },
+    eventId: "demo-nicholas-event-restriction",
+    mimeType: "message/rfc822",
+    originalName: "limitation-notice.eml",
+    rationale: "The email directly records the permanent account limitation and review date.",
+    source: DocumentSource.GMAIL_IMPORT,
+    sourceReference: "gmail-limitation-notice"
+  },
+  {
+    id: "demo-nicholas-document-support",
+    checklistItemId: "demo-nicholas-checklist-2",
+    confidence: 0.88,
+    content:
+      "From: PayPal Support <support@paypal.com>\nDate: May 6, 2026\nSubject: Support follow-up\n\nThanks for contacting PayPal. Case PP-2026-0147 is being evaluated by the account review team. We will contact you if additional information is required.",
+    entity: { type: "REFERENCE", value: "PP-2026-0147" },
+    eventId: "demo-nicholas-event-support",
+    mimeType: "message/rfc822",
+    originalName: "support-follow-up.eml",
+    rationale: "The support response confirms the ticket reference and review status.",
+    source: DocumentSource.GMAIL_IMPORT,
+    sourceReference: "gmail-support-follow-up"
+  },
+  {
+    id: "demo-nicholas-document-transactions",
+    checklistItemId: "demo-nicholas-checklist-4",
+    confidence: 0.86,
+    content:
+      "date,description,amount,status\n2026-05-01,Customer payment,248.00,Completed\n2026-05-03,Supplier payment,75.50,Completed\n2026-05-04,Account limitation,0.00,Restricted",
+    entity: { type: "AMOUNT", value: "248.00" },
+    eventId: null,
+    mimeType: "text/csv",
+    originalName: "transaction-history.csv",
+    rationale: "The activity export provides dated context for ordinary completed payments.",
+    source: DocumentSource.GOOGLE_DRIVE_IMPORT,
+    sourceReference: "drive-transaction-history"
+  }
+] as const;
 
 async function main() {
   const caseType = await prisma.caseType.upsert({
@@ -423,6 +473,107 @@ async function main() {
     });
   }
 
+  for (const evidence of demoEvidence) {
+    const storageKey = `demo-samples/evidence/${evidence.originalName}`;
+    const sha256 = createHash("sha256")
+      .update(evidence.content)
+      .digest("hex");
+
+    await prisma.document.upsert({
+      where: { id: evidence.id },
+      update: {
+        byteSize: Buffer.byteLength(evidence.content),
+        caseId: demoCase.id,
+        extractedText: evidence.content,
+        mimeType: evidence.mimeType,
+        originalName: evidence.originalName,
+        sha256,
+        source: evidence.source,
+        sourceReference: evidence.sourceReference,
+        status: DocumentStatus.NEEDS_REVIEW,
+        storageKey
+      },
+      create: {
+        id: evidence.id,
+        byteSize: Buffer.byteLength(evidence.content),
+        caseId: demoCase.id,
+        extractedText: evidence.content,
+        mimeType: evidence.mimeType,
+        originalName: evidence.originalName,
+        sha256,
+        source: evidence.source,
+        sourceReference: evidence.sourceReference,
+        status: DocumentStatus.NEEDS_REVIEW,
+        storageKey
+      }
+    });
+    await prisma.documentEntity.upsert({
+      where: { id: `${evidence.id}-entity` },
+      update: {
+        confidence: evidence.confidence,
+        documentId: evidence.id,
+        type: evidence.entity.type,
+        value: evidence.entity.value
+      },
+      create: {
+        id: `${evidence.id}-entity`,
+        confidence: evidence.confidence,
+        documentId: evidence.id,
+        type: evidence.entity.type,
+        value: evidence.entity.value
+      }
+    });
+    await prisma.documentProcessingLog.upsert({
+      where: { id: `${evidence.id}-processing` },
+      update: {
+        documentId: evidence.id,
+        message: "Sample extraction is ready for review.",
+        status: "COMPLETED",
+        step: "TEXT_EXTRACTION"
+      },
+      create: {
+        id: `${evidence.id}-processing`,
+        documentId: evidence.id,
+        message: "Sample extraction is ready for review.",
+        status: "COMPLETED",
+        step: "TEXT_EXTRACTION"
+      }
+    });
+    await prisma.caseRequirementMatch.upsert({
+      where: { id: `${evidence.id}-match` },
+      update: {
+        checklistItemId: evidence.checklistItemId,
+        confidence: evidence.confidence,
+        documentId: evidence.id,
+        rationale: evidence.rationale,
+        requirementId: `account-ban-${evidence.checklistItemId.split("-").at(-1)}`
+      },
+      create: {
+        id: `${evidence.id}-match`,
+        checklistItemId: evidence.checklistItemId,
+        confidence: evidence.confidence,
+        documentId: evidence.id,
+        rationale: evidence.rationale,
+        requirementId: `account-ban-${evidence.checklistItemId.split("-").at(-1)}`
+      }
+    });
+
+    if (evidence.eventId) {
+      await prisma.eventSource.upsert({
+        where: { id: `${evidence.id}-event-source` },
+        update: {
+          documentId: evidence.id,
+          eventId: evidence.eventId
+        },
+        create: {
+          id: `${evidence.id}-event-source`,
+          documentId: evidence.id,
+          eventId: evidence.eventId
+        }
+      });
+    }
+  }
+
   const statementContent =
     "I am requesting a review of my PayPal account limitation. The account was used for legitimate payments and routine business activity. I am collecting the limitation notice, support correspondence, ownership proof, and transaction context so PayPal can verify the account activity and restore access or explain the remaining requirements.";
 
@@ -494,6 +645,95 @@ async function main() {
       content: demoCaseSummary
     }
   });
+
+  const submissionCreatedAt = addDays(new Date(), -26);
+  const submissionResolvedAt = addDays(new Date(), -16);
+  const demoSubmission = await prisma.caseSubmission.upsert({
+    where: { id: "demo-nicholas-submission-round-1" },
+    update: {
+      caseId: demoCase.id,
+      channel: AppealSubmissionChannel.WEB_PORTAL,
+      confirmationCode: "PP-2026-0147",
+      destination: "PayPal Resolution Center",
+      notes:
+        "The initial appeal was submitted with the limitation notice and support correspondence.",
+      resolvedAt: submissionResolvedAt,
+      responseDueAt: addDays(new Date(), -12),
+      round: 1,
+      status: AppealSubmissionStatus.DENIED,
+      submittedAt: submissionCreatedAt
+    },
+    create: {
+      id: "demo-nicholas-submission-round-1",
+      caseId: demoCase.id,
+      channel: AppealSubmissionChannel.WEB_PORTAL,
+      confirmationCode: "PP-2026-0147",
+      destination: "PayPal Resolution Center",
+      notes:
+        "The initial appeal was submitted with the limitation notice and support correspondence.",
+      resolvedAt: submissionResolvedAt,
+      responseDueAt: addDays(new Date(), -12),
+      round: 1,
+      status: AppealSubmissionStatus.DENIED,
+      submittedAt: submissionCreatedAt
+    }
+  });
+  const demoSubmissionUpdates = [
+    {
+      id: "demo-nicholas-submission-update-submitted",
+      details:
+        "Submitted the initial appeal through the permanent limitation review form.",
+      occurredAt: submissionCreatedAt,
+      status: AppealSubmissionStatus.SUBMITTED,
+      title: "Initial appeal submitted",
+      type: SubmissionUpdateType.STATUS_CHANGE
+    },
+    {
+      id: "demo-nicholas-submission-update-acknowledged",
+      details:
+        "PayPal confirmed receipt and assigned reference PP-2026-0147.",
+      occurredAt: addDays(new Date(), -25),
+      status: AppealSubmissionStatus.ACKNOWLEDGED,
+      title: "Appeal receipt confirmed",
+      type: SubmissionUpdateType.ACKNOWLEDGEMENT
+    },
+    {
+      id: "demo-nicholas-submission-update-review",
+      details:
+        "The account review team began evaluating the submitted records.",
+      occurredAt: addDays(new Date(), -22),
+      status: AppealSubmissionStatus.UNDER_REVIEW,
+      title: "Appeal moved to account review",
+      type: SubmissionUpdateType.STATUS_CHANGE
+    },
+    {
+      id: "demo-nicholas-submission-update-denied",
+      details:
+        "The initial appeal was denied without identifying the specific activity that caused the permanent limitation. Round two is being prepared with clearer transaction context and ownership proof.",
+      occurredAt: submissionResolvedAt,
+      status: AppealSubmissionStatus.DENIED,
+      title: "Initial appeal denied",
+      type: SubmissionUpdateType.DECISION
+    }
+  ];
+
+  for (const update of demoSubmissionUpdates) {
+    await prisma.submissionUpdate.upsert({
+      where: { id: update.id },
+      update: {
+        details: update.details,
+        occurredAt: update.occurredAt,
+        status: update.status,
+        submissionId: demoSubmission.id,
+        title: update.title,
+        type: update.type
+      },
+      create: {
+        ...update,
+        submissionId: demoSubmission.id
+      }
+    });
+  }
 
   const assistantNow = new Date();
   const assistantThread = await prisma.assistantThread.upsert({

@@ -366,6 +366,19 @@ export function ProofPilotApp({ portfolioMode = false }: ProofPilotAppProps) {
     scrollToPageTop();
   }
 
+  async function handleResetDemo() {
+    setMessage(null);
+
+    try {
+      await apiRequest("/api/auth/demo/reset", { method: "POST" });
+      window.location.assign("/app");
+    } catch (error) {
+      const resetMessage =
+        error instanceof Error ? error.message : "The demo could not be reset.";
+      setMessage(resetMessage);
+    }
+  }
+
   if (isBooting) {
     return (
       <main className="grid min-h-screen place-items-center px-4">
@@ -471,6 +484,7 @@ export function ProofPilotApp({ portfolioMode = false }: ProofPilotAppProps) {
       onLogout={logout}
       onNavigate={handleNavigate}
       onNavigateCaseDestination={handleNavigateCaseDestination}
+      onResetDemo={handleResetDemo}
       unreadInboxCount={unreadInboxCount}
       unreadNotificationCount={unreadNotificationCount}
       user={user}

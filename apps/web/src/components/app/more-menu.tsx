@@ -16,12 +16,14 @@ import {
   PenLine,
   PlugZap,
   Plus,
+  RadioTower,
   ShieldCheck,
   Search,
   Settings2,
   Sparkles,
   UploadCloud,
   UserRound,
+  Waypoints,
   type LucideIcon
 } from "lucide-react";
 import type { AccountSection } from "@/components/app/account/account-panel";
@@ -40,11 +42,13 @@ const caseCommands: Array<{
   icon: LucideIcon;
   label: string;
 }> = [
+  { destinationId: "proof-map", icon: Waypoints, label: "Proof Map" },
   { destinationId: "evidence-intake", icon: UploadCloud, label: "Evidence" },
   { destinationId: "case-timeline", icon: Clock3, label: "Timeline" },
   { destinationId: "evidence-checklist", icon: ListChecks, label: "Checklist" },
   { destinationId: "statement-builder", icon: PenLine, label: "Statement" },
   { destinationId: "packet-export", icon: FileArchive, label: "Packet" },
+  { destinationId: "submission-tracker", icon: RadioTower, label: "Submission" },
   { destinationId: "case-reminders", icon: CalendarClock, label: "Reminders" },
   { destinationId: "case-activity", icon: Activity, label: "Activity" }
 ];

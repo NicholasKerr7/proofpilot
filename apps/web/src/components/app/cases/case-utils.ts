@@ -7,11 +7,13 @@ import type { CaseRecord } from "@/lib/client/types";
 
 export type CaseDestinationId =
   | "case-overview"
+  | "proof-map"
   | "evidence-intake"
   | "case-timeline"
   | "evidence-checklist"
   | "statement-builder"
   | "packet-export"
+  | "submission-tracker"
   | "case-reminders"
   | "case-activity";
 
@@ -178,9 +180,17 @@ export function getCaseNextActions(caseRecord: CaseRecord): CaseNextAction[] {
   const eventCount = caseRecord.events?.length ?? caseRecord._count?.events ?? 0;
   const missingChecklistItems = getMissingChecklistCount(caseRecord);
   const hasStatement = Boolean(caseRecord._count?.statements);
+  const submissionCount = caseRecord._count?.submissions ?? 0;
   const failedDocuments = caseRecord.documentStats?.failed ?? 0;
 
   const actions: CaseNextAction[] = [
+    {
+      destinationId: "proof-map",
+      detail: "Inspect which appeal claims are supported, weak, or still missing source evidence.",
+      label: "Review Proof Map",
+      status: missingChecklistItems ? `${missingChecklistItems} gaps` : "Covered",
+      variant: missingChecklistItems ? "warning" : "success"
+    },
     {
       destinationId: "evidence-intake",
       detail: "Upload notices, support threads, statements, and account ownership proof.",
@@ -218,6 +228,26 @@ export function getCaseNextActions(caseRecord: CaseRecord): CaseNextAction[] {
       wide: true
     }
   ];
+
+  if (
+    submissionCount > 0 ||
+    ["PACKET_GENERATED", "SUBMITTED", "RESOLVED"].includes(caseRecord.status)
+  ) {
+    actions.push({
+      destinationId: "submission-tracker",
+      detail: "Track delivery, platform responses, follow-ups, decisions, and later appeal rounds.",
+      label: "Track submission",
+      status: submissionCount
+        ? `${submissionCount} ${submissionCount === 1 ? "round" : "rounds"}`
+        : "Not recorded",
+      variant:
+        caseRecord.status === "RESOLVED"
+          ? "success"
+          : submissionCount
+            ? "secondary"
+            : "warning"
+    });
+  }
 
   if (failedDocuments) {
     actions.unshift({

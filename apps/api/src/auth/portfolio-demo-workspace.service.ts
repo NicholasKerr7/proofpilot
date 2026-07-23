@@ -17,7 +17,19 @@ const portfolioDemoTemplateInclude = {
     include: {
       checklist: { orderBy: { createdAt: "asc" } },
       collaborators: { orderBy: { createdAt: "asc" } },
-      events: { orderBy: [{ sortOrder: "asc" }, { occurredAt: "asc" }] },
+      documents: {
+        include: {
+          entities: { orderBy: { createdAt: "asc" } },
+          eventSources: { orderBy: { createdAt: "asc" } },
+          processingLogs: { orderBy: { createdAt: "asc" } },
+          requirementMatches: { orderBy: { createdAt: "asc" } }
+        },
+        orderBy: { createdAt: "asc" },
+        where: { storageKey: { startsWith: "demo-samples/" } }
+      },
+      events: {
+        orderBy: [{ sortOrder: "asc" }, { occurredAt: "asc" }]
+      },
       reminders: { orderBy: { createdAt: "asc" } },
       sharingSettings: true,
       statementGuidance: true,
@@ -26,6 +38,10 @@ const portfolioDemoTemplateInclude = {
         orderBy: { createdAt: "asc" }
       },
       summaries: { orderBy: { createdAt: "asc" } },
+      submissions: {
+        include: { updates: { orderBy: { occurredAt: "asc" } } },
+        orderBy: { round: "asc" }
+      },
       tasks: { orderBy: { createdAt: "asc" } }
     },
     orderBy: { createdAt: "asc" },
@@ -94,6 +110,24 @@ export class PortfolioDemoWorkspaceService {
     }
 
     throw new ServiceUnavailableException("The portfolio demo could not be started.");
+  }
+
+  async resetWorkspace(visitorToken: string): Promise<AuthUserRecord> {
+    const visitorHash = createHash("sha256").update(visitorToken).digest("hex");
+    const now = new Date();
+
+    await this.prisma.user.updateMany({
+      where: {
+        isPortfolioDemo: true,
+        portfolioDemoVisitorHash: visitorHash
+      },
+      data: {
+        portfolioDemoExpiresAt: now,
+        portfolioDemoVisitorHash: null
+      }
+    });
+
+    return this.resolveWorkspace(visitorToken);
   }
 
   private async findActiveWorkspace(visitorHash: string, now: Date) {
@@ -317,9 +351,11 @@ export class PortfolioDemoWorkspaceService {
         });
       }
 
-      if (sourceCase.checklist.length) {
-        await transaction.caseChecklistItem.createMany({
-          data: sourceCase.checklist.map((item) => ({
+      const checklistItemIds = new Map<string, string>();
+
+      for (const item of sourceCase.checklist) {
+        const createdItem = await transaction.caseChecklistItem.create({
+          data: {
             caseId: createdCase.id,
             createdAt: item.createdAt,
             description: item.description,
@@ -327,13 +363,17 @@ export class PortfolioDemoWorkspaceService {
             manuallyCompletedAt: item.manuallyCompletedAt,
             requirementId: item.requirementId,
             status: item.status
-          }))
+          },
+          select: { id: true }
         });
+        checklistItemIds.set(item.id, createdItem.id);
       }
 
-      if (sourceCase.events.length) {
-        await transaction.caseEvent.createMany({
-          data: sourceCase.events.map((event) => ({
+      const eventIds = new Map<string, string>();
+
+      for (const event of sourceCase.events) {
+        const createdEvent = await transaction.caseEvent.create({
+          data: {
             caseId: createdCase.id,
             confidence: event.confidence,
             createdAt: event.createdAt,
@@ -341,8 +381,109 @@ export class PortfolioDemoWorkspaceService {
             occurredAt: event.occurredAt,
             sortOrder: event.sortOrder,
             title: event.title
-          }))
+          },
+          select: { id: true }
         });
+        eventIds.set(event.id, createdEvent.id);
+      }
+
+      const documentIds = new Map<string, string>();
+
+      for (const document of sourceCase.documents) {
+        const createdDocument = await transaction.document.create({
+          data: {
+            byteSize: document.byteSize,
+            caseId: createdCase.id,
+            createdAt: document.createdAt,
+            extractedText: document.extractedText,
+            mimeType: document.mimeType,
+            originalName: document.originalName,
+            sha256: document.sha256,
+            source: document.source,
+            sourceReference: document.sourceReference,
+            status: document.status,
+            storageKey: document.storageKey
+          },
+          select: { id: true }
+        });
+        documentIds.set(document.id, createdDocument.id);
+
+        if (document.entities.length) {
+          await transaction.documentEntity.createMany({
+            data: document.entities.map((entity) => ({
+              confidence: entity.confidence,
+              createdAt: entity.createdAt,
+              documentId: createdDocument.id,
+              type: entity.type,
+              value: entity.value
+            }))
+          });
+        }
+
+        if (document.processingLogs.length) {
+          await transaction.documentProcessingLog.createMany({
+            data: document.processingLogs.map((log) => ({
+              createdAt: log.createdAt,
+              documentId: createdDocument.id,
+              message: log.message,
+              status: log.status,
+              step: log.step
+            }))
+          });
+        }
+      }
+
+      for (const document of sourceCase.documents) {
+        const documentId = documentIds.get(document.id);
+
+        if (!documentId) {
+          continue;
+        }
+
+        const requirementMatches = document.requirementMatches.flatMap((match) => {
+          const checklistItemId = match.checklistItemId
+            ? checklistItemIds.get(match.checklistItemId)
+            : undefined;
+
+          if (match.checklistItemId && !checklistItemId) {
+            return [];
+          }
+
+          return [
+            {
+              ...(checklistItemId ? { checklistItemId } : {}),
+              confidence: match.confidence,
+              createdAt: match.createdAt,
+              documentId,
+              rationale: match.rationale,
+              requirementId: match.requirementId
+            }
+          ];
+        });
+
+        if (requirementMatches.length) {
+          await transaction.caseRequirementMatch.createMany({
+            data: requirementMatches
+          });
+        }
+
+        const eventSources = document.eventSources.flatMap((source) => {
+          const eventId = eventIds.get(source.eventId);
+
+          return eventId
+            ? [
+                {
+                  createdAt: source.createdAt,
+                  documentId,
+                  eventId
+                }
+              ]
+            : [];
+        });
+
+        if (eventSources.length) {
+          await transaction.eventSource.createMany({ data: eventSources });
+        }
       }
 
       for (const statement of sourceCase.statements) {
@@ -385,6 +526,34 @@ export class PortfolioDemoWorkspaceService {
             content: summary.content,
             createdAt: summary.createdAt
           }))
+        });
+      }
+
+      for (const submission of sourceCase.submissions) {
+        await transaction.caseSubmission.create({
+          data: {
+            caseId: createdCase.id,
+            channel: submission.channel,
+            confirmationCode: submission.confirmationCode,
+            createdAt: submission.createdAt,
+            destination: submission.destination,
+            notes: submission.notes,
+            resolvedAt: submission.resolvedAt,
+            responseDueAt: submission.responseDueAt,
+            round: submission.round,
+            status: submission.status,
+            submittedAt: submission.submittedAt,
+            updates: {
+              create: submission.updates.map((update) => ({
+                createdAt: update.createdAt,
+                details: update.details,
+                occurredAt: update.occurredAt,
+                status: update.status,
+                title: update.title,
+                type: update.type
+              }))
+            }
+          }
         });
       }
 

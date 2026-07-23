@@ -70,6 +70,22 @@ export class AuthController {
     );
   }
 
+  @Post("portfolio-demo/reset")
+  @HttpCode(HttpStatus.OK)
+  resetPortfolioDemo(
+    @Body() input: CreatePortfolioDemoDto,
+    @Headers("x-proofpilot-demo-key") accessKey: string | undefined,
+    @Headers("x-proofpilot-client-user-agent") clientUserAgent?: string,
+    @Headers("user-agent") userAgent?: string,
+    @Ip() ipAddress?: string
+  ) {
+    return this.authService.resetPortfolioDemo(
+      input.visitorToken,
+      accessKey,
+      createAuthClientContext(ipAddress, clientUserAgent ?? userAgent)
+    );
+  }
+
   @Post("request-password-reset")
   @HttpCode(HttpStatus.ACCEPTED)
   requestPasswordReset(@Body() input: RequestPasswordResetDto) {

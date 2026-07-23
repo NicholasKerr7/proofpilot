@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Clock3 } from "lucide-react";
+import { Clock3, RotateCcw, X } from "lucide-react";
 import {
   DesktopShellHeader,
   MobileShellHeader
@@ -12,6 +12,7 @@ import {
 } from "@/components/app/app-shell-navigation";
 import type { AppView } from "@/components/app/app-shell-types";
 import type { CaseDestinationId } from "@/components/app/cases/case-utils";
+import { Button } from "@/components/ui/button";
 import type { AuthUser } from "@/lib/client/types";
 
 export type { AppView } from "@/components/app/app-shell-types";
@@ -24,6 +25,7 @@ interface AppShellProps {
   onLogout: () => Promise<void>;
   onNavigate: (view: AppView) => void;
   onNavigateCaseDestination: (destinationId: CaseDestinationId) => void;
+  onResetDemo: () => Promise<void>;
   unreadInboxCount: number;
   unreadNotificationCount: number;
   user: AuthUser;
@@ -38,6 +40,7 @@ export function AppShell({
   onLogout,
   onNavigate,
   onNavigateCaseDestination,
+  onResetDemo,
   unreadInboxCount,
   unreadNotificationCount,
   user
@@ -130,7 +133,9 @@ export function AppShell({
         tabIndex={-1}
         className="relative mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-4 focus:outline-none sm:px-6 md:gap-6 md:px-8 md:py-6 lg:ml-64 lg:w-auto lg:max-w-none lg:px-6 lg:pb-8 lg:pt-24 xl:px-8"
       >
-        {user.isPortfolioDemo ? <PortfolioDemoBanner user={user} /> : null}
+        {user.isPortfolioDemo ? (
+          <PortfolioDemoBanner onResetDemo={onResetDemo} user={user} />
+        ) : null}
         {children}
       </main>
 
@@ -144,10 +149,30 @@ export function AppShell({
 }
 
 /** Explains the isolated, expiring behavior of the portfolio workspace. */
-function PortfolioDemoBanner({ user }: { user: AuthUser }) {
+function PortfolioDemoBanner({
+  onResetDemo,
+  user
+}: {
+  onResetDemo: () => Promise<void>;
+  user: AuthUser;
+}) {
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+
+  async function handleReset() {
+    setIsResetting(true);
+
+    try {
+      await onResetDemo();
+    } finally {
+      setIsResetting(false);
+      setIsConfirming(false);
+    }
+  }
+
   return (
     <div
-      className="proof-demo-banner grid gap-2 rounded-md border border-primary/30 bg-primary/10 px-4 py-3 text-sm sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center"
+      className="proof-demo-banner grid gap-3 rounded-md border border-primary/30 bg-primary/10 px-4 py-3 text-sm sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center"
       role="status"
     >
       <Clock3 className="h-5 w-5 text-primary" aria-hidden="true" />
@@ -159,6 +184,42 @@ function PortfolioDemoBanner({ user }: { user: AuthUser }) {
           : " after this session"}
         . Outbound sharing and device uploads are disabled.
       </p>
+      {isConfirming ? (
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            aria-label="Cancel demo reset"
+            disabled={isResetting}
+            onClick={() => setIsConfirming(false)}
+            size="icon"
+            title="Cancel demo reset"
+            type="button"
+            variant="ghost"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </Button>
+          <Button
+            disabled={isResetting}
+            onClick={() => {
+              void handleReset();
+            }}
+            size="sm"
+            type="button"
+          >
+            <RotateCcw className="h-4 w-4" aria-hidden="true" />
+            {isResetting ? "Resetting..." : "Confirm reset"}
+          </Button>
+        </div>
+      ) : (
+        <Button
+          onClick={() => setIsConfirming(true)}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          <RotateCcw className="h-4 w-4" aria-hidden="true" />
+          Reset demo
+        </Button>
+      )}
     </div>
   );
 }

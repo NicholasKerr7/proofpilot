@@ -20,6 +20,10 @@ function createPrismaMock() {
                     { storageKey: "users/demo/cases/case-1/evidence.pdf" },
                     { storageKey: "users/demo/cases/case-1/evidence-v2.pdf" }
                   ]
+                },
+                {
+                  storageKey: "demo-samples/evidence/limitation-notice.eml",
+                  versions: []
                 }
               ],
               packets: [

@@ -107,7 +107,8 @@ export class CaseRecordsService {
               documents: true,
               events: true,
               checklist: true,
-              statements: true
+              statements: true,
+              submissions: true
             }
           }
         }
@@ -131,7 +132,8 @@ export class CaseRecordsService {
             documents: true,
             events: true,
             checklist: true,
-            statements: true
+            statements: true,
+            submissions: true
           }
         }
       }
@@ -171,7 +173,8 @@ export class CaseRecordsService {
             events: true,
             checklist: true,
             statements: true,
-            packets: true
+            packets: true,
+            submissions: true
           }
         }
       }

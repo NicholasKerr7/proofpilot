@@ -27,6 +27,11 @@ export function isUploadStagingKey(storageKey: string) {
   return storageKey.includes("/upload-staging/");
 }
 
+/** Identifies immutable evidence metadata bundled with the portfolio template. */
+export function isDemoSampleStorageKey(storageKey: string) {
+  return storageKey.startsWith("demo-samples/");
+}
+
 /** Retains only a short, conventional file extension in generated object keys. */
 function safeExtension(originalName: string) {
   const extension = extname(originalName).toLowerCase();

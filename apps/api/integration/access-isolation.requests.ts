@@ -14,7 +14,9 @@ export const guardedPaths = [
   `/cases/${isolationIds.case}/collaboration`,
   "/connections",
   `/cases/${isolationIds.case}/documents`,
+  `/cases/${isolationIds.case}/proof-map`,
   `/cases/${isolationIds.case}/provider-imports/GMAIL`,
+  `/cases/${isolationIds.case}/submissions`,
   "/inbox/conversations",
   "/notifications",
   `/cases/${isolationIds.case}/packet-shares/prepare`,
@@ -31,7 +33,9 @@ export const crossUserReads = [
   `/cases/${isolationIds.case}/activity`,
   `/cases/${isolationIds.case}/timeline`,
   `/cases/${isolationIds.case}/checklist`,
+  `/cases/${isolationIds.case}/proof-map`,
   `/cases/${isolationIds.case}/statement`,
+  `/cases/${isolationIds.case}/submissions`,
   `/cases/${isolationIds.case}/packets`,
   `/assistant/cases/${isolationIds.case}`,
   `/cases/${isolationIds.case}/collaboration`,
@@ -124,6 +128,26 @@ export function getCrossUserMutations(): RequestSpec[] {
     },
     { method: "POST", path: `/cases/${isolationIds.case}/summary/generate` },
     { method: "POST", path: `/cases/${isolationIds.case}/packet/generate` },
+    {
+      body: {
+        channel: "EMAIL",
+        confirmationCode: "UNAUTHORIZED-ROUND",
+        destination: "Foreign platform appeals",
+        submittedAt: new Date().toISOString()
+      },
+      method: "POST",
+      path: `/cases/${isolationIds.case}/submissions`
+    },
+    {
+      body: {
+        occurredAt: new Date().toISOString(),
+        status: "UNDER_REVIEW",
+        title: "Unauthorized submission update",
+        type: "STATUS_CHANGE"
+      },
+      method: "POST",
+      path: `/cases/${isolationIds.case}/submissions/${isolationIds.submission}/updates`
+    },
     {
       body: { content: "Summarize this foreign case" },
       method: "POST",

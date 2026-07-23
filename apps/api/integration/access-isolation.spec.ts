@@ -255,6 +255,8 @@ describe.sequential("API access isolation", () => {
       ])
     );
     await send({ path: `/cases/${isolationIds.case}/documents` }, attackerToken, 200);
+    await send({ path: `/cases/${isolationIds.case}/proof-map` }, attackerToken, 200);
+    await send({ path: `/cases/${isolationIds.case}/submissions` }, attackerToken, 200);
     const document = await send<{ downloadUrl: string | null }>(
       { path: `/documents/${isolationIds.document}` },
       attackerToken,

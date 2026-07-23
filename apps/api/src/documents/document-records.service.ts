@@ -11,7 +11,10 @@ import {
 } from "../common/case-access.js";
 import type { PrismaService } from "../prisma/prisma.service.js";
 import type { DocumentAccessGuard } from "./document-access.guard.js";
-import { isUploadStagingKey } from "./document-storage-keys.js";
+import {
+  isDemoSampleStorageKey,
+  isUploadStagingKey
+} from "./document-storage-keys.js";
 
 /** Owns authorized document reads, download exposure, and deletion. */
 export class DocumentRecordsService {
@@ -142,6 +145,7 @@ export class DocumentRecordsService {
       !canDownload ||
       Boolean(document.quarantinedAt) ||
       Boolean(uploadExpiredAt) ||
+      isDemoSampleStorageKey(storageKey) ||
       isUploadStagingKey(storageKey) ||
       document.status === DocumentStatus.UPLOADED;
 
@@ -186,7 +190,11 @@ export class DocumentRecordsService {
       ...document.versions.map((version) => version.storageKey)
     ]);
 
-    await Promise.all([...storageKeys].map((key) => deleteStoredObject({ key })));
+    await Promise.all(
+      [...storageKeys]
+        .filter((key) => !isDemoSampleStorageKey(key))
+        .map((key) => deleteStoredObject({ key }))
+    );
     await this.prisma.document.delete({ where: { id: document.id } });
 
     await this.prisma.auditLog.create({

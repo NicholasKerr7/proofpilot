@@ -17,6 +17,8 @@ export const isolationIds = {
   share: `${isolationRunId}-share`,
   statement: `${isolationRunId}-statement`,
   statementVersion: `${isolationRunId}-statement-version`,
+  submission: `${isolationRunId}-submission`,
+  submissionUpdate: `${isolationRunId}-submission-update`,
   summary: `${isolationRunId}-summary`,
   support: `${isolationRunId}-support`,
   task: `${isolationRunId}-task`,
@@ -60,6 +62,8 @@ export async function readProtectedState(client: PrismaService) {
     checklist,
     statement,
     statementVersion,
+    submission,
+    submissionUpdate,
     reminder,
     notification,
     collaborator,
@@ -71,6 +75,8 @@ export async function readProtectedState(client: PrismaService) {
     eventCount,
     checklistCount,
     versionCount,
+    submissionCount,
+    submissionUpdateCount,
     summaryCount,
     packetCount,
     threadCount,
@@ -95,6 +101,14 @@ export async function readProtectedState(client: PrismaService) {
     client.statementVersion.findUnique({
       where: { id: isolationIds.statementVersion },
       select: { content: true, version: true }
+    }),
+    client.caseSubmission.findUnique({
+      where: { id: isolationIds.submission },
+      select: { confirmationCode: true, round: true, status: true }
+    }),
+    client.submissionUpdate.findUnique({
+      where: { id: isolationIds.submissionUpdate },
+      select: { status: true, title: true, type: true }
     }),
     client.reminder.findUnique({
       where: { id: isolationIds.reminder },
@@ -133,6 +147,10 @@ export async function readProtectedState(client: PrismaService) {
     client.statementVersion.count({
       where: { statement: { caseId: isolationIds.case } }
     }),
+    client.caseSubmission.count({ where: { caseId: isolationIds.case } }),
+    client.submissionUpdate.count({
+      where: { submission: { caseId: isolationIds.case } }
+    }),
     client.caseSummary.count({ where: { caseId: isolationIds.case } }),
     client.casePacket.count({ where: { caseId: isolationIds.case } }),
     client.assistantThread.count({ where: { caseId: isolationIds.case } }),
@@ -155,6 +173,10 @@ export async function readProtectedState(client: PrismaService) {
     share,
     statement,
     statementVersion,
+    submission,
+    submissionCount,
+    submissionUpdate,
+    submissionUpdateCount,
     summaryCount,
     support,
     task,
@@ -219,6 +241,27 @@ async function createForeignResources(client: PrismaService, ownerId: string) {
         id: `${isolationRunId}-guidance`,
         caseId: isolationIds.case,
         platformAction: "Foreign platform action"
+      }
+    }),
+    client.caseSubmission.create({
+      data: {
+        id: isolationIds.submission,
+        caseId: isolationIds.case,
+        channel: "WEB_PORTAL",
+        confirmationCode: "FOREIGN-CONFIRMATION",
+        destination: "Foreign platform appeals",
+        round: 1,
+        status: "ACKNOWLEDGED",
+        submittedAt: new Date("2026-07-10T12:00:00.000Z"),
+        updates: {
+          create: {
+            id: isolationIds.submissionUpdate,
+            occurredAt: new Date("2026-07-11T12:00:00.000Z"),
+            status: "ACKNOWLEDGED",
+            title: "Foreign submission acknowledgement",
+            type: "ACKNOWLEDGEMENT"
+          }
+        }
       }
     }),
     client.caseSummary.create({
