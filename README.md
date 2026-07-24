@@ -387,4 +387,4 @@ The interface reports unavailable provider-backed functionality explicitly rathe
 
 ## License
 
-ProofPilot is available under the [MIT License](LICENSE).
+ProofPilot is provided for portfolio, review, and demonstration purposes. All rights are reserved. See [LICENSE](LICENSE) for the complete terms.
