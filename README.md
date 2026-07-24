@@ -10,8 +10,26 @@ ProofPilot organizes user-provided records and workflow information. It does not
 
 The public demo requires no shared credentials. Each visitor receives an isolated, temporary copy of the Nicholas Kerr sample workspace.
 
+## Product Preview
+
+<table>
+  <tr>
+    <th width="72%">Desktop command center</th>
+    <th width="28%">Mobile command center</th>
+  </tr>
+  <tr>
+    <td valign="top">
+      <img src="docs/assets/proofpilot-desktop.png" alt="ProofPilot desktop command center showing the PayPal account closure appeal workspace" width="100%">
+    </td>
+    <td valign="top">
+      <img src="docs/assets/proofpilot-mobile.png" alt="ProofPilot mobile command center showing the responsive case workspace" width="100%">
+    </td>
+  </tr>
+</table>
+
 ## Contents
 
+- [Product Preview](#product-preview)
 - [What ProofPilot Does](#what-proofpilot-does)
 - [Core Capabilities](#core-capabilities)
 - [Architecture](#architecture)
