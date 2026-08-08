@@ -24,7 +24,7 @@
     "@proofpilot/storage": "workspace:*",
     "@proofpilot/types": "workspace:*",
     "bcryptjs": "^3.0.3",
-    "bullmq": "^5.81.3",
+    "bullmq": "^6.0.8",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.4",
     "jszip": "^3.10.1",

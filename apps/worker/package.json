@@ -15,7 +15,7 @@
     "@proofpilot/database": "workspace:*",
     "@proofpilot/storage": "workspace:*",
     "@proofpilot/types": "workspace:*",
-    "bullmq": "^5.81.3",
+    "bullmq": "^6.0.8",
     "csv-parse": "^7.0.2",
     "mailparser": "^3.9.14",
     "mammoth": "^1.12.0",
