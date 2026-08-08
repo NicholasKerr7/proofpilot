@@ -59,7 +59,9 @@ export function CaseProgressRing({
 
       <span className={styles.readout}>
         {isComplete ? (
-          <Check className={styles.completeCheck} strokeWidth={3} aria-hidden="true" />
+          <span className={styles.completeMark} aria-hidden="true">
+            <Check className={styles.completeCheck} strokeWidth={3} />
+          </span>
         ) : null}
         <span className={styles.valueLine}>
           <span className={styles.value}>{safeValue}</span>
@@ -198,6 +200,7 @@ function ProgressOrbRings({ safeValue, svgId }: { safeValue: number; svgId: stri
 function CompleteOrbRings({ svgId }: { svgId: string }) {
   const gradientId = `complete-gradient-${svgId}`;
   const glowId = `complete-glow-${svgId}`;
+  const sheenId = `complete-sheen-${svgId}`;
 
   return (
     <svg
@@ -210,6 +213,11 @@ function CompleteOrbRings({ svgId }: { svgId: string }) {
           <stop offset="0%" stopColor="#6fe22e" />
           <stop offset="48%" stopColor="#84f33b" />
           <stop offset="100%" stopColor="#bcff63" />
+        </linearGradient>
+        <linearGradient id={sheenId} x1="64" y1="24" x2="206" y2="174">
+          <stop offset="0%" stopColor="#f3ffdc" stopOpacity="0.95" />
+          <stop offset="42%" stopColor="#d0ff8a" stopOpacity="0.56" />
+          <stop offset="100%" stopColor="#83ef3a" stopOpacity="0" />
         </linearGradient>
         <filter id={glowId} x="-70%" y="-70%" width="240%" height="240%">
           <feGaussianBlur stdDeviation="4.5" result="blur" />
@@ -255,6 +263,19 @@ function CompleteOrbRings({ svgId }: { svgId: string }) {
         strokeWidth="13"
         strokeLinecap="round"
         filter={`url(#${glowId})`}
+      />
+      <circle
+        cx="120"
+        cy="120"
+        r="87"
+        fill="none"
+        stroke={`url(#${sheenId})`}
+        strokeWidth="2.25"
+        strokeLinecap="round"
+        pathLength="100"
+        strokeDasharray="19 81"
+        strokeDashoffset="94"
+        opacity="0.82"
       />
       <circle
         cx="120"
@@ -308,6 +329,14 @@ function CompleteOrbRings({ svgId }: { svgId: string }) {
         stroke="#6cff26"
         strokeWidth="1"
         opacity="0.13"
+      />
+      <circle
+        cx="205.5"
+        cy="151"
+        r="2.4"
+        fill="#efffd5"
+        opacity="0.84"
+        filter={`url(#${glowId})`}
       />
     </svg>
   );
