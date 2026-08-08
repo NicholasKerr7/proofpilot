@@ -15,24 +15,24 @@
     "@proofpilot/database": "workspace:*",
     "@proofpilot/storage": "workspace:*",
     "@proofpilot/types": "workspace:*",
-    "bullmq": "^5.68.1",
-    "csv-parse": "^7.0.0",
-    "mailparser": "^3.9.12",
+    "bullmq": "^5.81.3",
+    "csv-parse": "^7.0.2",
+    "mailparser": "^3.9.14",
     "mammoth": "^1.12.0",
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^2.4.5",
     "pdfkit": "^0.19.1",
-    "resend": "^6.17.2",
+    "resend": "^6.18.1",
     "tesseract.js": "^7.0.0",
-    "xlsx": "^0.18.5",
-    "zod": "^4.2.1"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/mailparser": "^3.4.6",
     "@types/node": "^20.19.43",
     "@types/pdfkit": "^0.17.6",
-    "tsx": "^4.21.0",
+    "tsx": "^4.23.10",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   }
 }

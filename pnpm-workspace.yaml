@@ -2,6 +2,12 @@ packages:
   - "apps/*"
   - "packages/*"
 
+overrides:
+  js-yaml@4.3.0: 4.3.1
+  js-yaml@5.2.1: 5.2.3
+  postcss: 8.5.26
+  sharp: 0.35.3
+
 allowBuilds:
   '@prisma/engines': true
   '@scarf/scarf': true
