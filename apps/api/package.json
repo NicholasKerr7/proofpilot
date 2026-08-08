@@ -45,7 +45,7 @@
     "@types/pdfkit": "^0.17.6",
     "@types/pg": "^8.20.4",
     "@types/swagger-ui-express": "^4.1.8",
-    "eslint": "^9.39.5",
+    "eslint": "^10.8.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.66.0",
     "vitest": "^4.1.10"
