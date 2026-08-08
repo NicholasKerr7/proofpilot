@@ -418,7 +418,12 @@
 }
 
 .valueLabel {
+  max-width: 82cqi;
+  overflow: hidden;
+  line-height: 1;
+  text-overflow: ellipsis;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .progress .valueLabel {

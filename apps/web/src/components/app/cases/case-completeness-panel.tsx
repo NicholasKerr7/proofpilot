@@ -22,14 +22,14 @@ export function CaseCompletenessPanel({
 
   return (
     <Card>
-      <CardHeader className="grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
+      <CardHeader className="grid-cols-1 items-start gap-4 min-[360px]:grid-cols-[minmax(0,1fr)_auto]">
         <div>
           <CardTitle>Case completeness</CardTitle>
           <CardDescription>
             Weighted checks for the evidence, timeline, requirements, and saved statement.
           </CardDescription>
         </div>
-        <div className="grid justify-items-end gap-1">
+        <div className="grid justify-items-start gap-1 min-[360px]:justify-items-end">
           <Badge variant={completeness.score >= 80 ? "success" : "warning"}>
             {completeness.score}% complete
           </Badge>
