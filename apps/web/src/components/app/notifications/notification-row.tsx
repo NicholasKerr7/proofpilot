@@ -62,7 +62,7 @@ export function NotificationRow({
           </span>
           <span className="min-w-0">
             <span className="flex flex-wrap items-center gap-2">
-              <span className="break-words text-sm font-semibold leading-5 text-foreground">
+              <span className="min-w-0 max-w-full [overflow-wrap:anywhere] text-sm font-semibold leading-5 text-foreground">
                 {notification.title}
               </span>
               {isUnread ? <Badge>New</Badge> : null}
