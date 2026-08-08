@@ -127,6 +127,13 @@ export class CaseRecordsService {
       include: {
         ...buildCaseAccessInclude(userId),
         caseType: true,
+        documents: {
+          select: {
+            status: true
+          }
+        },
+        checklist: checklistQuery,
+        events: timelineQuery,
         _count: {
           select: {
             documents: true,
@@ -139,14 +146,17 @@ export class CaseRecordsService {
       }
     });
 
-    return caseRecords.map(({ collaborators, sharingSettings, ...caseRecord }) => ({
-      ...caseRecord,
-      access: createCaseAccess(userId, {
-        collaborators,
-        ownerId: caseRecord.ownerId,
-        sharingSettings
+    return caseRecords.map(
+      ({ collaborators, documents, sharingSettings, ...caseRecord }) => ({
+        ...caseRecord,
+        access: createCaseAccess(userId, {
+          collaborators,
+          ownerId: caseRecord.ownerId,
+          sharingSettings
+        }),
+        documentStats: getDocumentStats(documents)
       })
-    }));
+    );
   }
 
   /** Returns the full active case workspace payload for an authorized user. */
@@ -193,12 +203,7 @@ export class CaseRecordsService {
         ownerId: caseRecord.ownerId,
         sharingSettings
       }),
-      documentStats: {
-        failed: documents.filter((document) => document.status === DocumentStatus.FAILED).length,
-        processed: documents.filter((document) => document.status === DocumentStatus.PROCESSED)
-          .length,
-        total: documents.length
-      }
+      documentStats: getDocumentStats(documents)
     };
   }
 
@@ -366,6 +371,14 @@ export class CaseRecordsService {
 
     return { id: caseId, archived: true };
   }
+}
+
+function getDocumentStats(documents: Array<{ status: DocumentStatus }>) {
+  return {
+    failed: documents.filter((document) => document.status === DocumentStatus.FAILED).length,
+    processed: documents.filter((document) => document.status === DocumentStatus.PROCESSED).length,
+    total: documents.length
+  };
 }
 
 /** Keeps audit metadata limited to fields supplied by the caller. */

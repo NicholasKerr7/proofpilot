@@ -81,6 +81,7 @@ function createPrismaMock() {
     },
     case: {
       findFirst: vi.fn(),
+      findMany: vi.fn(),
       update: vi.fn().mockResolvedValue({})
     },
     casePacket: {
@@ -181,6 +182,59 @@ describe("CasesService", () => {
       missingCount: 0,
       status: "READY_FOR_REVIEW"
     });
+  });
+
+  it("lists the inputs needed for accurate completeness without exposing document rows", async () => {
+    prisma.case.findMany.mockResolvedValue([
+      {
+        ...createOwnerAccess(),
+        id: caseId,
+        title: "Resolved Amazon appeal",
+        documents: [
+          { status: DocumentStatus.PROCESSED },
+          { status: DocumentStatus.PROCESSED },
+          { status: DocumentStatus.FAILED }
+        ],
+        checklist: [
+          { id: "checklist-1", status: ChecklistStatus.FOUND }
+        ],
+        events: [],
+        caseType: { id: "case-type-1" },
+        _count: {
+          documents: 3,
+          events: 0,
+          checklist: 1,
+          statements: 1,
+          submissions: 1
+        }
+      }
+    ]);
+
+    const result = await service.list(ownerId);
+
+    expect(prisma.case.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          documents: {
+            select: { status: true }
+          },
+          checklist: expect.any(Object),
+          events: expect.any(Object)
+        })
+      })
+    );
+    expect(result[0]).toEqual(
+      expect.objectContaining({
+        id: caseId,
+        checklist: [{ id: "checklist-1", status: ChecklistStatus.FOUND }],
+        documentStats: {
+          failed: 1,
+          processed: 2,
+          total: 3
+        }
+      })
+    );
+    expect(result[0]).not.toHaveProperty("documents");
   });
 
   it("returns owned case document status totals without exposing document rows", async () => {
