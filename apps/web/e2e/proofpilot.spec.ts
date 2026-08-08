@@ -319,7 +319,7 @@ test.describe("ProofPilot responsive workspace", () => {
       await expect(
         page.getByRole("heading", {
           exact: true,
-          level: 2,
+          level: 3,
           name: "Completion overview"
         })
       ).toBeVisible();
