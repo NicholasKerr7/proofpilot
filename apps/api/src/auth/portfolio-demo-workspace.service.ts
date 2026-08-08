@@ -30,6 +30,20 @@ const portfolioDemoTemplateInclude = {
       events: {
         orderBy: [{ sortOrder: "asc" }, { occurredAt: "asc" }]
       },
+      packets: {
+        include: {
+          exports: {
+            orderBy: { createdAt: "asc" },
+            where: { storageKey: { startsWith: "demo-samples/" } }
+          }
+        },
+        orderBy: { createdAt: "asc" },
+        where: {
+          exports: {
+            some: { storageKey: { startsWith: "demo-samples/" } }
+          }
+        }
+      },
       reminders: { orderBy: { createdAt: "asc" } },
       sharingSettings: true,
       statementGuidance: true,
@@ -583,6 +597,26 @@ export class PortfolioDemoWorkspaceService {
             status: task.status,
             title: task.title
           }))
+        });
+      }
+
+      for (const packet of sourceCase.packets) {
+        await transaction.casePacket.create({
+          data: {
+            caseId: createdCase.id,
+            createdAt: packet.createdAt,
+            exports: {
+              create: packet.exports.map((packetExport) => ({
+                byteSize: packetExport.byteSize,
+                createdAt: packetExport.createdAt,
+                includedDocumentCount: packetExport.includedDocumentCount,
+                indexedDocumentCount: packetExport.indexedDocumentCount,
+                pageCount: packetExport.pageCount,
+                storageKey: packetExport.storageKey
+              }))
+            },
+            status: packet.status
+          }
         });
       }
     }

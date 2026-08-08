@@ -210,7 +210,7 @@ pnpm db:generate
 pnpm db:deploy
 ```
 
-Run `pnpm db:seed` only for local demo or controlled staging data. The seed creates the demo Nicholas Kerr account, sample case records, and a guided assistant conversation.
+Run `pnpm db:seed` only for local demo or controlled staging data. The seed creates the demo Nicholas Kerr account, active and resolved case lifecycles, synthetic evidence, packet histories, submission outcomes, and a guided assistant conversation.
 
 If an existing non-empty database was created before migrations with `pnpm db:push`, baseline it only after confirming the schema matches the initial migration:
 

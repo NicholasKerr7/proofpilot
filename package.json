@@ -7,12 +7,14 @@
     "node": ">=22.0.0"
   },
   "scripts": {
+    "assets:demo-packets": "pnpm --filter @proofpilot/worker exec tsx ../../scripts/generate-demo-packets.ts",
+    "check:demo-packets": "tsc --noEmit -p scripts/tsconfig.json",
     "dev": "node --env-file=.env node_modules/turbo/bin/turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",
     "smoke:packet": "node scripts/smoke-packet-flow.mjs",
     "storage:bootstrap": "pnpm --filter @proofpilot/storage storage:bootstrap",
-    "typecheck": "turbo typecheck",
+    "typecheck": "turbo typecheck && pnpm check:demo-packets",
     "test": "turbo test",
     "test:integration": "pnpm --filter @proofpilot/api test:integration",
     "test:e2e": "pnpm --filter @proofpilot/web test:e2e",
@@ -24,6 +26,8 @@
     "db:seed": "pnpm --filter @proofpilot/database db:seed"
   },
   "devDependencies": {
+    "@types/node": "^20.19.43",
+    "pdf-lib": "^1.17.1",
     "turbo": "^2.8.0",
     "typescript": "^5.9.3"
   }

@@ -10,6 +10,8 @@ import type { PacketGenerationQueueService } from "../queue/packet-generation-qu
 import type { CaseAccessGuard } from "./case-access.guard.js";
 import { packetSelect, type PacketRecord } from "./case-selects.js";
 
+const demoPacketStoragePrefix = "demo-samples/packets/";
+
 /** Owns packet generation state, queue submission, and signed export access. */
 export class CasePacketsService {
   constructor(
@@ -134,6 +136,20 @@ async function toPublicPacket(packet: PacketRecord) {
     updatedAt: packet.updatedAt,
     exports: await Promise.all(
       packet.exports.map(async (packetExport) => {
+        const demoAssetUrl = getDemoPacketAssetUrl(packetExport.storageKey);
+        if (demoAssetUrl) {
+          return {
+            id: packetExport.id,
+            byteSize: packetExport.byteSize,
+            pageCount: packetExport.pageCount,
+            includedDocumentCount: packetExport.includedDocumentCount,
+            indexedDocumentCount: packetExport.indexedDocumentCount,
+            createdAt: packetExport.createdAt,
+            downloadUrl: demoAssetUrl,
+            previewUrl: demoAssetUrl
+          };
+        }
+
         const [downloadUrl, previewUrl] = await Promise.all([
           createPresignedDownloadUrl({
             disposition: "attachment",
@@ -162,4 +178,13 @@ async function toPublicPacket(packet: PacketRecord) {
       })
     )
   };
+}
+
+function getDemoPacketAssetUrl(storageKey: string) {
+  if (!storageKey.startsWith(demoPacketStoragePrefix)) {
+    return null;
+  }
+
+  const fileName = storageKey.slice(demoPacketStoragePrefix.length);
+  return /^[a-z0-9-]+\.pdf$/.test(fileName) ? `/demo-assets/${fileName}` : null;
 }

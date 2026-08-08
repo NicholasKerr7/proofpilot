@@ -16,6 +16,7 @@ import {
   DocumentSource,
   DocumentStatus,
   InvoiceStatus,
+  PacketStatus,
   SubscriptionStatus,
   SupportMessageAuthor,
   SupportRequestCategory,
@@ -74,6 +75,8 @@ const requirements = [
 
 const demoCaseId = "demo-nicholas-paypal-appeal";
 const demoStatementId = "demo-nicholas-paypal-statement";
+const demoAmazonCaseId = "demo-nicholas-amazon-appeal";
+const demoAmazonStatementId = "demo-nicholas-amazon-statement";
 const demoCaseSummary =
   "PayPal limited the account after a payment review. The saved timeline covers the restriction notice, support contact, and appeal preparation. Current evidence includes the limitation notice and account records, with ownership proof still being gathered. Nicholas is requesting restored access or a specific explanation of any remaining requirements.";
 const demoEvidence = [
@@ -118,6 +121,36 @@ const demoEvidence = [
     rationale: "The activity export provides dated context for ordinary completed payments.",
     source: DocumentSource.GOOGLE_DRIVE_IMPORT,
     sourceReference: "drive-transaction-history"
+  },
+  {
+    id: "demo-nicholas-document-communication-log",
+    byteSize: 911_360,
+    checklistItemId: "demo-nicholas-checklist-6",
+    confidence: 0.92,
+    content:
+      "Communication record for PayPal case PP-2026-0147. May 4: permanent limitation notice received. May 6: support case opened. May 12: initial appeal submitted. May 22: initial appeal denied. July 28: identity evidence requested. August 4: second-review packet prepared.",
+    entity: { type: "REFERENCE", value: "PP-2026-0147" },
+    eventId: "demo-nicholas-event-support",
+    mimeType: "application/pdf",
+    originalName: "communication-log.pdf",
+    rationale: "The dated communication record supports the sequence of platform contacts and appeal actions.",
+    source: DocumentSource.GOOGLE_DRIVE_IMPORT,
+    sourceReference: "drive-communication-log"
+  },
+  {
+    id: "demo-nicholas-document-passport",
+    byteSize: 2_513_852,
+    checklistItemId: "demo-nicholas-checklist-5",
+    confidence: 0.97,
+    content:
+      "Synthetic passport identity page for Nicholas James Kerr. Generated demonstration evidence for case PP-2026-0147; it does not represent a real identity document.",
+    entity: { type: "PERSON", value: "Nicholas James Kerr" },
+    eventId: null,
+    mimeType: "image/png",
+    originalName: "synthetic-passport.png",
+    rationale: "The synthetic identity page demonstrates account ownership evidence without using real identity data.",
+    source: DocumentSource.GOOGLE_DRIVE_IMPORT,
+    sourceReference: "drive-identity-verification"
   }
 ] as const;
 
@@ -475,6 +508,9 @@ async function main() {
 
   for (const evidence of demoEvidence) {
     const storageKey = `demo-samples/evidence/${evidence.originalName}`;
+    const byteSize = "byteSize" in evidence
+      ? evidence.byteSize
+      : Buffer.byteLength(evidence.content);
     const sha256 = createHash("sha256")
       .update(evidence.content)
       .digest("hex");
@@ -482,7 +518,7 @@ async function main() {
     await prisma.document.upsert({
       where: { id: evidence.id },
       update: {
-        byteSize: Buffer.byteLength(evidence.content),
+        byteSize,
         caseId: demoCase.id,
         extractedText: evidence.content,
         mimeType: evidence.mimeType,
@@ -495,7 +531,7 @@ async function main() {
       },
       create: {
         id: evidence.id,
-        byteSize: Buffer.byteLength(evidence.content),
+        byteSize,
         caseId: demoCase.id,
         extractedText: evidence.content,
         mimeType: evidence.mimeType,
@@ -574,8 +610,10 @@ async function main() {
     }
   }
 
+  const firstStatementDraft =
+    "I am requesting a review of my PayPal account limitation. The account was used for legitimate payments and routine business activity. Please review the attached notice and support correspondence and restore access.";
   const statementContent =
-    "I am requesting a review of my PayPal account limitation. The account was used for legitimate payments and routine business activity. I am collecting the limitation notice, support correspondence, ownership proof, and transaction context so PayPal can verify the account activity and restore access or explain the remaining requirements.";
+    "I am requesting a second review of the permanent limitation placed on my PayPal account. The account supported legitimate customer payments and routine supplier expenses. The attached limitation notice, support correspondence, transaction history, and identity record show that I own the account and that the reviewed activity was ordinary business activity. I respectfully request restored access or a specific explanation of any remaining verification requirement.";
 
   await prisma.caseStatement.upsert({
     where: { id: demoStatementId },
@@ -593,15 +631,30 @@ async function main() {
   await prisma.statementVersion.upsert({
     where: { id: "demo-nicholas-paypal-statement-v1" },
     update: {
-      content: statementContent,
+      content: firstStatementDraft,
       statementId: demoStatementId,
       version: 1
     },
     create: {
       id: "demo-nicholas-paypal-statement-v1",
-      content: statementContent,
+      content: firstStatementDraft,
       statementId: demoStatementId,
       version: 1
+    }
+  });
+
+  await prisma.statementVersion.upsert({
+    where: { id: "demo-nicholas-paypal-statement-v2" },
+    update: {
+      content: statementContent,
+      statementId: demoStatementId,
+      version: 2
+    },
+    create: {
+      id: "demo-nicholas-paypal-statement-v2",
+      content: statementContent,
+      statementId: demoStatementId,
+      version: 2
     }
   });
 
@@ -643,6 +696,45 @@ async function main() {
       id: "demo-nicholas-paypal-summary-v1",
       caseId: demoCase.id,
       content: demoCaseSummary
+    }
+  });
+
+  const paypalPacketCreatedAt = addMinutes(new Date(), -240);
+  const paypalPacket = await prisma.casePacket.upsert({
+    where: { id: "demo-nicholas-paypal-packet" },
+    update: {
+      caseId: demoCase.id,
+      createdAt: paypalPacketCreatedAt,
+      status: PacketStatus.READY
+    },
+    create: {
+      id: "demo-nicholas-paypal-packet",
+      caseId: demoCase.id,
+      createdAt: paypalPacketCreatedAt,
+      status: PacketStatus.READY
+    }
+  });
+
+  await prisma.packetExport.upsert({
+    where: { id: "demo-nicholas-paypal-packet-export" },
+    update: {
+      byteSize: 2_631_883,
+      createdAt: paypalPacketCreatedAt,
+      includedDocumentCount: 5,
+      indexedDocumentCount: 5,
+      packetId: paypalPacket.id,
+      pageCount: 12,
+      storageKey: "demo-samples/packets/paypal-account-closure-appeal.pdf"
+    },
+    create: {
+      id: "demo-nicholas-paypal-packet-export",
+      byteSize: 2_631_883,
+      createdAt: paypalPacketCreatedAt,
+      includedDocumentCount: 5,
+      indexedDocumentCount: 5,
+      packetId: paypalPacket.id,
+      pageCount: 12,
+      storageKey: "demo-samples/packets/paypal-account-closure-appeal.pdf"
     }
   });
 
@@ -841,8 +933,8 @@ async function main() {
     },
     {
       id: "demo-nicholas-task-preview",
-      title: "Generate packet preview",
-      description: "Review the full packet before submission.",
+      title: "Regenerate packet preview",
+      description: "Refresh the packet after the remaining ownership evidence is confirmed.",
       priority: TaskPriority.MEDIUM,
       status: TaskStatus.TODO,
       progress: 0,
@@ -1095,7 +1187,18 @@ async function main() {
       id: "demo-nicholas-audit-statement-saved",
       action: "case.statement_saved",
       createdAt: addMinutes(activityNow, -165),
-      metadata: { statementId: demoStatementId, version: 1 }
+      metadata: { statementId: demoStatementId, version: 2 }
+    },
+    {
+      id: "demo-nicholas-audit-packet-generated",
+      action: "case.packet_generated",
+      createdAt: addMinutes(activityNow, -240),
+      metadata: {
+        includedDocumentCount: 5,
+        indexedDocumentCount: 5,
+        packetId: paypalPacket.id,
+        pageCount: 12
+      }
     },
     {
       id: "demo-nicholas-audit-checklist-analyzed",
@@ -1215,6 +1318,538 @@ async function main() {
       }
     });
   }
+
+  await seedResolvedAmazonCase({
+    caseTypeId: caseType.id,
+    userId: user.id
+  });
+}
+
+async function seedResolvedAmazonCase(input: { caseTypeId: string; userId: string }) {
+  const caseCreatedAt = new Date("2026-03-03T15:00:00.000Z");
+  const caseUpdatedAt = new Date("2026-04-18T18:00:00.000Z");
+  const submittedAt = new Date("2026-03-11T17:30:00.000Z");
+  const resolvedAt = new Date("2026-03-19T18:10:00.000Z");
+  const amazonSummary =
+    "Amazon deactivated the seller account after a short carrier disruption affected fulfillment metrics. Nicholas documented the affected orders, implemented handling-time and backup-carrier controls, submitted a plan of action, and received reinstatement approval.";
+  const amazonStatementDraft =
+    "I am requesting reinstatement of my Amazon seller account. A temporary carrier interruption caused several late shipments, and all affected buyers have now been contacted.";
+  const amazonStatement =
+    "I am requesting reinstatement of my Amazon seller account following the fulfillment-rate review. The late shipment metric resulted from a temporary carrier interruption, all affected buyers were contacted, and every delayed order was delivered or refunded. I have updated handling times, enabled backup-carrier routing, and documented a weekly account-health review. The attached records verify account ownership, the affected orders, and the corrective actions now in place.";
+  const amazonCase = await prisma.case.upsert({
+    where: { id: demoAmazonCaseId },
+    update: {
+      archivedAt: null,
+      caseTypeId: input.caseTypeId,
+      createdAt: caseCreatedAt,
+      deadline: null,
+      ownerId: input.userId,
+      platform: "Amazon",
+      status: CaseStatus.RESOLVED,
+      summary: amazonSummary,
+      title: "Amazon seller account deactivation appeal",
+      updatedAt: caseUpdatedAt
+    },
+    create: {
+      id: demoAmazonCaseId,
+      caseTypeId: input.caseTypeId,
+      createdAt: caseCreatedAt,
+      deadline: null,
+      ownerId: input.userId,
+      platform: "Amazon",
+      status: CaseStatus.RESOLVED,
+      summary: amazonSummary,
+      title: "Amazon seller account deactivation appeal",
+      updatedAt: caseUpdatedAt
+    }
+  });
+
+  for (const requirement of requirements) {
+    const manuallyCompleted = requirement.sortOrder === 3 || requirement.sortOrder === 6;
+
+    await prisma.caseChecklistItem.upsert({
+      where: { id: `demo-nicholas-amazon-checklist-${requirement.sortOrder}` },
+      update: {
+        caseId: amazonCase.id,
+        description: requirement.description,
+        label: requirement.label,
+        manuallyCompletedAt: manuallyCompleted ? resolvedAt : null,
+        requirementId: `account-ban-${requirement.sortOrder}`,
+        status: manuallyCompleted ? ChecklistStatus.COMPLETE : ChecklistStatus.FOUND
+      },
+      create: {
+        id: `demo-nicholas-amazon-checklist-${requirement.sortOrder}`,
+        caseId: amazonCase.id,
+        createdAt: caseCreatedAt,
+        description: requirement.description,
+        label: requirement.label,
+        manuallyCompletedAt: manuallyCompleted ? resolvedAt : null,
+        requirementId: `account-ban-${requirement.sortOrder}`,
+        status: manuallyCompleted ? ChecklistStatus.COMPLETE : ChecklistStatus.FOUND
+      }
+    });
+  }
+
+  const amazonEvents = [
+    {
+      id: "demo-nicholas-amazon-event-deactivated",
+      occurredAt: caseCreatedAt,
+      title: "Seller account deactivated",
+      description:
+        "The account-health notice identified fulfillment metrics requiring corrective action."
+    },
+    {
+      id: "demo-nicholas-amazon-event-acknowledged",
+      occurredAt: submittedAt,
+      title: "Plan of action acknowledged",
+      description:
+        "Seller Support confirmed receipt and requested carrier-remediation records."
+    },
+    {
+      id: "demo-nicholas-amazon-event-evidence",
+      occurredAt: new Date("2026-03-16T16:00:00.000Z"),
+      title: "Corrective evidence submitted",
+      description:
+        "Affected-order resolutions and updated fulfillment controls were added to the appeal."
+    },
+    {
+      id: "demo-nicholas-amazon-event-reinstated",
+      occurredAt: resolvedAt,
+      title: "Seller account reinstated",
+      description: "Amazon approved the appeal and restored selling privileges."
+    }
+  ];
+
+  for (const [sortOrder, event] of amazonEvents.entries()) {
+    await prisma.caseEvent.upsert({
+      where: { id: event.id },
+      update: {
+        caseId: amazonCase.id,
+        confidence: 0.96,
+        description: event.description,
+        occurredAt: event.occurredAt,
+        sortOrder,
+        title: event.title
+      },
+      create: {
+        ...event,
+        caseId: amazonCase.id,
+        confidence: 0.96,
+        createdAt: event.occurredAt,
+        sortOrder
+      }
+    });
+  }
+
+  const amazonEvidence = [
+    {
+      id: "demo-nicholas-amazon-document-health-notice",
+      byteSize: 428_610,
+      content:
+        "Amazon Seller Performance notice dated March 3, 2026. The seller account was deactivated after the valid tracking rate and late shipment rate fell below the required threshold. Reference AMZ-SP-88421.",
+      entity: { type: "REFERENCE", value: "AMZ-SP-88421" },
+      eventIds: [
+        "demo-nicholas-amazon-event-deactivated"
+      ],
+      mimeType: "application/pdf",
+      originalName: "account-health-notice.pdf",
+      requirementSortOrders: [1, 6],
+      source: DocumentSource.GOOGLE_DRIVE_IMPORT,
+      sourceReference: "amazon-account-health-notice"
+    },
+    {
+      id: "demo-nicholas-amazon-document-support-thread",
+      byteSize: 186_220,
+      content:
+        "Amazon Seller Support confirmed receipt of the plan of action on March 11, 2026 and requested proof of carrier remediation, affected-order resolution, and updated handling-time controls. On March 19, support confirmed that selling privileges were restored.",
+      entity: { type: "DATE", value: "2026-03-19" },
+      eventIds: [
+        "demo-nicholas-amazon-event-acknowledged",
+        "demo-nicholas-amazon-event-reinstated"
+      ],
+      mimeType: "message/rfc822",
+      originalName: "seller-support-thread.eml",
+      requirementSortOrders: [2],
+      source: DocumentSource.GMAIL_IMPORT,
+      sourceReference: "amazon-seller-support-thread"
+    },
+    {
+      id: "demo-nicholas-amazon-document-orders",
+      byteSize: 12_840,
+      content:
+        "order,ship_by,delivered,resolution\n114-2041,2026-02-21,2026-02-26,Buyer notified\n114-2088,2026-02-22,2026-02-27,Shipping refunded\n114-2110,2026-02-23,2026-02-25,Delivered",
+      entity: { type: "ORDER", value: "114-2041" },
+      eventIds: ["demo-nicholas-amazon-event-evidence"],
+      mimeType: "text/csv",
+      originalName: "order-fulfillment-summary.csv",
+      requirementSortOrders: [4],
+      source: DocumentSource.GOOGLE_DRIVE_IMPORT,
+      sourceReference: "amazon-order-fulfillment-summary"
+    },
+    {
+      id: "demo-nicholas-amazon-document-identity",
+      byteSize: 384_920,
+      content:
+        "Seller identity verification for Nicholas Kerr and Northline Studio LLC. The business name, tax profile, payout account ending in 4242, and primary contact email match the suspended seller account.",
+      entity: { type: "ORGANIZATION", value: "Northline Studio LLC" },
+      eventIds: ["demo-nicholas-amazon-event-evidence"],
+      mimeType: "application/pdf",
+      originalName: "seller-identity-verification.pdf",
+      requirementSortOrders: [5],
+      source: DocumentSource.GOOGLE_DRIVE_IMPORT,
+      sourceReference: "amazon-seller-identity-verification"
+    }
+  ] as const;
+
+  for (const evidence of amazonEvidence) {
+    const storageKey = `demo-samples/evidence/amazon/${evidence.originalName}`;
+    const sha256 = createHash("sha256").update(evidence.content).digest("hex");
+
+    await prisma.document.upsert({
+      where: { id: evidence.id },
+      update: {
+        byteSize: evidence.byteSize,
+        caseId: amazonCase.id,
+        extractedText: evidence.content,
+        mimeType: evidence.mimeType,
+        originalName: evidence.originalName,
+        sha256,
+        source: evidence.source,
+        sourceReference: evidence.sourceReference,
+        status: DocumentStatus.PROCESSED,
+        storageKey
+      },
+      create: {
+        id: evidence.id,
+        byteSize: evidence.byteSize,
+        caseId: amazonCase.id,
+        createdAt: caseCreatedAt,
+        extractedText: evidence.content,
+        mimeType: evidence.mimeType,
+        originalName: evidence.originalName,
+        sha256,
+        source: evidence.source,
+        sourceReference: evidence.sourceReference,
+        status: DocumentStatus.PROCESSED,
+        storageKey
+      }
+    });
+    await prisma.documentEntity.upsert({
+      where: { id: `${evidence.id}-entity` },
+      update: {
+        confidence: 0.96,
+        documentId: evidence.id,
+        type: evidence.entity.type,
+        value: evidence.entity.value
+      },
+      create: {
+        id: `${evidence.id}-entity`,
+        confidence: 0.96,
+        documentId: evidence.id,
+        type: evidence.entity.type,
+        value: evidence.entity.value
+      }
+    });
+    await prisma.documentProcessingLog.upsert({
+      where: { id: `${evidence.id}-processing` },
+      update: {
+        documentId: evidence.id,
+        message: "Sample evidence extraction and review completed.",
+        status: "COMPLETED",
+        step: "TEXT_EXTRACTION"
+      },
+      create: {
+        id: `${evidence.id}-processing`,
+        documentId: evidence.id,
+        message: "Sample evidence extraction and review completed.",
+        status: "COMPLETED",
+        step: "TEXT_EXTRACTION"
+      }
+    });
+
+    for (const requirementSortOrder of evidence.requirementSortOrders) {
+      await prisma.caseRequirementMatch.upsert({
+        where: { id: `${evidence.id}-match-${requirementSortOrder}` },
+        update: {
+          checklistItemId: `demo-nicholas-amazon-checklist-${requirementSortOrder}`,
+          confidence: 0.96,
+          documentId: evidence.id,
+          rationale: "The processed evidence directly supports this completed requirement.",
+          requirementId: `account-ban-${requirementSortOrder}`
+        },
+        create: {
+          id: `${evidence.id}-match-${requirementSortOrder}`,
+          checklistItemId: `demo-nicholas-amazon-checklist-${requirementSortOrder}`,
+          confidence: 0.96,
+          documentId: evidence.id,
+          rationale: "The processed evidence directly supports this completed requirement.",
+          requirementId: `account-ban-${requirementSortOrder}`
+        }
+      });
+    }
+
+    for (const eventId of evidence.eventIds) {
+      await prisma.eventSource.upsert({
+        where: { id: `${evidence.id}-${eventId}-source` },
+        update: { documentId: evidence.id, eventId },
+        create: {
+          id: `${evidence.id}-${eventId}-source`,
+          documentId: evidence.id,
+          eventId
+        }
+      });
+    }
+  }
+
+  await prisma.caseStatement.upsert({
+    where: { id: demoAmazonStatementId },
+    update: { caseId: amazonCase.id, content: amazonStatement },
+    create: {
+      id: demoAmazonStatementId,
+      caseId: amazonCase.id,
+      content: amazonStatement,
+      createdAt: submittedAt
+    }
+  });
+
+  const amazonStatementVersions = [amazonStatementDraft, amazonStatement];
+
+  for (const [index, content] of amazonStatementVersions.entries()) {
+    const version = index + 1;
+    await prisma.statementVersion.upsert({
+      where: { id: `demo-nicholas-amazon-statement-v${version}` },
+      update: { content, statementId: demoAmazonStatementId, version },
+      create: {
+        id: `demo-nicholas-amazon-statement-v${version}`,
+        content,
+        createdAt: addDays(submittedAt, index),
+        statementId: demoAmazonStatementId,
+        version
+      }
+    });
+  }
+
+  await prisma.statementGuidance.upsert({
+    where: { caseId: amazonCase.id },
+    update: {
+      accountUse: "The account sold original home-office accessories through Northline Studio LLC.",
+      actionDate: "The deactivation notice arrived on March 3, 2026.",
+      platformAction: "Amazon deactivated the seller account after a fulfillment-rate review.",
+      reasonGiven: "Late shipment and valid tracking metrics fell below the required threshold.",
+      requestedOutcome: "Restore selling privileges after reviewing the corrective plan and order records.",
+      supportContact: "Seller Support acknowledged the plan of action and requested carrier-remediation evidence.",
+      supportingDocuments: "Account-health notice, support thread, order report, and seller identity verification."
+    },
+    create: {
+      id: "demo-nicholas-amazon-statement-guidance",
+      accountUse: "The account sold original home-office accessories through Northline Studio LLC.",
+      actionDate: "The deactivation notice arrived on March 3, 2026.",
+      caseId: amazonCase.id,
+      platformAction: "Amazon deactivated the seller account after a fulfillment-rate review.",
+      reasonGiven: "Late shipment and valid tracking metrics fell below the required threshold.",
+      requestedOutcome: "Restore selling privileges after reviewing the corrective plan and order records.",
+      supportContact: "Seller Support acknowledged the plan of action and requested carrier-remediation evidence.",
+      supportingDocuments: "Account-health notice, support thread, order report, and seller identity verification."
+    }
+  });
+
+  await prisma.caseSummary.upsert({
+    where: { id: "demo-nicholas-amazon-summary-v1" },
+    update: { caseId: amazonCase.id, content: amazonSummary },
+    create: {
+      id: "demo-nicholas-amazon-summary-v1",
+      caseId: amazonCase.id,
+      content: amazonSummary,
+      createdAt: resolvedAt
+    }
+  });
+
+  const amazonSubmission = await prisma.caseSubmission.upsert({
+    where: { id: "demo-nicholas-amazon-submission-round-1" },
+    update: {
+      caseId: amazonCase.id,
+      channel: AppealSubmissionChannel.WEB_PORTAL,
+      confirmationCode: "AMZ-SP-88421",
+      destination: "Amazon Seller Performance",
+      notes: "Submitted the corrective plan with order, carrier, and ownership records.",
+      resolvedAt,
+      responseDueAt: new Date("2026-03-25T17:00:00.000Z"),
+      round: 1,
+      status: AppealSubmissionStatus.APPROVED,
+      submittedAt
+    },
+    create: {
+      id: "demo-nicholas-amazon-submission-round-1",
+      caseId: amazonCase.id,
+      channel: AppealSubmissionChannel.WEB_PORTAL,
+      confirmationCode: "AMZ-SP-88421",
+      createdAt: submittedAt,
+      destination: "Amazon Seller Performance",
+      notes: "Submitted the corrective plan with order, carrier, and ownership records.",
+      resolvedAt,
+      responseDueAt: new Date("2026-03-25T17:00:00.000Z"),
+      round: 1,
+      status: AppealSubmissionStatus.APPROVED,
+      submittedAt
+    }
+  });
+
+  const amazonSubmissionUpdates = [
+    {
+      id: "demo-nicholas-amazon-submission-update-submitted",
+      details: "Submitted the plan of action and supporting records through Seller Central.",
+      occurredAt: submittedAt,
+      status: AppealSubmissionStatus.SUBMITTED,
+      title: "Reinstatement appeal submitted",
+      type: SubmissionUpdateType.STATUS_CHANGE
+    },
+    {
+      id: "demo-nicholas-amazon-submission-update-review",
+      details: "Seller Performance confirmed receipt and began reviewing the corrective plan.",
+      occurredAt: new Date("2026-03-12T15:15:00.000Z"),
+      status: AppealSubmissionStatus.UNDER_REVIEW,
+      title: "Appeal moved to review",
+      type: SubmissionUpdateType.ACKNOWLEDGEMENT
+    },
+    {
+      id: "demo-nicholas-amazon-submission-update-approved",
+      details: "Amazon approved the plan of action and restored selling privileges.",
+      occurredAt: resolvedAt,
+      status: AppealSubmissionStatus.APPROVED,
+      title: "Seller account reinstated",
+      type: SubmissionUpdateType.DECISION
+    }
+  ];
+
+  for (const update of amazonSubmissionUpdates) {
+    await prisma.submissionUpdate.upsert({
+      where: { id: update.id },
+      update: { ...update, submissionId: amazonSubmission.id },
+      create: { ...update, submissionId: amazonSubmission.id }
+    });
+  }
+
+  const amazonPacketCreatedAt = new Date("2026-03-10T19:00:00.000Z");
+  const amazonPacket = await prisma.casePacket.upsert({
+    where: { id: "demo-nicholas-amazon-packet" },
+    update: {
+      caseId: amazonCase.id,
+      createdAt: amazonPacketCreatedAt,
+      status: PacketStatus.READY
+    },
+    create: {
+      id: "demo-nicholas-amazon-packet",
+      caseId: amazonCase.id,
+      createdAt: amazonPacketCreatedAt,
+      status: PacketStatus.READY
+    }
+  });
+
+  await prisma.packetExport.upsert({
+    where: { id: "demo-nicholas-amazon-packet-export" },
+    update: {
+      byteSize: 9_785,
+      createdAt: amazonPacketCreatedAt,
+      includedDocumentCount: 4,
+      indexedDocumentCount: 4,
+      packetId: amazonPacket.id,
+      pageCount: 5,
+      storageKey: "demo-samples/packets/amazon-seller-reinstatement-appeal.pdf"
+    },
+    create: {
+      id: "demo-nicholas-amazon-packet-export",
+      byteSize: 9_785,
+      createdAt: amazonPacketCreatedAt,
+      includedDocumentCount: 4,
+      indexedDocumentCount: 4,
+      packetId: amazonPacket.id,
+      pageCount: 5,
+      storageKey: "demo-samples/packets/amazon-seller-reinstatement-appeal.pdf"
+    }
+  });
+
+  await prisma.notification.upsert({
+    where: { id: "demo-nicholas-notification-amazon-resolved" },
+    update: {
+      body: "Amazon approved the corrective plan and restored selling privileges.",
+      caseId: amazonCase.id,
+      createdAt: resolvedAt,
+      inAppVisible: true,
+      readAt: addDays(resolvedAt, 1),
+      title: "Amazon seller account reinstated",
+      type: "case_resolved",
+      userId: input.userId
+    },
+    create: {
+      id: "demo-nicholas-notification-amazon-resolved",
+      body: "Amazon approved the corrective plan and restored selling privileges.",
+      caseId: amazonCase.id,
+      createdAt: resolvedAt,
+      inAppVisible: true,
+      readAt: addDays(resolvedAt, 1),
+      title: "Amazon seller account reinstated",
+      type: "case_resolved",
+      userId: input.userId
+    }
+  });
+
+  const amazonAuditLogs = [
+    {
+      id: "demo-nicholas-amazon-audit-created",
+      action: "case.created",
+      createdAt: caseCreatedAt,
+      metadata: { platform: "Amazon", title: amazonCase.title }
+    },
+    {
+      id: "demo-nicholas-amazon-audit-packet",
+      action: "case.packet_generated",
+      createdAt: amazonPacketCreatedAt,
+      metadata: {
+        includedDocumentCount: 4,
+        indexedDocumentCount: 4,
+        packetId: amazonPacket.id,
+        pageCount: 5
+      }
+    },
+    {
+      id: "demo-nicholas-amazon-audit-submitted",
+      action: "case.submission_created",
+      createdAt: submittedAt,
+      metadata: {
+        channel: AppealSubmissionChannel.WEB_PORTAL,
+        round: 1,
+        submissionId: amazonSubmission.id
+      }
+    },
+    {
+      id: "demo-nicholas-amazon-audit-resolved",
+      action: "case.submission_updated",
+      createdAt: resolvedAt,
+      metadata: {
+        status: AppealSubmissionStatus.APPROVED,
+        submissionId: amazonSubmission.id,
+        title: "Seller account reinstated"
+      }
+    }
+  ];
+
+  for (const log of amazonAuditLogs) {
+    await prisma.auditLog.upsert({
+      where: { id: log.id },
+      update: {
+        action: log.action,
+        caseId: amazonCase.id,
+        createdAt: log.createdAt,
+        metadata: log.metadata,
+        userId: input.userId
+      },
+      create: {
+        ...log,
+        caseId: amazonCase.id,
+        userId: input.userId
+      }
+    });
+  }
 }
 
 function addDays(value: Date, days: number) {
@@ -1257,7 +1892,7 @@ function getDemoChecklistStatus(sortOrder: number) {
     return ChecklistStatus.COMPLETE;
   }
 
-  if (sortOrder === 2) {
+  if (sortOrder === 2 || sortOrder === 5) {
     return ChecklistStatus.NEEDS_REVIEW;
   }
 

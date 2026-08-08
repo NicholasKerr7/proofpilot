@@ -773,6 +773,41 @@ describe("CasesService", () => {
     });
   });
 
+  it("serves immutable demo packet exports from the bundled web assets", async () => {
+    const packetExportCreatedAt = new Date("2026-01-01T12:02:00.000Z");
+    prisma.case.findFirst.mockResolvedValue(createOwnerAccess());
+    prisma.casePacket.findMany.mockResolvedValue([
+      createPacketRecord({
+        status: PacketStatus.READY,
+        exports: [
+          {
+            id: "demo-export-1",
+            storageKey: "demo-samples/packets/paypal-account-closure-appeal.pdf",
+            byteSize: 2_631_883,
+            pageCount: 12,
+            includedDocumentCount: 5,
+            indexedDocumentCount: 5,
+            createdAt: packetExportCreatedAt
+          }
+        ]
+      })
+    ]);
+
+    const result = await service.listPackets(ownerId, caseId);
+
+    expect(storageMocks.createPresignedDownloadUrl).not.toHaveBeenCalled();
+    expect(result[0]?.exports[0]).toEqual({
+      id: "demo-export-1",
+      byteSize: 2_631_883,
+      pageCount: 12,
+      includedDocumentCount: 5,
+      indexedDocumentCount: 5,
+      createdAt: packetExportCreatedAt,
+      downloadUrl: "/demo-assets/paypal-account-closure-appeal.pdf",
+      previewUrl: "/demo-assets/paypal-account-closure-appeal.pdf"
+    });
+  });
+
   it("returns an existing generating packet without enqueueing a duplicate job", async () => {
     const existingPacket = createPacketRecord({ id: "packet-existing" });
     prisma.case.findFirst.mockResolvedValue({ id: caseId, ownerId });

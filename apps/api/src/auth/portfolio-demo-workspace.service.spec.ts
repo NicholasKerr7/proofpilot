@@ -97,6 +97,23 @@ function createTemplate() {
           }
         ],
         id: "template-case-1",
+        packets: [
+          {
+            createdAt: new Date("2026-05-10T12:00:00.000Z"),
+            exports: [
+              {
+                byteSize: 2_631_883,
+                createdAt: new Date("2026-05-10T12:01:00.000Z"),
+                includedDocumentCount: 5,
+                indexedDocumentCount: 5,
+                pageCount: 12,
+                storageKey: "demo-samples/packets/paypal-account-closure-appeal.pdf"
+              }
+            ],
+            id: "template-packet-1",
+            status: "READY"
+          }
+        ],
         platform: "PayPal",
         reminders: [],
         sharingSettings: null,
@@ -157,6 +174,7 @@ function createPrismaMock() {
       create: vi.fn().mockResolvedValue({ id: "portfolio-checklist-1" })
     },
     caseCollaborator: { createMany: vi.fn() },
+    casePacket: { create: vi.fn() },
     caseEvent: {
       create: vi.fn().mockResolvedValue({ id: "portfolio-event-1" })
     },
@@ -288,6 +306,25 @@ describe("PortfolioDemoWorkspaceService", () => {
           ]
         }
       })
+    });
+    expect(prisma.transaction.casePacket.create).toHaveBeenCalledWith({
+      data: {
+        caseId: "portfolio-case-1",
+        createdAt: new Date("2026-05-10T12:00:00.000Z"),
+        exports: {
+          create: [
+            {
+              byteSize: 2_631_883,
+              createdAt: new Date("2026-05-10T12:01:00.000Z"),
+              includedDocumentCount: 5,
+              indexedDocumentCount: 5,
+              pageCount: 12,
+              storageKey: "demo-samples/packets/paypal-account-closure-appeal.pdf"
+            }
+          ]
+        },
+        status: "READY"
+      }
     });
     expect(prisma.transaction.auditLog.create).toHaveBeenCalledWith({
       data: {

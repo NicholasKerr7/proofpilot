@@ -8,6 +8,12 @@ importers:
 
   .:
     devDependencies:
+      '@types/node':
+        specifier: ^20.19.43
+        version: 20.19.43
+      pdf-lib:
+        specifier: ^1.17.1
+        version: 1.17.1
       turbo:
         specifier: ^2.8.0
         version: 2.10.2
