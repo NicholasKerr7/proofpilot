@@ -424,8 +424,9 @@
 .progress .valueLabel {
   margin-top: 3.64cqi;
   color: #cfd3d8;
-  font-size: clamp(0.625rem, 6.82cqi, 0.9375rem);
+  font-size: clamp(0.5rem, 6.82cqi, 0.9375rem);
   font-weight: 700;
+  line-height: 1;
   filter: drop-shadow(0 0 2.27cqi rgb(255 255 255 / 0.22));
 }
 
