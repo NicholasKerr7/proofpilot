@@ -24,13 +24,13 @@
     "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "^7.9.1",
-    "@prisma/client": "^7.9.1",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
     "dotenv": "^17.4.2",
-    "pg": "^8.22.0"
+    "pg": "^8.23.1"
   },
   "devDependencies": {
-    "@types/pg": "^8.20.4",
+    "@types/pg": "^8.23.1",
     "prisma": "^7.9.1",
     "tsx": "^4.23.10",
     "typescript": "^5.9.3"
